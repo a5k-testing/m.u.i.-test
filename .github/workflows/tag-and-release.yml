@@ -73,7 +73,8 @@ jobs:
     if: "${{ github.ref_type == 'branch' }}"
     uses: "./.github/workflows/auto-release-from-tag.yml"
     with:
-      tag-name: "${{ needs.create-tag.outputs.tag-name }}"
+      #tag-name: "${{ needs.create-tag.outputs.tag-name }}"
+      tag-name: ""
     permissions:
       contents: write # Needed to create a release
       id-token: write # Needed to attest build provenance
