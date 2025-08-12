@@ -6,11 +6,6 @@ name: "Coverage"
 permissions: {}
 on:
   push:
-    paths-ignore:
-      - ".github/**"
-      - ".gitlab/**"
-      - ".gitlab-ci.yml"
-      - ".travis.yml"
     branches-ignore:
       - "dependabot/**"
     tags:
