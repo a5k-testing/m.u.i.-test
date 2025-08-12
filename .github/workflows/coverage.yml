@@ -6,8 +6,8 @@ name: "Coverage"
 permissions: {}
 on:
   push:
-    branches-ignore:
-      - "dependabot/**"
+    branches:
+      - "**"
     tags:
       - "v*.*"
   pull_request:
