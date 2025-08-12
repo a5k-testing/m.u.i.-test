@@ -11,8 +11,8 @@ on:
       - ".gitlab/**"
       - ".gitlab-ci.yml"
       - ".travis.yml"
-    branches:
-      - "**"
+    branches-ignore:
+      - "dependabot/**"
     tags:
       - "v*.*"
   pull_request:
