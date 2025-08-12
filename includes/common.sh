@@ -392,25 +392,28 @@ _dl_validate_status_code_from_header_file()
   test "${DL_DEBUG:?}" != 'true' || ui_debug "Status code: ${_status_code?}"
 
   case "${_status_code?}" in
-    2*) return 0 ;;  # Usually 200 => OK
-    3*) return 3 ;;  # Usually 302 => Redirect
-    404) return 4 ;; # 404 => Not Found
+    2*) return 0 ;;   # Successful responses like "200 OK" => OK
+    3*) return 30 ;;  # Various types of redirects => follow them
+    403) return 43 ;; # 403 Forbidden (the server is refusing us) => do NOT re-try to use the same server
+    404) return 44 ;; # 404 Not Found (the file was deleted) => skip it
+    5*) return 50 ;;  # Various types of server errors => do NOT re-try to use the same server
     *) ;;
   esac
 
-  return 1 # Unknown
+  return 99 # Unknown error
 }
 
 _parse_webpage_and_get_url()
 {
-  local _url _referrer _search_pattern
+  local _desc _url _referrer _search_pattern
   local _domain _cookies _parsed_code _parsed_url _status
   local _headers_file
   local _status_code
 
-  _url="${1:?}"
-  _referrer="${2?}"
-  _search_pattern="${3:?}"
+  _desc="${1?}"
+  _url="${2:?}"
+  _referrer="${3?}"
+  _search_pattern="${4:?}"
 
   _domain="$(get_domain_from_url "${_url:?}")" || return 9
   _parsed_code=''
@@ -433,7 +436,11 @@ _parse_webpage_and_get_url()
 
   _parsed_code="$("${WGET_CMD:?}" -q -O '-' "${@}" -- "${_url:?}" 2> "${_headers_file:?}")" || _status="${?}"
   test "${DL_DEBUG:?}" != 'true' || cat 1>&2 "${_headers_file:?}"
-  _dl_validate_status_code_from_header_file "${_headers_file:?}" || return 15
+  _dl_validate_status_code_from_header_file "${_headers_file:?}" || {
+    _status="${?}"
+    ui_debug "Failed at ${_desc?}"
+    return "${_status:?}"
+  }
   _dl_validate_exit_code 'wget' "${_status:?}" || return 16
   test -n "${_parsed_code?}" || return 17
 
@@ -734,6 +741,11 @@ _set_url()
   _CURRENT_URL="${1:?}"
 }
 
+_set_referrer()
+{
+  _PREVIOUS_URL="${1:?}"
+}
+
 _deinit_dl()
 {
   unset _CURRENT_URL
@@ -761,17 +773,18 @@ dl_type_one()
   _base_url="$(get_base_url "${1:?}")" || report_failure_one "${?}" || return "${?}"
 
   _set_url "${1:?}"
-  _result="$(_parse_webpage_and_get_url "${_CURRENT_URL:?}" "${_PREVIOUS_URL?}" 'downloadButton[^"]*"\s*href="[^"]*"')" || {
+  _set_referrer "${_base_url:?}/"
+  _result="$(_parse_webpage_and_get_url 'get link 1' "${_CURRENT_URL:?}" "${_PREVIOUS_URL?}" 'downloadButton[^"]*"\s*href="[^"]*"')" || {
     report_failure_one "${?}" 'get link 1' "${_result?}" || return "${?}"
   }
 
-  sleep 0.2
+  sleep '0.2'
   _set_url "${_base_url:?}${_result:?}"
-  _result="$(_parse_webpage_and_get_url "${_CURRENT_URL:?}" "${_PREVIOUS_URL?}" 'Your\sdownload\swill\sstart.*href="[^"]*"')" || {
+  _result="$(_parse_webpage_and_get_url 'get link 2' "${_CURRENT_URL:?}" "${_PREVIOUS_URL?}" 'Your\sdownload\swill\sstart.*href="[^"]*"')" || {
     report_failure_one "${?}" 'get link 2' "${_result?}" || return "${?}"
   }
 
-  sleep 0.3
+  sleep '0.4'
   _set_url "${_base_url:?}${_result:?}"
   _direct_download "${_CURRENT_URL:?}" "${2:?}" 'GET' "${_PREVIOUS_URL?}" || {
     report_failure_one "${?}" 'dl' || return "${?}"
@@ -838,7 +851,7 @@ dl_type_two()
     report_failure 2 "${?}" 'get location code' || return "${?}"
   if test "${DL_DEBUG:?}" = 'true'; then printf '%s\n' "Loc code: ${_loc_code?}"; fi
 
-  sleep 0.2
+  sleep '0.2'
   _json_response="$(send_web_request_and_output_response "${_base_api_url:?}/accounts" 'POST' "${_base_referrer:?}" "${_base_origin:?}" '' '' '')" ||
     report_failure 2 "${?}" 'do AJAX post req' || return "${?}"
   if test "${DL_DEBUG:?}" = 'true'; then printf '%s\n' "${_json_response?}"; fi
@@ -848,7 +861,7 @@ dl_type_two()
   _token_code="$(parse_json_and_retrieve_first_value_by_key "${_json_response:?}" 'token')" ||
     report_failure 2 "${?}" 'parse JSON 2' || return "${?}"
 
-  sleep 0.2
+  sleep '0.2'
   _json_response="$(send_web_request_and_output_response "${_base_api_url:?}/accounts/${_id_code:?}" 'GET' "${_base_referrer:?}" "${_base_origin:?}" "Bearer ${_token_code:?}")" ||
     report_failure 2 "${?}" 'do AJAX get req 1' || return "${?}"
   if test "${DL_DEBUG:?}" = 'true'; then printf '%s\n' "${_json_response?}"; fi
@@ -861,7 +874,7 @@ dl_type_two()
   #send_web_request_and_no_output "${DL_PROT:?}${_second_level_domain:?}/contents/files.html" 'GET' "${_base_referrer:?}" '' '' 'all' ||
   #  report_failure 2 "${?}" 'do req files.html' || return "${?}"
 
-  sleep 0.2
+  sleep '0.2'
   _json_response="$(send_web_request_and_output_response "${_base_api_url:?}/contents/${_loc_code:?}?"'wt''=''4fd6''sg89''d7s6' 'GET' "${_base_referrer:?}" "${_base_origin:?}" "Bearer ${_token_code:?}")" ||
     report_failure 2 "${?}" 'do AJAX get req 2' || return "${?}"
   if test "${DL_DEBUG:?}" = 'true'; then printf '%s\n' "${_json_response?}"; fi
@@ -885,7 +898,7 @@ dl_type_two()
   fi
   if test "${DL_DEBUG:?}" = 'true'; then printf '\n%s\n' "Parsed link: ${_parsed_link?}"; fi
 
-  sleep 0.3
+  sleep '0.3'
   _direct_download "${_parsed_link:?}" "${_output:?}" 'GET' "${_base_referrer:?}" ||
     report_failure 2 "${?}" 'dl' || return "${?}"
 }
@@ -905,7 +918,7 @@ dl_file()
   if ! test -e "${BUILD_CACHE_DIR:?}/${1:?}/${2:?}"; then
     mkdir -p "${BUILD_CACHE_DIR:?}/${1:?}" || ui_error "Failed to create the ${1?} folder inside the cache dir"
 
-    if test "${CI:-false}" = 'false'; then sleep 0.5; else sleep 3; fi
+    if test "${CI:-false}" = 'false'; then sleep '0.5'; else sleep 3; fi
     case "${_domain:?}" in
       *\.'go''file''.io' | 'go''file''.io')
         printf '\n %s: ' 'DL type 2'
