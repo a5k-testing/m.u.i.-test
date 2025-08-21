@@ -26,16 +26,13 @@ jobs:
         uses: a5k-actions/shellchecker@v0
 
   reuse:
-    name: "REUSE compliance check"
+    name: "..."
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: "false"
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v5
-      - name: "REUSE compliance check"
-        uses: fsfe/reuse-action@v5
       - name: "..."
         shell: bash
         run: |
