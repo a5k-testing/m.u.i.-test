@@ -36,6 +36,11 @@ jobs:
         uses: actions/checkout@v5
       - name: "REUSE compliance check"
         uses: fsfe/reuse-action@v5
+      - name: "..."
+        shell: bash
+        run: |
+          echo "_${GITHUB_HEAD_REF}_"
+          echo "_${GITHUB_REF_NAME}_"
 
   json-yaml-validate:
     name: "JSON and YAML"
