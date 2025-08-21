@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v5
-      - name: "..."
+      - name: "...."
         shell: bash
         run: |
           echo "_${GITHUB_HEAD_REF}_"
