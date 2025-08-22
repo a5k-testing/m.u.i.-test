@@ -26,18 +26,16 @@ jobs:
         uses: a5k-actions/shellchecker@v0
 
   reuse:
-    name: "..."
+    name: "REUSE compliance check"
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: "${{ false }}"
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v5
-      - name: "..."
-        shell: bash
-        run: |
-          echo "_${GITHUB_HEAD_REF}_"
-          echo "_${GITHUB_REF_NAME}_"
+      - name: "REUSE compliance check"
+        uses: fsfe/reuse-action@v5
 
   json-yaml-validate:
     name: "JSON and YAML"
