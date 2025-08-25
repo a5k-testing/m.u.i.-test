@@ -58,6 +58,7 @@ jobs:
             }).catch(responseUser => responseUser);
             if(responseUser && responseUser.status === 200 && responseUser.data) {
               // User data retrieved correctly
+              console.log('::notice::Name: ' + responseUser.data.name);
             } else {
               let errorMsg = 'getByUsername failed';
               if(responseUser && responseUser.status && responseUser.message) errorMsg += ' with error ' + responseUser.status + ' (' + responseUser.message + ')';
