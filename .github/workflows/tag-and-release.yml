@@ -52,7 +52,7 @@ jobs:
             console.log('::notice::Release date: ' + release_date);
             const responseUser = await github.rest.users.getByUsername({
               username: context.actor
-            }).catch(responseUser => responseUser);
+            }).catch(e => responseUser);
             if(responseUser && responseUser.status === 200 && responseUser.data) {
               // User data retrieved correctly
             } else {
@@ -64,7 +64,7 @@ jobs:
             const email = responseUser.data.email ? responseUser.data.email : actor_id + '+' + context.actor + '@users.noreply.github.com';
             const responseTag = await github.rest.git.createTag({
               owner: context.repo.owner,
-              repo: context.repo.repo,
+              repo: context.repo.repo+'X',
               tag: tag_name,
               message: 'Release ' + tag_name,
               object: context.sha,
@@ -76,8 +76,13 @@ jobs:
               }
             }).catch(e => responseTag);
             if(responseTag && responseTag.status === 201) {
-              // Tag object created correctly
               console.log('::notice::Tag object created correctly.');
+              if(responseUser.data)
+              {
+                console.log('::notice::Verified: ' + responseUser.data.verified);
+                console.log('::notice::Signature: ' + responseUser.data.signature);
+                console.log(JSON.stringify(responseUser.data));
+              }
             } else {
               let errorMsg = 'createTag failed';
               if(responseTag && responseTag.status && responseTag.message) errorMsg += ' with error ' + responseTag.status + ' (' + responseTag.message + ')';
