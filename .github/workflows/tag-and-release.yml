@@ -78,17 +78,14 @@ jobs:
                 date: release_date
               }
             }).catch(responseTag => responseTag);
-            if(responseTag && responseTag.status === 201) {
+            if(responseTag && responseTag.status === 201 && responseTag.data && responseTag.data.sha) {
               console.log('::notice::Tag object created correctly.');
-              if(responseTag.data)
+              if(responseTag.data.verification)
               {
-                if(responseTag.data.verification)
-                {
-                  console.log('::notice::Verified: ' + responseTag.data.verification.verified);
-                  console.log('::notice::Signature: ' + responseTag.data.verification.signature);
-                }
-                console.log(JSON.stringify(responseTag.data));
+                console.log('::notice::Verified: ' + responseTag.data.verification.verified);
+                console.log('::notice::Signature: ' + responseTag.data.verification.signature);
               }
+              console.log(JSON.stringify(responseTag.data));
             } else {
               let errorMsg = 'createTag failed';
               if(responseTag && responseTag.status && responseTag.message) errorMsg += ' with error ' + responseTag.status + ' (' + responseTag.message + ')';
@@ -98,7 +95,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: 'refs/tags/' + tag_name,
-              sha: context.sha
+              sha: responseTag.data.sha
             }).catch(response => response);
             if(response && response.status === 201) {
               console.log('Tag ref created.');
