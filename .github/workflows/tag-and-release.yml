@@ -43,6 +43,27 @@ jobs:
             /* jshint esversion: 6 */
             const tag_name = process.env.TAG_NAME;
             console.log('::notice::Tag: ' + tag_name);
+            console.log('1: '+context.repo.owner);
+            console.log('2: '+context.actor);
+            console.log('3: '+context.sha);
+            console.log('4: '+context.ref);
+            throw new Error('abc');
+            return false;
+            //
+            const response = await github.rest.git.createTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag_name,
+              message: 'initial version',
+              object: context.sha,
+              type: 'commit',
+              tagger: {
+                name: 'Monalisa Octocat',
+                email: 'octocat@github.com',
+                date: '2011-06-17T14:53:35-07:00'
+              }
+            }).catch(response => response);
+            
             const response = await github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
