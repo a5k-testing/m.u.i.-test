@@ -53,17 +53,15 @@ jobs:
             const responseUser = await github.rest.users.getByUsername({
               username: context.actor
             }).catch(responseUser => responseUser);
-            let email;
             if(responseUser && responseUser.status === 200 && responseUser.data) {
-              // If no public e-mail, use default
-              email = responseUser.data.email ? responseUser.data.email : actor_id + '+' + context.actor + '@users.noreply.github.com';
+              // User data retrieved correctly
             } else {
               let errorMsg = 'getByUsername failed';
               if(responseUser && responseUser.status && responseUser.message) errorMsg += ' with error ' + responseUser.status + ' (' + responseUser.message + ')';
               throw new Error(errorMsg);
             }
-            console.log('E-mail:' + email);
-            //
+            // If public e-mail is missing, use default
+            const email = responseUser.data.email ? responseUser.data.email : actor_id + '+' + context.actor + '@users.noreply.github.com';
             const responseTag = await github.rest.git.createTag({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -73,10 +71,18 @@ jobs:
               type: 'commit',
               tagger: {
                 name: context.actor,
-                email: 'octocat@github.com',
+                email: email,
                 date: release_date
               }
             }).catch(e => responseTag);
+            if(responseTag && responseTag.status === 201) {
+              // Tag object created correctly
+              console.log('::notice::Tag object created correctly.');
+            } else {
+              let errorMsg = 'createTag failed';
+              if(responseTag && responseTag.status && responseTag.message) errorMsg += ' with error ' + responseTag.status + ' (' + responseTag.message + ')';
+              throw new Error(errorMsg);
+            }
             //
             throw new Error('abc');
             //
