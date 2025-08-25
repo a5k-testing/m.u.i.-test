@@ -52,6 +52,11 @@ jobs:
             const responseUser = await github.rest.users.getByUsername({
               username: context.actor
             }).catch(responseUser => responseUser);
+            if(responseUser) console.log('1');
+            if(responseUser && responseUser.status) console.log('2: '+responseUser.status);
+            if(responseUser && responseUser.status === 200) console.log('2');
+            if(responseUser && responseUser.status === 200 && responseUser.data) console.log('3');
+            if(responseUser && responseUser.status === 200 && responseUser.data && responseUser.data.email) console.log('4');
             if(responseUser && responseUser.status === 200 && responseUser.data && responseUser.data.email) {
               console.log('E-mail:' + responseUser.data.email);
             } else {
