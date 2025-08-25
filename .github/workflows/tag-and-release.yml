@@ -25,30 +25,45 @@ jobs:
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v5
-      - name: "Parse version"
+      - name: "Parse info"
         id: "repo-info"
         shell: bash
         run: |
-          # Parsing version...
+          # Parsing info...
           version="$(grep -m 1 -e '^version=' -- './zip-content/module.prop' | cut -d '=' -f '2-' -s)" || exit "${?}"
+          release_date="$(date -u -Is)" || exit "${?}"
           printf 'version=%s\n' "${version:?}" 1>> "${GITHUB_OUTPUT?}" || exit "${?}"
+          printf 'release_date=%s\n' "${release_date:?}" 1>> "${GITHUB_OUTPUT?}" || exit "${?}"
       - name: "Create tag"
         uses: actions/github-script@v7
         timeout-minutes: 5
         env:
+          #ACTOR_ID: "${{ github.actor_id }}"
           TAG_NAME: "${{ steps.repo-info.outputs.version }}"
+          RELEASE_DATE: "${{ steps.repo-info.outputs.release_date }}"
         with:
           retries: 3
           script: |
             /* jshint esversion: 6 */
             const tag_name = process.env.TAG_NAME;
+            const release_date = process.env.RELEASE_DATE;
             console.log('::notice::Tag: ' + tag_name);
-            console.log('1: '+context.repo.owner);
-            console.log('2: '+context.actor);
-            console.log('3: '+context.sha);
-            console.log('4: '+context.ref);
+            console.log('::notice::Release date: ' + release_date);
+            const responseUser = await github.rest.users.getByUsername({
+              username: context.actor
+            }).catch(e => responseUser);
+            if(responseUser && responseUser.status === 200 && responseUser.data && responseUser.data.email) {
+              console.log('E-mail:'+responseUser.data.email);
+              return true;
+            } else {
+              let errorMsg = 'getByUsername failed';
+              if(responseUser) {
+                if(responseUser.status && responseUser.message) errorMsg += ' with error ' + responseUser.status + ' (' + responseUser.message + ')';
+              }
+              throw new Error(errorMsg);
+            }            
+            //
             throw new Error('abc');
-            return false;
             //
             const responseTag = await github.rest.git.createTag({
               owner: context.repo.owner,
@@ -58,9 +73,9 @@ jobs:
               object: context.sha,
               type: 'commit',
               tagger: {
-                name: 'Monalisa Octocat',
+                name: context.actor,
                 email: 'octocat@github.com',
-                date: '2011-06-17T14:53:35-07:00'
+                date: release_date
               }
             }).catch(e => responseTag);
             //
