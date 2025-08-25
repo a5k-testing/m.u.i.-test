@@ -13,12 +13,13 @@ jobs:
     name: "Create tag"
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ github.ref_type == 'branch' }}"
+    if: "${{ github.ref_type == 'branch' && github.run_attempt == '1' }}"
     concurrency:
       group: "${{ github.repository_id }}-${{ github.workflow }}-tag"
-      cancel-in-progress: true
+      cancel-in-progress: false
     outputs:
       tag-name: "${{ steps.repo-info.outputs.version }}"
+      tag-creation-success: "${{ steps.tag-creation.outputs.result }}"
     permissions:
       contents: write # Needed to create a tag
 
@@ -35,6 +36,7 @@ jobs:
           printf 'version=%s\n' "${version:?}" 1>> "${GITHUB_OUTPUT?}" || exit "${?}"
           printf 'release_date=%s\n' "${release_date:?}" 1>> "${GITHUB_OUTPUT?}" || exit "${?}"
       - name: "Create tag"
+        id: tag-creation
         uses: actions/github-script@v7
         timeout-minutes: 5
         env:
@@ -42,6 +44,7 @@ jobs:
           TAG_NAME: "${{ steps.repo-info.outputs.version }}"
           RELEASE_DATE: "${{ steps.repo-info.outputs.release_date }}"
         with:
+          result-encoding: string
           retries: 3
           script: |
             /* jshint esversion: 6 */
@@ -79,8 +82,11 @@ jobs:
               console.log('::notice::Tag object created correctly.');
               if(responseTag.data)
               {
-                console.log('::notice::Verified: ' + responseTag.data.verified);
-                console.log('::notice::Signature: ' + responseTag.data.signature);
+                if(responseTag.data.verification)
+                {
+                  console.log('::notice::Verified: ' + responseTag.data.verification.verified);
+                  console.log('::notice::Signature: ' + responseTag.data.verification.signature);
+                }
                 console.log(JSON.stringify(responseTag.data));
               }
             } else {
@@ -88,9 +94,6 @@ jobs:
               if(responseTag && responseTag.status && responseTag.message) errorMsg += ' with error ' + responseTag.status + ' (' + responseTag.message + ')';
               throw new Error(errorMsg);
             }
-            //
-            throw new Error('abc');
-            //
             const response = await github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -98,11 +101,10 @@ jobs:
               sha: context.sha
             }).catch(response => response);
             if(response && response.status === 201) {
-              console.log('Tag created.');
+              console.log('Tag ref created.');
               return true;
             } else if(response && response.status === 422 && response.message === 'Reference already exists') {
-              //console.warn('::warning::Tag already exist!!!');
-              throw new Error('Tag already exist!!!');
+              console.warn('::warning::Tag already exist!!!');
             } else {
               let errorMsg = 'createRef failed';
               if(response) {
@@ -118,7 +120,7 @@ jobs:
   call-workflow:
     name: "Call workflow"
     needs: [create-tag]
-    if: "${{ github.ref_type == 'branch' }}"
+    if: "${{ needs.create-tag.outputs.tag-creation-success == 'true' }}"
     uses: "./.github/workflows/auto-release-from-tag.yml"
     with:
       tag-name: "${{ needs.create-tag.outputs.tag-name }}"
