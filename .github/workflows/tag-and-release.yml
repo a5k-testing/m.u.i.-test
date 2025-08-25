@@ -50,7 +50,7 @@ jobs:
             throw new Error('abc');
             return false;
             //
-            const response = await github.rest.git.createTag({
+            const responseTag = await github.rest.git.createTag({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag: tag_name,
@@ -62,8 +62,8 @@ jobs:
                 email: 'octocat@github.com',
                 date: '2011-06-17T14:53:35-07:00'
               }
-            }).catch(response => response);
-            
+            }).catch(e => responseTag);
+            //
             const response = await github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
