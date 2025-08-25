@@ -47,29 +47,24 @@ jobs:
             /* jshint esversion: 6 */
             const tag_name = process.env.TAG_NAME;
             const release_date = process.env.RELEASE_DATE;
-            console.log('::notice::Tag: ' + tag_name);
+            console.log('::notice::Tag name: ' + tag_name);
             console.log('::notice::Release date: ' + release_date);
             const responseUser = await github.rest.users.getByUsername({
               username: context.actor
-            }).catch(e => responseUser);
+            }).catch(responseUser => responseUser);
             if(responseUser && responseUser.status === 200 && responseUser.data && responseUser.data.email) {
-              console.log('E-mail:'+responseUser.data.email);
-              return true;
+              console.log('E-mail:' + responseUser.data.email);
             } else {
               let errorMsg = 'getByUsername failed';
-              if(responseUser) {
-                if(responseUser.status && responseUser.message) errorMsg += ' with error ' + responseUser.status + ' (' + responseUser.message + ')';
-              }
+              if(responseUser && responseUser.status && responseUser.message) errorMsg += ' with error ' + responseUser.status + ' (' + responseUser.message + ')';
               throw new Error(errorMsg);
-            }            
-            //
-            throw new Error('abc');
+            }
             //
             const responseTag = await github.rest.git.createTag({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag: tag_name,
-              message: 'initial version',
+              message: 'Release ' + tag_name,
               object: context.sha,
               type: 'commit',
               tagger: {
@@ -78,6 +73,8 @@ jobs:
                 date: release_date
               }
             }).catch(e => responseTag);
+            //
+            throw new Error('abc');
             //
             const response = await github.rest.git.createRef({
               owner: context.repo.owner,
