@@ -54,11 +54,8 @@ jobs:
               username: context.actor
             }).catch(responseUser => responseUser);
             if(responseUser && responseUser.status === 200 && responseUser.data) {
-              if(responseUser.data.email)
-                const email = responseUser.data.email;
-              else
-                # No public e-mail, using default
-                const email = actor_id + '+' + context.actor + '@users.noreply.github.com';
+              // If no public e-mail, use default
+              const email = responseUser.data.email ? responseUser.data.email : actor_id + '+' + context.actor + '@users.noreply.github.com';
             } else {
               let errorMsg = 'getByUsername failed';
               if(responseUser && responseUser.status && responseUser.message) errorMsg += ' with error ' + responseUser.status + ' (' + responseUser.message + ')';
