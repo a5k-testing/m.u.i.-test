@@ -52,7 +52,7 @@ jobs:
             console.log('::notice::Release date: ' + release_date);
             const responseUser = await github.rest.users.getByUsername({
               username: context.actor
-            }).catch(e => responseUser);
+            }).catch(responseUser => responseUser);
             if(responseUser && responseUser.status === 200 && responseUser.data) {
               // User data retrieved correctly
             } else {
@@ -74,7 +74,7 @@ jobs:
                 email: email,
                 date: release_date
               }
-            }).catch(e => responseTag);
+            }).catch(responseTag => responseTag);
             if(responseTag && responseTag.status === 201) {
               console.log('::notice::Tag object created correctly.');
               if(responseUser.data)
