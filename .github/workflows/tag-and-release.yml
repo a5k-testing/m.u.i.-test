@@ -96,9 +96,9 @@ jobs:
               console.log('Tag object created correctly.');
               if(responseTag.data.verification)
               {
-                console.log('::notice::Verified: ' + responseTag.data.verification.verified);
-                console.log('::notice::Reason: ' + responseTag.data.verification.reason);
-                console.log('::notice::Verification date: ' + responseTag.data.verification.verified_at);
+                console.log('::notice::Tag - verified: ' + responseTag.data.verification.verified);
+                console.log('::notice::Tag - reason: ' + responseTag.data.verification.reason);
+                console.log('::notice::Tag - verification date: ' + responseTag.data.verification.verified_at);
               }
               //console.log(JSON.stringify(responseTag.data));
             } else {
