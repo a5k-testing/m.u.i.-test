@@ -93,12 +93,12 @@ jobs:
               }
             }).catch(responseTag => responseTag);
             if(responseTag && responseTag.status === 201 && responseTag.data && responseTag.data.sha) {
-              console.log('Tag object created correctly.');
+              console.log('Tag object created correctly: ' + responseTag.data.sha);
               if(responseTag.data.verification)
               {
-                console.log('::notice::Tag - verified: ' + responseTag.data.verification.verified);
-                console.log('::notice::Tag - reason: ' + responseTag.data.verification.reason);
-                console.log('::notice::Tag - verification date: ' + responseTag.data.verification.verified_at);
+                console.log('Tag - verified: ' + responseTag.data.verification.verified);
+                console.log('Tag - reason: ' + responseTag.data.verification.reason);
+                console.log('Tag - verification date: ' + responseTag.data.verification.verified_at);
               }
               //console.log(JSON.stringify(responseTag.data));
             } else {
@@ -111,7 +111,7 @@ jobs:
               sha: responseTag.data.sha
             }).catch(response => response);
             if(response && response.status === 201) {
-              console.log('Tag ref created correctly.');
+              console.log('Tag ref created correctly:' + response.data.sha);
               return true;
             } else if(response && response.status === 422 && response.message === 'Reference already exists') {
               console.warn('::warning::Tag already exist!!!');
