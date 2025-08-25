@@ -77,11 +77,11 @@ jobs:
             }).catch(responseTag => responseTag);
             if(responseTag && responseTag.status === 201) {
               console.log('::notice::Tag object created correctly.');
-              if(responseUser.data)
+              if(responseTag.data)
               {
-                console.log('::notice::Verified: ' + responseUser.data.verified);
-                console.log('::notice::Signature: ' + responseUser.data.signature);
-                console.log(JSON.stringify(responseUser.data));
+                console.log('::notice::Verified: ' + responseTag.data.verified);
+                console.log('::notice::Signature: ' + responseTag.data.signature);
+                console.log(JSON.stringify(responseTag.data));
               }
             } else {
               let errorMsg = 'createTag failed';
