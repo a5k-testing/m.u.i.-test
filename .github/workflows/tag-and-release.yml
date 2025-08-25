@@ -64,7 +64,7 @@ jobs:
             const email = responseUser.data.email ? responseUser.data.email : actor_id + '+' + context.actor + '@users.noreply.github.com';
             const responseTag = await github.rest.git.createTag({
               owner: context.repo.owner,
-              repo: context.repo.repo+'X',
+              repo: context.repo.repo,
               tag: tag_name,
               message: 'Release ' + tag_name,
               object: context.sha,
