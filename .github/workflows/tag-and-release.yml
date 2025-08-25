@@ -110,9 +110,8 @@ jobs:
               ref: 'refs/tags/' + tag_name,
               sha: responseTag.data.sha
             }).catch(response => response);
-            if(response && response.status === 201) {
-              console.log('Tag ref created correctly: ' + response.data.sha);
-              console.log(JSON.stringify(response.data));
+            if(response && response.status === 201 && response.data.ref) {
+              console.log('Tag ref created correctly: ' + response.data.ref);
               return true;
             } else if(response && response.status === 422 && response.message === 'Reference already exists') {
               console.warn('::warning::Tag already exist!!!');
