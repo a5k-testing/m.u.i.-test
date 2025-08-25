@@ -48,6 +48,18 @@ jobs:
           retries: 3
           script: |
             /* jshint esversion: 6 */
+            function errorOut(apiName, e)
+            {
+              let errorMsg = apiName + '() failed';
+              if(e)
+              {
+                //console.warn('e.name: ' + e.name);
+                //console.warn('e.statusText: ' + e.statusText);
+                if(e.response && e.response.headers) console.warn('Remaining rate limit: ' + e.response.headers['x-ratelimit-remaining']);
+                if(e.status || e.message) errorMsg += ' with error ' + e.status + ' (' + e.message + ')';
+              }
+              throw new Error(errorMsg);
+            }
             const actor_id = process.env.ACTOR_ID;
             const tag_name = process.env.TAG_NAME;
             const release_date = process.env.RELEASE_DATE;
@@ -56,13 +68,10 @@ jobs:
             const responseUser = await github.rest.users.getByUsername({
               username: context.actor
             }).catch(responseUser => responseUser);
-            if(responseUser && responseUser.status === 200 && responseUser.data) {
+            if(responseUser && responseUser.status === 200 && responseUser.data && responseUser.data.name) {
               // User data retrieved correctly
-              console.log('::notice::Name: ' + responseUser.data.name);
             } else {
-              let errorMsg = 'getByUsername failed';
-              if(responseUser && responseUser.status && responseUser.message) errorMsg += ' with error ' + responseUser.status + ' (' + responseUser.message + ')';
-              throw new Error(errorMsg);
+              errorOut('users.getByUsername', responseUser);
             }
             // If public e-mail is missing, use default
             const email = responseUser.data.email ? responseUser.data.email : actor_id + '+' + context.actor + '@users.noreply.github.com';
@@ -74,13 +83,13 @@ jobs:
               object: context.sha,
               type: 'commit',
               tagger: {
-                name: context.actor,
+                name: responseUser.data.name,
                 email: email,
                 date: release_date
               }
             }).catch(responseTag => responseTag);
             if(responseTag && responseTag.status === 201 && responseTag.data && responseTag.data.sha) {
-              console.log('::notice::Tag object created correctly.');
+              console.log('Tag object created correctly.');
               if(responseTag.data.verification)
               {
                 console.log('::notice::Verified: ' + responseTag.data.verification.verified);
@@ -88,9 +97,7 @@ jobs:
               }
               console.log(JSON.stringify(responseTag.data));
             } else {
-              let errorMsg = 'createTag failed';
-              if(responseTag && responseTag.status && responseTag.message) errorMsg += ' with error ' + responseTag.status + ' (' + responseTag.message + ')';
-              throw new Error(errorMsg);
+              errorOut('git.createTag', responseTag);
             }
             const response = await github.rest.git.createRef({
               owner: context.repo.owner,
@@ -104,14 +111,7 @@ jobs:
             } else if(response && response.status === 422 && response.message === 'Reference already exists') {
               console.warn('::warning::Tag already exist!!!');
             } else {
-              let errorMsg = 'createRef failed';
-              if(response) {
-                //if(response.name) console.warn('response.name: ' + response.name);
-                //if(response.statusText) console.warn('response.statusText: ' + response.statusText);
-                if(response.response && response.response.headers && response.response.headers['x-ratelimit-remaining']) console.warn('Remaining rate limit: ' + response.response.headers['x-ratelimit-remaining']);
-                if(response.status && response.message) errorMsg += ' with error ' + response.status + ' (' + response.message + ')';
-              }
-              throw new Error(errorMsg);
+              errorOut('git.createRef', response);
             }
             return false;
 
