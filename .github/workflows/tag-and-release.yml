@@ -26,15 +26,19 @@ jobs:
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            zip-content/module.prop
+          sparse-checkout-cone-mode: false
       - name: "Parse info"
         id: "repo-info"
         shell: bash
         run: |
           # Parsing info...
           version="$(grep -m 1 -e '^version=' -- './zip-content/module.prop' | cut -d '=' -f '2-' -s)" || exit "${?}"
-          release_date="$(date -u -Is)" || exit "${?}"
+          now="$(date -u -Is)" || exit "${?}"
           printf 'version=%s\n' "${version:?}" 1>> "${GITHUB_OUTPUT?}" || exit "${?}"
-          printf 'release_date=%s\n' "${release_date:?}" 1>> "${GITHUB_OUTPUT?}" || exit "${?}"
+          printf 'now=%s\n' "${now:?}" 1>> "${GITHUB_OUTPUT?}" || exit "${?}"
       - name: "Create tag"
         id: tag-creation
         uses: actions/github-script@v7
@@ -42,7 +46,7 @@ jobs:
         env:
           ACTOR_ID: "${{ github.actor_id }}"
           TAG_NAME: "${{ steps.repo-info.outputs.version }}"
-          RELEASE_DATE: "${{ steps.repo-info.outputs.release_date }}"
+          TAG_DATE: "${{ steps.repo-info.outputs.now }}"
         with:
           result-encoding: string
           retries: 3
@@ -62,9 +66,9 @@ jobs:
             }
             const actor_id = process.env.ACTOR_ID;
             const tag_name = process.env.TAG_NAME;
-            const release_date = process.env.RELEASE_DATE;
+            const tag_date = process.env.TAG_DATE;
             console.log('::notice::Tag name: ' + tag_name);
-            console.log('::notice::Release date: ' + release_date);
+            console.log('::notice::Tag date: ' + tag_date);
             const responseUser = await github.rest.users.getByUsername({
               username: context.actor
             }).catch(responseUser => responseUser);
@@ -77,7 +81,7 @@ jobs:
             const email = responseUser.data.email ? responseUser.data.email : actor_id + '+' + context.actor + '@users.noreply.github.com';
             const responseTag = await github.rest.git.createTag({
               owner: context.repo.owner,
-              repo: context.repo.repo,
+              repo: context.repo.repo+'X',
               tag: tag_name,
               message: 'Release ' + tag_name,
               object: context.sha,
@@ -85,7 +89,7 @@ jobs:
               tagger: {
                 name: responseUser.data.name,
                 email: email,
-                date: release_date
+                date: tag_date
               }
             }).catch(responseTag => responseTag);
             if(responseTag && responseTag.status === 201 && responseTag.data && responseTag.data.sha) {
@@ -93,9 +97,10 @@ jobs:
               if(responseTag.data.verification)
               {
                 console.log('::notice::Verified: ' + responseTag.data.verification.verified);
-                console.log('::notice::Signature: ' + responseTag.data.verification.signature);
+                console.log('::notice::Reason: ' + responseTag.data.verification.reason);
+                console.log('::notice::Verification date: ' + responseTag.data.verification.verified_at);
               }
-              console.log(JSON.stringify(responseTag.data));
+              //console.log(JSON.stringify(responseTag.data));
             } else {
               errorOut('git.createTag', responseTag);
             }
@@ -106,7 +111,7 @@ jobs:
               sha: responseTag.data.sha
             }).catch(response => response);
             if(response && response.status === 201) {
-              console.log('Tag ref created.');
+              console.log('Tag ref created correctly.');
               return true;
             } else if(response && response.status === 422 && response.message === 'Reference already exists') {
               console.warn('::warning::Tag already exist!!!');
