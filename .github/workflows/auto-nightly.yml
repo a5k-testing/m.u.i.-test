@@ -47,7 +47,7 @@ jobs:
           distribution: "temurin"
           java-version: "17"
       - name: "Use cache"
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         timeout-minutes: 10
         with:
           key: "build-${{ hashFiles('conf-2.sh') }}"
