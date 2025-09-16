@@ -7,7 +7,7 @@ permissions: {}
 on:
   push:
     paths:
-      - "*"
+      - "**"
       - "LICENSES/**"
       - "includes/**"
       - "tools/*.jar"
