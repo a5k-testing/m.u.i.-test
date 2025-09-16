@@ -7,6 +7,7 @@ permissions: {}
 on:
   push:
     paths:
+      - "*"
       - "LICENSES/**"
       - "includes/**"
       - "tools/*.jar"
@@ -45,7 +46,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: "temurin"
-          java-version: "17"
+          #java-version: "17"
       - name: "Use cache"
         uses: actions/cache@v4
         timeout-minutes: 10
