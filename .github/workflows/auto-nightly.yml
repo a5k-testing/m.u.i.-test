@@ -7,6 +7,7 @@ permissions: {}
 on:
   push:
     paths:
+      - ".github/workflows/auto-nightly.yml"
       - "LICENSES/**"
       - "includes/**"
       - "tools/*.jar"
@@ -41,8 +42,6 @@ jobs:
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v5
-        with:
-          lfs: true
       - name: "Setup Java"
         uses: actions/setup-java@v5
         with:
