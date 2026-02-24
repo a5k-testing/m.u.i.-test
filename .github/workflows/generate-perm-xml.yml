@@ -19,12 +19,12 @@ jobs:
 
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           lfs: true
       - name: "Use cache"
         id: cache-step
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         timeout-minutes: 5
         with:
           key: "perms-${{ hashFiles('tools/dl-perm-list.sh') }}"
@@ -42,7 +42,7 @@ jobs:
           fi
           find './zip-content' -name '*.apk' | './tools/generate-perm-xml.sh' --use-placeholders - || exit "${?}"
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: "XML permissions"
           path: "output/*.xml"
@@ -60,13 +60,13 @@ jobs:
 
     steps:
       - name: "Checkout file"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             tools/dl-perm-list.sh
           sparse-checkout-cone-mode: false
       - name: "Ping cache" # Cache expiration: 7 days
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         timeout-minutes: 5
         with:
           key: "perms-${{ hashFiles('tools/dl-perm-list.sh') }}"

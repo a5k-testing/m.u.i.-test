@@ -316,6 +316,11 @@ _backup_tmpdir="${TMPDIR:?}"
 readonly _backup_path _backup_tmpdir
 
 # Check dependencies
+echo '-------------------'
+command -v busybox
+which -- busybox
+env -- which -- busybox
+echo '-------------------'
 _our_busybox="$(env -- which -- busybox)" || fail_with_msg 'BusyBox is missing'
 _tee_cmd="$(command -v tee)" || fail_with_msg 'tee is missing'
 if test -n "${CYGPATH?}"; then

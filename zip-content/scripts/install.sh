@@ -13,7 +13,9 @@ command . "${TMP_PATH:?}/inc/common-functions.sh" || exit "${?}"
 
 setup_fakestore()
 {
-  if test "${USE_MICROG_BY_ALE5000:?}" = 0 && setup_app 1 '' 'microG Companion' 'FakeStore' 'priv-app' true false; then
+  if test "${USE_MICROG_BY_ALE5000:?}" = 0 && test "${LOW_FREE_SPACE:?}" = 0 && setup_app 1 '' 'microG Companion' 'FakeStore' 'priv-app' true false; then
+    :
+  elif test "${USE_MICROG_BY_ALE5000:?}" = 0 && setup_app 1 '' 'microG Companion' 'FakeStore-0.3.6' 'priv-app' true false; then
     :
   elif setup_app 1 '' 'microG Companion - signed by ale5000' 'FakeStoreA5K' 'priv-app' true false; then
     :
@@ -43,6 +45,7 @@ else
 fi
 
 USE_MICROG_BY_ALE5000="$(parse_setting 'general' 'USE_MICROG_BY_ALE5000' "${USE_MICROG_BY_ALE5000:?}")"
+LOW_FREE_SPACE="$(parse_setting 'general' 'LOW_FREE_SPACE' "${LOW_FREE_SPACE:?}")"
 SELECTED_MARKET=''
 
 APP_DEJAVUBACKEND="$(parse_setting 'app' 'DEJAVUBACKEND' "${APP_DEJAVUBACKEND:?}")"
@@ -73,10 +76,16 @@ if test "${SETUP_TYPE:?}" = 'install'; then
     move_rename_file "${TMP_PATH:?}/origin/profiles/lenovo_yoga_tab_3_pro_10_inches_23.xml" "${TMP_PATH:?}/files/etc/microg_device_profile.xml"
   fi
 
+  SUPPORTED_ARCH='false'
+  if is_architecture_still_supported_by_Android "${MAIN_ABI:?}"; then SUPPORTED_ARCH='true'; fi
+  readonly SUPPORTED_ARCH
+
   install_backends='false'
-  if test "${USE_MICROG_BY_ALE5000:?}" = 0 && test "${MAIN_ABI:?}" != 'armeabi' && setup_app 1 '' 'microG Services' 'GmsCore' 'priv-app' true false; then
+  if test "${USE_MICROG_BY_ALE5000:?}" = 0 && test "${LOW_FREE_SPACE:?}" = 0 && test "${SUPPORTED_ARCH:?}" = 'true' && setup_app 1 '' 'microG Services' 'GmsCore' 'priv-app' true false; then
     :
-  elif test "${MAIN_ABI:?}" != 'armeabi' && setup_app 1 '' 'microG Services - signed by ale5000' 'GmsCoreA5K' 'priv-app' true false; then
+  elif test "${USE_MICROG_BY_ALE5000:?}" = 0 && test "${SUPPORTED_ARCH:?}" = 'true' && setup_app 1 '' 'microG Services' 'GmsCore-0.3.6' 'priv-app' true false; then
+    :
+  elif test "${SUPPORTED_ARCH:?}" = 'true' && setup_app 1 '' 'microG Services - signed by ale5000' 'GmsCoreA5K' 'priv-app' true false; then
     USE_MICROG_BY_ALE5000=1
   elif setup_app 1 '' 'microG Services (vtm)' 'GmsCoreVtm' 'priv-app' false false; then
     install_backends='true'
@@ -84,11 +93,9 @@ if test "${SETUP_TYPE:?}" = 'install'; then
     install_backends='true'
   fi
 
-  setup_app 1 '' 'microG Services Framework Proxy' 'GsfProxyA5K' 'priv-app' false false
+  if setup_app 1 '' 'UnifiedNlp (legacy)' 'LegacyNetworkLocation' 'app' false false; then install_backends='true'; fi
 
-  if setup_app 1 '' 'UnifiedNlp (legacy)' 'LegacyNetworkLocation' 'app' false false; then
-    install_backends='true'
-  fi
+  setup_app 1 '' 'microG Services Framework Proxy' 'GsfProxyA5K' 'priv-app' false false
 
   if test "${install_backends:?}" = 'true'; then
     setup_app "${APP_DEJAVUBACKEND:?}" 'APP_DEJAVUBACKEND' 'Déjà Vu Location Service' 'DejaVuBackend' 'app'
@@ -97,7 +104,7 @@ if test "${SETUP_TYPE:?}" = 'install'; then
 
   # Store selection
   SELECTED_MARKET='FakeStore'
-  if is_new_architecture "${MAIN_ABI:?}" && setup_app "${APP_PLAYSTORE?}" '' 'Google Play Store' 'PlayStore' 'priv-app' true; then
+  if test "${SUPPORTED_ARCH:?}" = 'true' && setup_app "${APP_PLAYSTORE?}" '' 'Google Play Store' 'PlayStore' 'priv-app' true; then
     SELECTED_MARKET='PlayStore'
   elif setup_app "${APP_PLAYSTORE?}" '' 'Google Play Store (legacy)' 'PlayStore7' 'priv-app' true; then
     SELECTED_MARKET='PlayStore'
@@ -170,8 +177,11 @@ fi
 
 # Prepare installation
 prepare_installation
-printf '%s\n' "USE_MICROG_BY_ALE5000=${USE_MICROG_BY_ALE5000:?}" 1>> "${TMP_PATH:?}/files/etc/zips/${MODULE_ID:?}.prop"
-printf '%s\n' "SELECTED_MARKET=${SELECTED_MARKET?}" 1>> "${TMP_PATH:?}/files/etc/zips/${MODULE_ID:?}.prop"
+{
+  printf '%s\n' "USE_MICROG_BY_ALE5000=${USE_MICROG_BY_ALE5000:?}"
+  printf '%s\n' "LOW_FREE_SPACE=${LOW_FREE_SPACE:?}"
+  printf '%s\n' "SELECTED_MARKET=${SELECTED_MARKET?}"
+} 1>> "${TMP_PATH:?}/files/etc/zips/${MODULE_ID:?}.prop"
 
 # Install
 perform_installation

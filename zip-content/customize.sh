@@ -16,26 +16,52 @@ set -u 2> /dev/null || :
   (set -o pipefail 1> /dev/null 2>&1) && set -o pipefail || :
 }
 
+### MAGISK / KERNELSU VARIABLES ###
+
+SKIPUNZIP=1
+ASH_STANDALONE=1
+readonly SKIPUNZIP ASH_STANDALONE
+export SKIPUNZIP ASH_STANDALONE
+KSU="${KSU:-false}"
+APATCH="${APATCH:-false}"
+export KSU APATCH
+
+# shellcheck disable=SC2034
+{
+  REPLACE=''
+  REMOVE=''
+}
+
+if test "${KSU:?}" != 'false'; then
+  INSTALL_MODE='KernelSU'
+elif test "${APATCH:?}" != 'false'; then
+  INSTALL_MODE='APatch'
+elif test -n "${MAGISK_VER_CODE-}"; then
+  INSTALL_MODE='Magisk'
+else
+  INSTALL_MODE='Pure'
+fi
+readonly INSTALL_MODE
+export INSTALL_MODE
+
 ### PREVENTIVE CHECKS ###
 
+export OUTFD="${OUTFD:-2}"
+
 if test -z "${BOOTMODE-}"; then
-  printf 1>&2 '%s\n' 'Missing BOOTMODE variable'
-  abort 2> /dev/null 'Missing BOOTMODE variable'
+  abort 2> /dev/null 'Missing BOOTMODE variable' || printf 1>&2 '%s\n' 'Missing BOOTMODE variable'
   exit 1
 fi
 if test -z "${ZIPFILE-}"; then
-  printf 1>&2 '%s\n' 'Missing ZIPFILE variable'
-  abort 2> /dev/null 'Missing ZIPFILE variable'
+  abort 2> /dev/null 'Missing ZIPFILE variable' || printf 1>&2 '%s\n' 'Missing ZIPFILE variable'
   exit 1
 fi
 if test -z "${TMPDIR-}" || test ! -w "${TMPDIR:?}"; then
-  printf 1>&2 '%s\n' 'The temp folder is missing (2)'
-  abort 2> /dev/null 'The temp folder is missing (2)'
+  abort 2> /dev/null 'The temp folder is NOT set or NOT writable' || printf 1>&2 '%s\n' 'The temp folder is NOT set or NOT writable'
   exit 1
 fi
-if test -z "${OUTFD-}" || test "${OUTFD:?}" -lt 1; then
-  printf 1>&2 '%s\n' 'Missing or invalid OUTFD variable'
-  abort 2> /dev/null  'Missing or invalid OUTFD variable'
+if test "${OUTFD:?}" -lt 1; then
+  abort 2> /dev/null 'Invalid OUTFD variable' || printf 1>&2 '%s\n' 'Invalid OUTFD variable'
   exit 1
 fi
 RECOVERY_PIPE="/proc/self/fd/${OUTFD:?}"
@@ -44,18 +70,9 @@ test -e "${RECOVERY_PIPE:?}" || RECOVERY_PIPE=''
 export BOOTMODE
 export ZIPFILE
 export TMPDIR
-export OUTFD
 export RECOVERY_PIPE
 export ANDROID_ROOT
 export ANDROID_DATA
-unset REPLACE
-
-### MAGISK VARIABLES ###
-
-SKIPUNZIP=1
-ASH_STANDALONE=1
-readonly SKIPUNZIP ASH_STANDALONE
-export SKIPUNZIP ASH_STANDALONE
 
 ### GLOBAL VARIABLES ###
 
@@ -165,6 +182,7 @@ ui_error()
     _print_text '\033[1;31m%s\033[0m' "ERROR ${_error_code:?}: ${1:?}"
   fi
 
+  abort 2> /dev/null "ERROR ${_error_code?}: ${1?}" || :
   exit "${_error_code:?}"
 }
 
@@ -397,10 +415,14 @@ detect_recovery_arch()
     armv6* | armv5*)                    RECOVERY_ARCH='armeabi' ;;
     #mips64)                             RECOVERY_ARCH='mips64' ;;
     #mips)                               RECOVERY_ARCH='mips' ;;
-    *) ui_error "Unsupported architecture: $(uname -m || true)" ;;
+    *) ui_error "Unsupported architecture: $(uname -m || :)" ;;
   esac
 }
 detect_recovery_arch
+
+if test "${INSTALL_MODE:?}" != 'Pure'; then
+  ui_error "This ZIP currently cannot be installed as ${INSTALL_MODE?} module"
+fi
 
 OUR_BB="${BASE_TMP_PATH:?}/busybox"
 if test -n "${CUSTOM_BUSYBOX-}" && test -x "${CUSTOM_BUSYBOX:?}"; then
