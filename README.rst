@@ -80,10 +80,3 @@ Code analysis
    :alt: SonarQube reliability rating
    :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
 
-
-Contributors
-------------
-
-.. raw:: html
-   <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-   <!-- ALL-CONTRIBUTORS-LIST:END -->
