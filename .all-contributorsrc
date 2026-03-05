@@ -2,7 +2,7 @@
   "projectName": "m.u.i.-test",
   "projectOwner": "a5k-testing",
   "files": [
-    "README.rst"
+    "CONTRIBUTORS.md"
   ],
   "imageSize": 100,
   "commit": true,
@@ -10,7 +10,6 @@
   "commitType": "docs",
   "contributorsPerLine": 7,
   "contributorsSortAlphabetically": true,
-  "badgeTemplate": "<img src=\"https://img.shields.io/badge/all_contributors-<%= contributors.length %>-orange.svg?style=flat-square\" alt=\"All contributors\">",
   "linkToUsage": true,
   "skipCi": true,
   "contributors": []
