@@ -1,8 +1,14 @@
 {
+  "projectName": "m.u.i.-test",
+  "projectOwner": "a5k-testing",
   "files": [
     "README.rst"
   ],
   "imageSize": 100,
   "commit": true,
-  "contributorsPerLine": 7
+  "commitConvention": "angular",
+  "commitType": "docs",
+  "contributorsPerLine": 7,
+  "contributorsSortAlphabetically": true,
+  "skipCi": true
 }
