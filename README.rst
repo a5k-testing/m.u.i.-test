@@ -84,5 +84,6 @@ Code analysis
 Contributors
 ------------
 
-.. ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section
-.. ALL-CONTRIBUTORS-LIST:END
+.. raw:: html
+   <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+   <!-- ALL-CONTRIBUTORS-LIST:END -->
