@@ -1,23 +1,13 @@
 {
+  "projectName": "m.u.i.-test",
+  "projectOwner": "a5k-testing",
   "files": [
     "README.rst"
   ],
   "imageSize": 100,
   "commit": true,
-  "contributorsPerLine": 7,
-  "commitType": "docs",
   "commitConvention": "angular",
-  "contributors": [
-    {
-      "login": "dependabot",
-      "name": "Dependabot",
-      "avatar_url": "https://avatars.githubusercontent.com/u/27347476?v=4",
-      "profile": "https://github.com/features/security",
-      "contributions": [
-        "code"
-      ]
-    }
-  ],
-  "projectName": "m.u.i.-test",
-  "projectOwner": "a5k-testing"
+  "commitType": "docs",
+  "contributorsPerLine": 7,
+  "contributorsSortAlphabetically": true
 }
