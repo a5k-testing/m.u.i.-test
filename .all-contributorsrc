@@ -2,7 +2,7 @@
   "projectName": "m.u.i.-test",
   "projectOwner": "a5k-testing",
   "files": [
-    "CONTRIBUTORS.md"
+    "docs/CONTRIBUTORS.md"
   ],
   "imageSize": 100,
   "commit": true,
