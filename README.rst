@@ -79,3 +79,10 @@ Code analysis
 .. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
    :alt: SonarQube reliability rating
    :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
+
+
+Contributors
+------------
+
+.. ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section
+.. ALL-CONTRIBUTORS-LIST:END
