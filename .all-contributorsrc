@@ -1,6 +1,6 @@
 {
-  "projectName": "microg-unofficial-installer",
-  "projectOwner": "micro5k",
+  "projectName": "m.u.i.-test",
+  "projectOwner": "a5k-testing",
   "files": [
     "docs/CONTRIBUTORS.md"
   ],
@@ -20,6 +20,13 @@
       "profile": "https://www.manueljenny.ch",
       "contributions": [
         "code"
+      ]
+    },
+    {
+      "name": "FirstName SecondName",
+      "profile": "https://mywebsite.com",
+      "contributions": [
+        "content"
       ]
     }
   ]
