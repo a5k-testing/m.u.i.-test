@@ -27,6 +27,8 @@ jobs:
     name: "Link checker"
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pull-requests: write  # Needed to post the report as a PR comment
 
     steps:
       - name: "Checkout sources"
@@ -54,3 +56,41 @@ jobs:
           name: lychee-report
           path: lychee-report.md
           retention-days: 30
+      - name: "Post lychee report as PR comment"
+        if: "${{ always() && github.event_name == 'pull_request' }}"
+        uses: actions/github-script@v8
+        with:
+          retries: 3
+          script: |
+            /* jshint esversion: 6 */
+            const fs = require('fs');
+            const marker = '<!-- lychee-report -->';
+            let report;
+            if (fs.existsSync('lychee-report.md')) {
+              report = fs.readFileSync('lychee-report.md', 'utf8');
+            } else {
+              core.warning('lychee-report.md not found; lychee may not have run.');
+              report = '_No lychee report was generated._';
+            }
+            const body = marker + '\n## 🔗 Link checker report\n\n' + report;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
