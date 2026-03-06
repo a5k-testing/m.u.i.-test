@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      pull-requests: write  # Needed to post the report as a PR comment
+      models: read  # Needed to call GitHub Models for the AI summary
 
     steps:
       - name: "Checkout sources"
@@ -56,41 +56,76 @@ jobs:
           name: lychee-report
           path: lychee-report.md
           retention-days: 30
-      - name: "Post lychee report as PR comment"
-        if: "${{ always() && github.event_name == 'pull_request' }}"
+      - name: "Generate AI summary of link check results"
+        if: "${{ always() }}"
         uses: actions/github-script@v8
+        env:
+          GITHUB_TOKEN: "${{ github.token }}"
         with:
           retries: 3
           script: |
-            /* jshint esversion: 6 */
+            /* jshint esversion: 11 */
             const fs = require('fs');
-            const marker = '<!-- lychee-report -->';
-            let report;
+            let lycheeReport;
             if (fs.existsSync('lychee-report.md')) {
-              report = fs.readFileSync('lychee-report.md', 'utf8');
+              lycheeReport = fs.readFileSync('lychee-report.md', 'utf8');
             } else {
-              core.warning('lychee-report.md not found; lychee may not have run.');
-              report = '_No lychee report was generated._';
+              core.warning(
+                'lychee-report.md not found; lychee may not have run.'
+              );
+              lycheeReport = '(no report available)';
             }
-            const body = marker + '\n## 🔗 Link checker report\n\n' + report;
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body
-              });
+            let aiReply;
+            try {
+              const res = await fetch(
+                'https://models.inference.ai.azure.com/chat/completions',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`
+                  },
+                  body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                      {
+                        role: 'system',
+                        content:
+                          'You are a CI assistant reviewing link check ' +
+                          'results. Summarize the findings in plain ' +
+                          'language. If broken links exist, list each one ' +
+                          'as a clickable markdown hyperlink. If all links ' +
+                          'pass, confirm that clearly.'
+                      },
+                      {
+                        role: 'user',
+                        content: `Lychee report:\n\n${lycheeReport}`
+                      }
+                    ],
+                    max_tokens: 1024
+                  })
+                }
+              );
+              if (!res.ok) {
+                const text = await res.text();
+                core.warning(
+                  `GitHub Models API error ${res.status}: ${text}`
+                );
+                aiReply = '_AI summary unavailable (API error)._';
+              } else {
+                const json = await res.json();
+                aiReply =
+                  json.choices?.[0]?.message?.content ??
+                  '_AI summary unavailable (unexpected response format)._';
+              }
+            } catch (err) {
+              core.warning(
+                `Failed to call GitHub Models: ${err.message}`
+              );
+              aiReply = '_AI summary unavailable (exception)._';
             }
+            await core.summary
+              .addHeading('🤖 AI summary', 2)
+              .addRaw(aiReply)
+              .addEOL()
+              .write();
