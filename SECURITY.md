@@ -7,3 +7,4 @@
 # Security policy
 
 You will find the security policy [here](./docs/SECURITY.rst).
+
