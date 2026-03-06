@@ -28,7 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      models: read  # Needed to call GitHub Models for the AI summary
+      models: read          # Needed to call GitHub Models for the AI summary
+      pull-requests: write  # Needed to post the report as a PR comment
 
     steps:
       - name: "Checkout sources"
@@ -128,3 +129,37 @@ jobs:
               .addRaw(aiReply)
               .addEOL()
               .write();
+            if (context.eventName === 'pull_request') {
+              const body =
+                '## 🔗 Link check results\n\n' +
+                lycheeReport +
+                '\n\n## 🤖 AI summary\n\n' +
+                aiReply;
+              const { data: comments } =
+                await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  per_page: 100
+                });
+              const botComment = comments.find(
+                c =>
+                  c.user.login === 'github-actions[bot]' &&
+                  c.body.includes('## 🔗 Link check results')
+              );
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body
+                });
+              }
+            }
