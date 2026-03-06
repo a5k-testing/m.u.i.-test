@@ -134,15 +134,45 @@ jobs:
               prNumber = context.issue.number;
             } else if (context.eventName === 'push') {
               const branch = context.ref.replace('refs/heads/', '');
-              const { data: prs } = await github.rest.pulls.list({
+              const { data: branchPrs } = await github.rest.pulls.list({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 head: `${context.repo.owner}:${branch}`,
                 state: 'open',
                 per_page: 1
               });
-              if (prs.length > 0) {
-                prNumber = prs[0].number;
+              if (branchPrs.length > 0) {
+                prNumber = branchPrs[0].number;
+              } else {
+                // Fallback: find any open PR that includes changes to
+                // link-checker.yml so the report is still visible.
+                const { data: openPrs } = await github.rest.pulls.list({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open',
+                  per_page: 10,
+                  sort: 'updated',
+                  direction: 'desc'
+                });
+                const fileResults = await Promise.all(
+                  openPrs.map(pr =>
+                    github.rest.pulls.listFiles({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: pr.number
+                    })
+                  )
+                );
+                const idx = fileResults.findIndex(({ data: files }) =>
+                  files.some(
+                    f =>
+                      f.filename ===
+                      '.github/workflows/link-checker.yml'
+                  )
+                );
+                if (idx !== -1) {
+                  prNumber = openPrs[idx].number;
+                }
               }
             }
             if (prNumber !== null) {
