@@ -1,0 +1,56 @@
+---
+# SPDX-FileCopyrightText: NONE
+# SPDX-License-Identifier: CC0-1.0
+
+name: "Link checker"
+permissions: {}
+on:
+  push:
+    paths:
+      - "**/*.md"
+      - "**/*.rst"
+      - ".github/workflows/link-checker.yml"
+      - ".lycheeignore"
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "**/*.rst"
+      - ".github/workflows/link-checker.yml"
+      - ".lycheeignore"
+  schedule:
+    # At 02:00 AM, every Sunday (UTC)
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+
+jobs:
+  link-checker:
+    name: "Link checker"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout sources"
+        uses: actions/checkout@v6
+      - name: "Check links"
+        uses: lycheeverse/lychee-action@v2.8.0
+        with:
+          args: >-
+            --verbose
+            --no-progress
+            --timeout 20
+            --max-retries 3
+            --accept 200,204,206,429
+            --exclude-mail
+            ./**/*.md
+            ./**/*.rst
+          format: markdown
+          output: lychee-report.md
+          jobSummary: true
+          fail: true
+      - name: "Upload lychee report"
+        if: "${{ always() }}"
+        uses: actions/upload-artifact@v4
+        with:
+          name: lychee-report
+          path: lychee-report.md
+          retention-days: 30

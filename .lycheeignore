@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: NONE
+# SPDX-License-Identifier: CC0-1.0
+
+# XDA forums blocks automated link checkers
+https://xdaforums.com
+
+# PayPal donation links are not reliably reachable by automated checkers
+https://www.paypal.com/donate
