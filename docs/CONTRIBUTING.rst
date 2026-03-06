@@ -25,6 +25,16 @@ Linting
 
 To maintain a high standard of code quality, we use automated tools to check for errors and formatting.
 
+- `ShellCheck <https://www.shellcheck.net/>`_: Validates shell scripts for common errors and pitfalls.
+- `REUSE <https://reuse.software/>`_: Checks that all files have proper license and copyright headers.
+- JSON/YAML validator: Ensures all JSON and YAML files are well-formed.
+
+These checks run automatically on every pull request via CI. To run ShellCheck locally:
+
+.. code-block:: bash
+
+   shellcheck <path/to/script.sh>
+
 Recognition
 ===========
 

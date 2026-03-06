@@ -7,7 +7,7 @@
 Instructions
 ============
 
-This package come in 2 flavours:
+This package comes in 2 flavours:
 
 - One is complete;
 - One include only open-source components.
