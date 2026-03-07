@@ -27,7 +27,7 @@ jobs:
     name: "Nightly"
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: "${{ github.event_name == 'push' && !github.event.repository.immutable_releases }}"
+    if: "${{ github.event_name == 'push' && vars.IMMUTABLE_RELEASES != 'true' }}"
     concurrency:
       group: "${{ github.repository_id }}-${{ github.workflow }}-nightly"
       cancel-in-progress: true
