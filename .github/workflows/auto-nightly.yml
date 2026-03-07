@@ -7,10 +7,11 @@ permissions: {}
 on:
   push:
     paths:
+      - ".github/workflows/auto-nightly.yml"
       - "LICENSES/**"
       - "includes/**"
       - "tools/*.jar"
-      - "tools/**.sh"
+      - "tools/*.sh"
       - "zip-content/**"
       - "CHANGELOG.rst"
       - "LICENSE*.rst"
