@@ -10,7 +10,7 @@ on:
       - "LICENSES/**"
       - "includes/**"
       - "tools/*.jar"
-      - "tools/*.sh"
+      - "tools/**.sh"
       - "zip-content/**"
       - "CHANGELOG.rst"
       - "LICENSE*.rst"
