@@ -39,6 +39,8 @@ jobs:
       GITHUB_REPOSITORY_DEFAULT_BRANCH: "${{ github.event.repository.default_branch }}"
 
     steps:
+      - name: Dump GitHub Context
+        run: echo "${{ toJSON(github.event.repository) }}"
       - name: "Checkout sources"
         uses: actions/checkout@v6
         with:
