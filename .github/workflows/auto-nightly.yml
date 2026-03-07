@@ -137,33 +137,27 @@ jobs:
             cp -f -T -- "${old_attest_file:?}" "${new_attest_file:?}" || exit "${?}"
             printf 'ZIP_ATTESTATION_FILE=%s\n' "${new_attest_file:?}" 1>> "${GITHUB_OUTPUT?}"
           fi
-      - name: "Check tag protection"
-        id: "tag-protection"
+      - name: "Check immutable releases"
+        id: "immutable-releases"
         uses: actions/github-script@v8
         with:
           retries: 3
           script: |
             /* jshint esversion: 11 */
-            let isProtected = false;
+            let isImmutable = false;
             try {
-              // includes_parents: true ensures org-level rulesets (which apply to this repo) are also checked
-              const { data: rulesets } = await github.rest.repos.getRepoRulesets({
+              const { data: repo } = await github.rest.repos.get({
                 owner: context.repo.owner,
-                repo: context.repo.repo,
-                includes_parents: true
+                repo: context.repo.repo
               });
-              for (const ruleset of rulesets) {
-                if (ruleset.enforcement !== 'active') continue;
-                if (ruleset.target !== 'tag') continue;
-                if (!(ruleset.rules || []).some(r => r.type === 'non_fast_forward' || r.type === 'deletion')) continue;
-                core.notice('Nightly release update skipped: tag is protected by ruleset "' + ruleset.name + '".');
-                isProtected = true;
-                break;
+              if (repo.immutable_releases === true) {
+                core.notice('Nightly release update skipped: immutable releases is enabled for this repository.');
+                isImmutable = true;
               }
             } catch (e) {
-              core.warning('Failed to check tag rulesets: ' + e.message);
+              core.warning('Failed to check immutable releases setting: ' + e.message);
             }
-            core.setOutput('protected', isProtected ? 'true' : 'false');
+            core.setOutput('immutable', isImmutable ? 'true' : 'false');
       - name: "Nightly logic"
         id: "nightly-logic"
         shell: bash
@@ -171,7 +165,7 @@ jobs:
           # Nightly logic...
           UPDATE_TAG='false'
           UPDATE_RELEASE='false'
-          if '${{ github.ref_name == github.event.repository.default_branch && github.run_attempt == '1' && steps.build.outputs.ZIP_IS_ALPHA == 'true' && steps.tag-protection.outputs.protected != 'true' }}'; then
+          if '${{ github.ref_name == github.event.repository.default_branch && github.run_attempt == '1' && steps.build.outputs.ZIP_IS_ALPHA == 'true' && steps.immutable-releases.outputs.immutable != 'true' }}'; then
             UPDATE_TAG='true'
           fi
           if test "${UPDATE_TAG:?}" = 'true' && '${{ steps.build.outputs.ZIP_BUILD_TYPE_SUPPORTED == 'true' }}'; then
