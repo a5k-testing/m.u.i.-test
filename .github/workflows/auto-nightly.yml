@@ -27,7 +27,7 @@ jobs:
     name: "Nightly"
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: "${{ github.event_name == 'push' && vars.IMMUTABLE_RELEASES != 'true' }}"
+    if: "${{ github.event_name == 'push' }}"
     concurrency:
       group: "${{ github.repository_id }}-${{ github.workflow }}-nightly"
       cancel-in-progress: true
@@ -137,6 +137,33 @@ jobs:
             cp -f -T -- "${old_attest_file:?}" "${new_attest_file:?}" || exit "${?}"
             printf 'ZIP_ATTESTATION_FILE=%s\n' "${new_attest_file:?}" 1>> "${GITHUB_OUTPUT?}"
           fi
+      - name: "Check tag protection"
+        id: "tag-protection"
+        uses: actions/github-script@v8
+        with:
+          retries: 3
+          script: |
+            /* jshint esversion: 11 */
+            let isProtected = false;
+            try {
+              // includes_parents: true ensures org-level rulesets (which apply to this repo) are also checked
+              const { data: rulesets } = await github.rest.repos.getRepoRulesets({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                includes_parents: true
+              });
+              for (const ruleset of rulesets) {
+                if (ruleset.enforcement !== 'active') continue;
+                if (ruleset.target !== 'tag') continue;
+                if (!(ruleset.rules || []).some(r => r.type === 'non_fast_forward' || r.type === 'deletion')) continue;
+                core.notice('Nightly release update skipped: tag is protected by ruleset "' + ruleset.name + '".');
+                isProtected = true;
+                break;
+              }
+            } catch (e) {
+              core.warning('Failed to check tag rulesets: ' + e.message);
+            }
+            core.setOutput('protected', isProtected ? 'true' : 'false');
       - name: "Nightly logic"
         id: "nightly-logic"
         shell: bash
@@ -144,7 +171,7 @@ jobs:
           # Nightly logic...
           UPDATE_TAG='false'
           UPDATE_RELEASE='false'
-          if '${{ github.ref_name == github.event.repository.default_branch && github.run_attempt == '1' && steps.build.outputs.ZIP_IS_ALPHA == 'true' }}'; then
+          if '${{ github.ref_name == github.event.repository.default_branch && github.run_attempt == '1' && steps.build.outputs.ZIP_IS_ALPHA == 'true' && steps.tag-protection.outputs.protected != 'true' }}'; then
             UPDATE_TAG='true'
           fi
           if test "${UPDATE_TAG:?}" = 'true' && '${{ steps.build.outputs.ZIP_BUILD_TYPE_SUPPORTED == 'true' }}'; then
