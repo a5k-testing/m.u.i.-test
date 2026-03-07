@@ -43,7 +43,6 @@ jobs:
             --timeout 20
             --max-retries 3
             --accept 200,204,206,429
-            --exclude-mail
             ./**/*.md
             ./**/*.rst
           format: markdown
