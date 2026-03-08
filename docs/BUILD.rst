@@ -1,12 +1,12 @@
-#####
-Build
-#####
+##############################
+Build the flashable OTA zip
+##############################
 ..
    SPDX-FileCopyrightText: (c) 2026 ale5000
    SPDX-License-Identifier: GPL-3.0-or-later
    SPDX-FileType: DOCUMENTATION
 
-.. contents:: Build the flashable OTA zip:
+.. contents:: Build methods:
    :local:
    :depth: 1
 
