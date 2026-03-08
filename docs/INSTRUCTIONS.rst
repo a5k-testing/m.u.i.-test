@@ -62,7 +62,7 @@ Installation
 Via custom recovery (TWRP, OrangeFox, PBRP, …)
 ----------------------------------------------
 
-1. Transfer the downloaded zip to your device's internal storage or SD card.
+1. Transfer the flashable zip to your device's internal storage or microSD card.
 2. Reboot into recovery (hold **Power + Volume Down** — exact key combination depends on your device).
 3. In TWRP, tap **Install**, navigate to the zip file and select it.
 4. Swipe to confirm the flash.
@@ -87,13 +87,15 @@ Via ``zip-install.sh`` (ADB or terminal, root required, no recovery needed)
 This method installs the zip from a running Android system using ``zip-install.sh``.
 Requires root access or an ADB connection with sufficient privileges.
 
-1. Transfer the zip to your PC.
+1. Transfer the flashable zip to your device's internal storage or microSD card.
 2. Connect your device via USB with USB debugging enabled.
 3. Run:
 
    .. code-block:: sh
 
-      sh zip-install.sh
+      cd /path/to/my_folder/
+      unzip ./microg-unofficial-installer-*.zip zip-install.sh
+      sh ./zip-install.sh ./microg-unofficial-installer-*.zip
 
    The script will push the zip to the device and trigger the installation automatically.
 
