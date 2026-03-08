@@ -10,8 +10,8 @@ Build
    :local:
    :depth: 1
 
-``make``
-============
+make / pdpmake
+==============
 
 
 Full flavour
