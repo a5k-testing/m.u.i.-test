@@ -75,7 +75,8 @@ Via custom recovery (TWRP, OrangeFox, PBRP, …)
 2. Reboot into recovery (hold **Power + Volume Down** — exact key combination depends on your device).
 3. In TWRP, tap **Install**, navigate to the zip file and select it.
 4. Swipe to confirm the flash.
-5. Once complete, tap **Reboot System**.
+5. Follow the on-screen prompts for the live setup (e.g., choose which optional apps to install).
+6. Once complete, tap **Reboot System**.
 
 Via ADB sideload
 ----------------
@@ -88,7 +89,8 @@ Via ADB sideload
 
       adb sideload microg-unofficial-installer-*.zip
 
-4. Once the transfer finishes, reboot the device.
+4. Follow the on-screen prompts for the live setup (e.g., choose which optional apps to install).
+5. Once the flashing is complete, reboot the device.
 
 Via ``zip-install.sh`` (ADB or terminal, root required, no recovery needed)
 ---------------------------------------------------------------------------
@@ -108,7 +110,7 @@ This method installs the zip from a running Android system using ``zip-install.s
 
    The script will flash the zip directly on the running system, without using the recovery.
 
-5. Follow the on-screen prompts for the live setup (e.g. choose which optional apps to install).
+5. Follow the on-screen prompts for the live setup (e.g., choose which optional apps to install).
 6. Reboot the device.
 
 
