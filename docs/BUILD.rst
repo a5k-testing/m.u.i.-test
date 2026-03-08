@@ -6,7 +6,7 @@ Build
    SPDX-License-Identifier: GPL-3.0-or-later
    SPDX-FileType: DOCUMENTATION
 
-.. contents:: Build methods:
+.. contents:: Build the flashable OTA zip:
    :local:
    :depth: 1
 
