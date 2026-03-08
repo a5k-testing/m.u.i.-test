@@ -32,7 +32,7 @@ The following custom recoveries are supported:
 - `PitchBlack Recovery Project (PBRP) <https://pitchblackrecovery.com/>`_
 - `SKYHAWK Recovery Project (SHRP) <https://skyhawkrecovery.github.io/>`_
 - `LineageOS Recovery <https://github.com/LineageOS/android_bootable_recovery>`_
-- `ClockworkMod Recovery (CWM) <https://www.clockworkmod.com/>`_
+- `ClockworkMod Recovery (CWM) <https://en.wikipedia.org/wiki/ClockworkMod>`_
 - `PhilZ Touch Recovery <https://xdaforums.com/t/2015-10-09-cwm-6-0-5-1-philz-touch-6-59-0-libtouch_gui-1-42.2201860/>`_
 - `Omni Recovery <https://github.com/omnirom/android_bootable_recovery>`_
 
