@@ -56,6 +56,9 @@ Instead if you want to try the nightly builds you can find them here:
 Installation
 ============
 
+.. note::
+   The methods below are **mutually exclusive** — choose **one** that matches your setup and follow only those steps.
+
 Via custom recovery (TWRP, OrangeFox, PBRP, …)
 ----------------------------------------------
 
