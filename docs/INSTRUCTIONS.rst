@@ -109,6 +109,7 @@ This method installs the zip from a running Android system using ``zip-install.s
    The script will flash the zip directly on the running system, without using the recovery.
 
 5. Follow the on-screen prompts for the live setup (e.g. choose which optional apps to install).
+6. Reboot the device.
 
 
 Uninstallation
