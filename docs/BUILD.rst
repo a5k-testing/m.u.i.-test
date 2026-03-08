@@ -78,3 +78,34 @@ Emulates an Android recovery on the PC and runs the produced zip inside it:
 
 .. note::
    Run ``buildOta`` or ``buildOtaOSS`` first so that the zip exists in the ``output/`` folder.
+
+
+Via `VS Code <https://code.visualstudio.com/>`_
+================================================
+
+
+Full flavour
+------------
+
+Includes all components (proprietary and open-source):
+
+Open the project in VS Code and run the ``buildOta`` task.
+
+
+Open-source flavour
+-------------------
+
+Includes only open-source components:
+
+Open the project in VS Code and run the ``buildOtaOSS`` task.
+
+
+Test the build
+--------------
+
+Emulates an Android recovery on the PC and runs the produced zip inside it:
+
+Open the project in VS Code and run the ``installTest`` task.
+
+.. note::
+   Run ``buildOta`` or ``buildOtaOSS`` first so that the zip exists in the ``output/`` folder.
