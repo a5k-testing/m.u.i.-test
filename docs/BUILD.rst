@@ -6,6 +6,10 @@ Build
    SPDX-License-Identifier: GPL-3.0-or-later
    SPDX-FileType: DOCUMENTATION
 
+.. contents:: Build methods
+   :local:
+   :depth: 1
+
 Via ``make``
 ============
 
