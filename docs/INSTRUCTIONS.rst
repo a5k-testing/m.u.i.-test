@@ -47,6 +47,10 @@ The following custom recoveries are supported:
      - https://forum.xda-developers.com/t/recovery-philz-touch-recovery-cwr-based.2201407/
    * - `Omni Recovery <https://github.com/omnirom/android_bootable_recovery>`_
      - https://github.com/omnirom/android_bootable_recovery
+   * - `LineageOS Recovery <https://github.com/LineageOS/android_bootable_recovery>`_
+     - https://github.com/LineageOS/android_bootable_recovery
+   * - `/e/ Recovery <https://doc.e.foundation/>`_
+     - https://doc.e.foundation/
 
 
 Download
