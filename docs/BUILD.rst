@@ -6,11 +6,11 @@ Build
    SPDX-License-Identifier: GPL-3.0-or-later
    SPDX-FileType: DOCUMENTATION
 
-.. contents:: Build methods
+.. contents:: Build methods:
    :local:
    :depth: 1
 
-Via ``make``
+``make``
 ============
 
 
@@ -47,7 +47,7 @@ Emulates an Android recovery on the PC and runs the produced zip inside it:
    Run ``buildota`` or ``buildotaoss`` first so that the zip exists in the ``output/`` folder.
 
 
-Via `Gradle wrapper <https://docs.gradle.org/current/userguide/gradle_wrapper.html>`_
+`Gradle wrapper <https://docs.gradle.org/current/userguide/gradle_wrapper.html>`_
 ======================================================================================
 
 
@@ -84,7 +84,7 @@ Emulates an Android recovery on the PC and runs the produced zip inside it:
    Run ``buildOta`` or ``buildOtaOSS`` first so that the zip exists in the ``output/`` folder.
 
 
-Via `VS Code <https://code.visualstudio.com/>`_
+`VS Code <https://code.visualstudio.com/>`_
 ================================================
 
 
