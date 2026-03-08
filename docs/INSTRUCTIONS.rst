@@ -59,6 +59,15 @@ Installation
 .. note::
    The methods below are **mutually exclusive** — choose **one** that matches your setup and follow only those steps.
 
+.. tip::
+   Regardless of which installation method you choose, you can pre-configure options before
+   flashing by setting system properties on the device.
+   For example, to enable a longer live setup timeout:
+
+   .. code-block:: sh
+
+      adb shell "setprop zip.microg-unofficial-installer.LIVE_SETUP_TIMEOUT 8"
+
 Via custom recovery (TWRP, OrangeFox, PBRP, …)
 ----------------------------------------------
 
@@ -100,15 +109,6 @@ This method installs the zip from a running Android system using ``zip-install.s
    The script will flash the zip directly on the running system, without using the recovery.
 
 5. Follow the on-screen prompts for the live setup (e.g. choose which optional apps to install).
-
-.. tip::
-   Regardless of which installation method you choose, you can pre-configure options before
-   flashing by setting system properties on the device.
-   For example, to enable a longer live setup timeout:
-
-   .. code-block:: sh
-
-      adb shell "setprop zip.microg-unofficial-installer.LIVE_SETUP_TIMEOUT 8"
 
 
 Uninstallation
