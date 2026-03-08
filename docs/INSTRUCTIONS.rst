@@ -87,16 +87,9 @@ Via ``zip-install.sh`` (ADB or terminal, root required, no recovery needed)
 This method installs the zip from a running Android system using ``zip-install.sh``.
 Requires root access or an ADB connection with sufficient privileges.
 
-1. Transfer the flashable zip to your device's internal storage or microSD card.
-2. Connect your device via USB with USB debugging enabled *(ADB only — skip if using a terminal app on the device)*.
-3. Open a root shell on the device — either via ADB:
-
-   .. code-block:: sh
-
-      adb shell
-
-   or by opening a **terminal app** directly on the device.
-
+1. Connect your device via USB with USB debugging enabled *(ADB only — skip if using a terminal app on the device)*.
+2. Open a root shell on the device — run ``adb shell`` (via ADB) or open a **terminal app** directly on the device.
+3. Transfer the flashable zip to your device's internal storage or microSD card.
 4. Run:
 
    .. code-block:: sh
