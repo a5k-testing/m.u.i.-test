@@ -76,7 +76,7 @@ Via custom recovery (TWRP, OrangeFox, PBRP, …)
 3. In TWRP, tap **Install**, navigate to the zip file and select it.
 4. Swipe to confirm the flash.
 5. Follow the on-screen prompts for the live setup (e.g., choose which optional apps to install).
-6. Once complete, tap **Reboot System**.
+6. Once the flashing is complete, tap **Reboot System**.
 
 Via ADB sideload
 ----------------
@@ -111,7 +111,7 @@ This method installs the zip from a running Android system using ``zip-install.s
    The script will flash the zip directly on the running system, without using the recovery.
 
 5. Follow the on-screen prompts for the live setup (e.g., choose which optional apps to install).
-6. Reboot the device.
+6. Once the flashing is complete, reboot the device.
 
 
 Uninstallation
