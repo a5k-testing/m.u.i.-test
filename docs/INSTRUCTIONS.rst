@@ -17,7 +17,7 @@ You can `build it yourself <./BUILD.rst>`_ or download the prebuilt version.
 Prerequisites
 =============
 
-- An Android device running Android **2.2 or later**.
+- An Android device or emulator running Android **2.2 or later**.
 - A custom recovery (see `Supported recoveries`_ below) **or** root access with ADB.
 - At least **100 MB** of free space on the system partition (actual requirements vary by device and selected options).
 
