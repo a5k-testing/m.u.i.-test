@@ -11,7 +11,7 @@ This package comes in 2 flavours:
 - One is complete;
 - One include only open-source components.
 
-You can build it yourself or download the prebuilt version.
+You can `build it yourself <BUILD.rst>`_ or download the prebuilt version.
 
 
 Prerequisites
@@ -50,7 +50,7 @@ Instead if you want to try the nightly builds you can find them here:
 - `Nightly - Full flavour <https://gitlab.com/micro5k/microg-unofficial-installer/-/jobs/artifacts/main/browse/output?job=build-job>`_
 - `Nightly - OSS flavour <https://github.com/micro5k/microg-unofficial-installer/releases/tag/nightly>`_
 
-**NOTE:** If you get the error "No space left on device", you can find a workaround in `Known issues <KNOWN_ISSUES.rst>`_.
+**NOTE:** If you get the error "No space left on device", you can find a workaround in `Known issues <KNOWN-ISSUES.rst>`_.
 
 
 Installation
@@ -81,8 +81,8 @@ Via ADB sideload
 
 4. Once the transfer finishes, reboot the device.
 
-Via ``zip-install.sh`` (root + ADB, no recovery needed)
---------------------------------------------------------
+Via ``zip-install.sh`` (root required, ADB or terminal, no recovery needed)
+---------------------------------------------------------------------------
 
 This method installs the zip from a running Android system using ``zip-install.sh``.
 Requires root access or an ADB connection with sufficient privileges.
@@ -118,9 +118,3 @@ select **Uninstall** in the live setup menu, or run:
 .. code-block:: sh
 
    sh zip-install.sh --uninstall
-
-
-Build
-=====
-
-See `Build <BUILD.rst>`_.
