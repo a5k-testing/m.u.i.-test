@@ -93,7 +93,7 @@ Requires root access or an ADB connection with sufficient privileges.
 
    .. code-block:: sh
 
-      bash zip-install.sh
+      sh zip-install.sh
 
    The script will push the zip to the device and trigger the installation automatically.
 
@@ -117,7 +117,7 @@ select **Uninstall** in the live setup menu, or run:
 
 .. code-block:: sh
 
-   bash zip-install.sh --uninstall
+   sh zip-install.sh --uninstall
 
 
 Build
