@@ -18,8 +18,35 @@ Prerequisites
 =============
 
 - An Android device running Android **2.2 or later**.
-- A custom recovery (e.g. `TWRP <https://twrp.me/>`_) **or** root access with ADB.
+- A custom recovery (see `Supported recoveries`_ below) **or** root access with ADB.
 - At least **100 MB** of free space on the system partition (actual requirements vary by device and selected options).
+
+
+Supported recoveries
+--------------------
+
+The following custom recoveries are supported:
+
+.. list-table::
+   :header-rows: 1
+   :widths: auto
+
+   * - Recovery
+     - Website
+   * - `TWRP <https://twrp.me/>`_ (Team Win Recovery Project)
+     - https://twrp.me/
+   * - `OrangeFox Recovery <https://orangefox.download/>`_
+     - https://orangefox.download/
+   * - `PitchBlack Recovery Project (PBRP) <https://pitchblackrecovery.com/>`_
+     - https://pitchblackrecovery.com/
+   * - `SKYHAWK Recovery Project (SHRP) <https://skyhawkrecovery.github.io/>`_
+     - https://skyhawkrecovery.github.io/
+   * - `ClockworkMod Recovery (CWM) <https://www.clockworkmod.com/>`_
+     - https://www.clockworkmod.com/
+   * - `PhilZ Touch Recovery <https://forum.xda-developers.com/t/recovery-philz-touch-recovery-cwr-based.2201407/>`_
+     - https://forum.xda-developers.com/t/recovery-philz-touch-recovery-cwr-based.2201407/
+   * - `Omni Recovery <https://github.com/omnirom/android_bootable_recovery>`_
+     - https://github.com/omnirom/android_bootable_recovery
 
 
 Download
@@ -41,8 +68,8 @@ Instead if you want to try the nightly builds you can find them here:
 Installation
 ============
 
-Via custom recovery (TWRP)
---------------------------
+Via custom recovery (TWRP, OrangeFox, PBRP, …)
+----------------------------------------------
 
 1. Transfer the downloaded zip to your device's internal storage or SD card.
 2. Reboot into recovery (hold **Power + Volume Down** — exact key combination depends on your device).
