@@ -81,7 +81,7 @@ Via ADB sideload
 
 4. Once the transfer finishes, reboot the device.
 
-Via ``zip-install.sh`` (root required, ADB or terminal, no recovery needed)
+Via ``zip-install.sh`` (ADB or terminal, root required, no recovery needed)
 ---------------------------------------------------------------------------
 
 This method installs the zip from a running Android system using ``zip-install.sh``.
