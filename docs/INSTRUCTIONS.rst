@@ -88,8 +88,16 @@ This method installs the zip from a running Android system using ``zip-install.s
 Requires root access or an ADB connection with sufficient privileges.
 
 1. Transfer the flashable zip to your device's internal storage or microSD card.
-2. Connect your device via USB with USB debugging enabled.
-3. Run:
+2. Connect your device via USB with USB debugging enabled *(ADB only — skip if using a terminal app on the device)*.
+3. Open a root shell on the device — either via ADB:
+
+   .. code-block:: sh
+
+      adb shell
+
+   or by opening a **terminal app** directly on the device.
+
+4. Run:
 
    .. code-block:: sh
 
@@ -97,9 +105,9 @@ Requires root access or an ADB connection with sufficient privileges.
       unzip ./microg-unofficial-installer-*.zip zip-install.sh
       sh ./zip-install.sh ./microg-unofficial-installer-*.zip
 
-   The script will push the zip to the device and trigger the installation automatically.
+   The script will flash the zip directly on the running system, without using the recovery.
 
-4. Follow the on-screen prompts for the live setup (e.g. choose which optional apps to install).
+5. Follow the on-screen prompts for the live setup (e.g. choose which optional apps to install).
 
 .. tip::
    Regardless of which installation method you choose, you can pre-configure options before
