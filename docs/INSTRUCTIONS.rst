@@ -100,7 +100,8 @@ Requires root access or an ADB connection with sufficient privileges.
 4. Follow the on-screen prompts for the live setup (e.g. choose which optional apps to install).
 
 .. tip::
-   You can pre-configure options before flashing by setting system properties.
+   Regardless of which installation method you choose, you can pre-configure options before
+   flashing by setting system properties on the device.
    For example, to enable a longer live setup timeout:
 
    .. code-block:: sh
