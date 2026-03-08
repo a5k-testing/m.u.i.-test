@@ -41,16 +41,14 @@ The following custom recoveries are supported:
      - https://pitchblackrecovery.com/
    * - `SKYHAWK Recovery Project (SHRP) <https://skyhawkrecovery.github.io/>`_
      - https://skyhawkrecovery.github.io/
+   * - `LineageOS Recovery <https://github.com/LineageOS/android_bootable_recovery>`_
+     - https://github.com/LineageOS/android_bootable_recovery
    * - `ClockworkMod Recovery (CWM) <https://www.clockworkmod.com/>`_
      - https://www.clockworkmod.com/
    * - `PhilZ Touch Recovery <https://forum.xda-developers.com/t/recovery-philz-touch-recovery-cwr-based.2201407/>`_
      - https://forum.xda-developers.com/t/recovery-philz-touch-recovery-cwr-based.2201407/
    * - `Omni Recovery <https://github.com/omnirom/android_bootable_recovery>`_
      - https://github.com/omnirom/android_bootable_recovery
-   * - `LineageOS Recovery <https://github.com/LineageOS/android_bootable_recovery>`_
-     - https://github.com/LineageOS/android_bootable_recovery
-   * - `/e/ Recovery <https://doc.e.foundation/>`_
-     - https://doc.e.foundation/
 
 
 Download
