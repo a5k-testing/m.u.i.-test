@@ -45,8 +45,8 @@ The following custom recoveries are supported:
      - https://github.com/LineageOS/android_bootable_recovery
    * - `ClockworkMod Recovery (CWM) <https://www.clockworkmod.com/>`_
      - https://www.clockworkmod.com/
-   * - `PhilZ Touch Recovery <https://forum.xda-developers.com/t/recovery-philz-touch-recovery-cwr-based.2201407/>`_
-     - https://forum.xda-developers.com/t/recovery-philz-touch-recovery-cwr-based.2201407/
+   * - `PhilZ Touch Recovery <https://xdaforums.com/t/2015-10-09-cwm-6-0-5-1-philz-touch-6-59-0-libtouch_gui-1-42.2201860/>`_
+     - https://xdaforums.com/t/2015-10-09-cwm-6-0-5-1-philz-touch-6-59-0-libtouch_gui-1-42.2201860/
    * - `Omni Recovery <https://github.com/omnirom/android_bootable_recovery>`_
      - https://github.com/omnirom/android_bootable_recovery
 
