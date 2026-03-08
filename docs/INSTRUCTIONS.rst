@@ -27,28 +27,14 @@ Supported recoveries
 
 The following custom recoveries are supported:
 
-.. list-table::
-   :header-rows: 1
-   :widths: auto
-
-   * - Recovery
-     - Website
-   * - `TWRP <https://twrp.me/>`_ (Team Win Recovery Project)
-     - https://twrp.me/
-   * - `OrangeFox Recovery <https://orangefox.download/>`_
-     - https://orangefox.download/
-   * - `PitchBlack Recovery Project (PBRP) <https://pitchblackrecovery.com/>`_
-     - https://pitchblackrecovery.com/
-   * - `SKYHAWK Recovery Project (SHRP) <https://skyhawkrecovery.github.io/>`_
-     - https://skyhawkrecovery.github.io/
-   * - `LineageOS Recovery <https://github.com/LineageOS/android_bootable_recovery>`_
-     - https://github.com/LineageOS/android_bootable_recovery
-   * - `ClockworkMod Recovery (CWM) <https://www.clockworkmod.com/>`_
-     - https://www.clockworkmod.com/
-   * - `PhilZ Touch Recovery <https://xdaforums.com/t/2015-10-09-cwm-6-0-5-1-philz-touch-6-59-0-libtouch_gui-1-42.2201860/>`_
-     - https://xdaforums.com/t/2015-10-09-cwm-6-0-5-1-philz-touch-6-59-0-libtouch_gui-1-42.2201860/
-   * - `Omni Recovery <https://github.com/omnirom/android_bootable_recovery>`_
-     - https://github.com/omnirom/android_bootable_recovery
+- `TWRP <https://twrp.me/>`_ (Team Win Recovery Project)
+- `OrangeFox Recovery <https://orangefox.download/>`_
+- `PitchBlack Recovery Project (PBRP) <https://pitchblackrecovery.com/>`_
+- `SKYHAWK Recovery Project (SHRP) <https://skyhawkrecovery.github.io/>`_
+- `LineageOS Recovery <https://github.com/LineageOS/android_bootable_recovery>`_
+- `ClockworkMod Recovery (CWM) <https://www.clockworkmod.com/>`_
+- `PhilZ Touch Recovery <https://xdaforums.com/t/2015-10-09-cwm-6-0-5-1-philz-touch-6-59-0-libtouch_gui-1-42.2201860/>`_
+- `Omni Recovery <https://github.com/omnirom/android_bootable_recovery>`_
 
 
 Download
