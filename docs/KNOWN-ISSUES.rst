@@ -2,7 +2,7 @@
 Known issues
 ############
 ..
-   SPDX-FileCopyrightText: (c) 2016 ale5000
+   SPDX-FileCopyrightText: (c) 2026 ale5000
    SPDX-License-Identifier: GPL-3.0-or-later
    SPDX-FileType: DOCUMENTATION
 
@@ -22,5 +22,5 @@ Then flash the ZIP as usual.
 
 .. note::
    - This option is currently only available in **nightly builds**.
-     Download the latest nightly from the `Download section <INSTRUCTIONS.rst>`_.
+     Download the latest nightly from the `Download section <./INSTRUCTIONS.rst>`_.
    - microG can be updated to a newer version manually afterwards using **F-Droid**.

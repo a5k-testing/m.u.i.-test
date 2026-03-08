@@ -11,7 +11,7 @@ The best way to get support is to open an Issue_ here on GitHub or to post in th
 
 Before asking for help, please:
 
-1. Read the `installation instructions <INSTRUCTIONS.rst>`_ carefully.
+1. Read the `installation instructions <./INSTRUCTIONS.rst>`_ carefully.
 2. Search the `existing issues <https://github.com/micro5k/microg-unofficial-installer/issues>`_ to see if your problem has already been reported.
 3. Check the `official support thread`_ on XDA for known solutions.
 
