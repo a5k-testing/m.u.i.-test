@@ -123,6 +123,4 @@ select **Uninstall** in the live setup menu, or run:
 Build
 =====
 
-``./gradlew buildOta``
-or
-``./gradlew buildOtaOSS``
+See `Build <BUILD.rst>`_.
