@@ -224,8 +224,20 @@ jobs:
               if(response && response.status && response.message) errorMsg += ' with error ' + response.status + ' (' + response.message + ')';
               throw new Error(errorMsg);
             }
+      - name: "Prepare action-gh-release"
+        uses: actions/checkout@v6
+        if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
+        with:
+          repository: softprops/action-gh-release
+          ref: v2.4.2
+          path: .tmp/action-gh-release
+      - name: "Patch action-gh-release for Node.js 24"
+        if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
+        shell: bash
+        run: |
+          sed -i 's/using: "node20"/using: "node24"/' '.tmp/action-gh-release/action.yml'
       - name: "Create nightly release"
-        uses: softprops/action-gh-release@v2.4.2
+        uses: ./.tmp/action-gh-release
         if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
         with:
           name: "${{ steps.build.outputs.ZIP_VERSION }} nightly"
