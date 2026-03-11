@@ -4,6 +4,9 @@
 
 name: "Auto-nightly"
 permissions: {}
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # ToDO: Remove when softprops/action-gh-release is updated
+  NODE_NO_WARNINGS: 1 # ToDO: Remove when softprops/action-gh-release is updated
 on:
   push:
     paths:
@@ -38,8 +41,6 @@ jobs:
       attestations: write # Needed to attest build provenance
     env:
       GITHUB_REPOSITORY_DEFAULT_BRANCH: "${{ github.event.repository.default_branch }}"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # ToDO: Remove when softprops/action-gh-release is updated
-      NODE_NO_WARNINGS: 1 # ToDO: Remove when softprops/action-gh-release is updated
 
     steps:
       - name: "Checkout sources"
