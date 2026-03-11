@@ -262,8 +262,6 @@ jobs:
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       actions: write # Needed to keep alive the workflow
-    env:
-      NODE_NO_WARNINGS: "1"
 
     steps:
       - name: "Checkout file"
