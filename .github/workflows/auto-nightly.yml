@@ -38,10 +38,13 @@ jobs:
       attestations: write # Needed to attest build provenance
     env:
       GITHUB_REPOSITORY_DEFAULT_BRANCH: "${{ github.event.repository.default_branch }}"
+      N_ODE_NO_WARNINGS: "1" # ToDO: Remove when softprops/action-gh-release is updated
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
+        with:
+          lfs: false
       - name: "Setup Java"
         uses: actions/setup-java@v5
         with:
@@ -224,6 +227,8 @@ jobs:
       - name: "Create nightly release"
         uses: softprops/action-gh-release@v2.4.2
         if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
+        env:
+          NODE_NO_WARNINGS: "1" # ToDO: Remove when softprops/action-gh-release is updated
         with:
           name: "${{ steps.build.outputs.ZIP_VERSION }} nightly"
           tag_name: "nightly"
@@ -264,6 +269,7 @@ jobs:
       - name: "Checkout file"
         uses: actions/checkout@v6
         with:
+          lfs: false
           sparse-checkout: |
             conf-2.sh
           sparse-checkout-cone-mode: false
