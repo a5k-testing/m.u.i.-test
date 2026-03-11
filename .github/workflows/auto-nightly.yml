@@ -4,9 +4,6 @@
 
 name: "Auto-nightly"
 permissions: {}
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # ToDO: Remove when softprops/action-gh-release is updated
-  NODE_NO_WARNINGS: 1 # ToDO: Remove when softprops/action-gh-release is updated
 on:
   push:
     paths:
