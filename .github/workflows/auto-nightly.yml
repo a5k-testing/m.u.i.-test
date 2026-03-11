@@ -38,10 +38,13 @@ jobs:
       attestations: write # Needed to attest build provenance
     env:
       GITHUB_REPOSITORY_DEFAULT_BRANCH: "${{ github.event.repository.default_branch }}"
+      NODE_NO_WARNINGS: "1"
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
+        with:
+          lfs: false
       - name: "Setup Java"
         uses: actions/setup-java@v5
         with:
@@ -259,11 +262,14 @@ jobs:
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       actions: write # Needed to keep alive the workflow
+    env:
+      NODE_NO_WARNINGS: "1"
 
     steps:
       - name: "Checkout file"
         uses: actions/checkout@v6
         with:
+          lfs: false
           sparse-checkout: |
             conf-2.sh
           sparse-checkout-cone-mode: false
