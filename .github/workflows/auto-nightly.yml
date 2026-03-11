@@ -225,6 +225,8 @@ jobs:
       - name: "Create nightly release"
         uses: softprops/action-gh-release@v2.4.2
         if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
+        env:
+          NODE_NO_WARNINGS: 1
         with:
           name: "${{ steps.build.outputs.ZIP_VERSION }} nightly"
           tag_name: "nightly"
