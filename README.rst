@@ -35,6 +35,10 @@ This project is available on GitHub_, on GitLab_, as well as on XDA_.
    :alt: Coverage
    :target: https://codecov.io/gh/micro5k/microg-unofficial-installer
 
+.. image:: https://readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
+   :alt: Documentation Status
+   :target: https://microg-unofficial-installer.readthedocs.io/en/latest/
+
 
 Donations
 =========
