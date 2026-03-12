@@ -14,8 +14,8 @@ Welcome to the documentation for **microG unofficial installer**.
 
    INSTRUCTIONS
    BUILD
-   CONTRIBUTING
    SUPPORT
+   KNOWN-ISSUES
+   CONTRIBUTING
    DONATE
    SECURITY
-   KNOWN-ISSUES
