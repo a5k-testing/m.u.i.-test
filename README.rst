@@ -24,7 +24,7 @@ microG unofficial installer
 Description
 ===========
 microG unofficial installer is a flashable zip created by ale5000 for a simple installation of microG on Android from 2.2 to 16.
-No root wizardry required — just flash and go.
+No root wizardry required — just flash and go. ✨
 
 This project is available on GitHub_, on GitLab_, as well as on XDA_.
 
@@ -35,7 +35,7 @@ This project is available on GitHub_, on GitLab_, as well as on XDA_.
 **IMPORTANT:** In addition to the normal installation as a pure flashable zip, there are plans for the future (but not in the short term) to also support the installation as a *Magisk* module.
 
 Although you may find various references to *Magisk* in the code, support is **NOT** yet ready.
-*(Yes, we know. It will be ready "soon™" — a word that has bravely meant many things since 2021.)*
+*(Yes, we know. It will be ready "soon™" — a word that has bravely carried different meanings since 2021.)*
 
 
 Download
@@ -56,35 +56,13 @@ Download
    :alt: Total OSS downloads
    :target: `download`_
 
-`Download instructions <docs/INSTRUCTIONS.rst>`_ *(reading them is optional, but so is success)*
-
-
-Contributing
-============
-If you want to improve the project, please review our `contributing guidelines <docs/CONTRIBUTING.rst>`_.
-
-We are grateful for all our contributors! 🎉
-
-Please check the `contributors list <docs/CONTRIBUTORS.md>`_ for more details.
-
-*(Even fixing a typo counts. Probably. We'll review it very carefully either way.)*
-
-
-Donations
-=========
-.. image:: https://img.shields.io/badge/Donate-FFF000?logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
-   :alt: Support this project on Ko-fi
-   :target: ./docs/DONATE.rst
-
-I maintain this project on my own in my spare time — the finite, precious kind that competes with sleep, meals eaten while staring at a terminal, and the occasional social obligation.
-
-If it's saved you time, frustration, or a trip to the Google ecosystem, please consider supporting its development!
-
-Wondering how? Check out all the ways to `fuel this project <./docs/DONATE.rst>`_ — coffee, kind words, or cold hard crypto, it's all welcome.
+`Download instructions <docs/INSTRUCTIONS.rst>`_ *(reading them is optional, but so is a successful installation)*
 
 
 Code analysis
 =============
+Yes, the code is actually linted. No, it wasn't always pretty. Yes, it's better now. 🔍
+
 .. image:: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml/badge.svg
    :alt: Code lint workflow
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml
@@ -104,6 +82,31 @@ Code analysis
 .. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
    :alt: SonarQube reliability rating
    :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
+
+
+Contributing
+============
+If you want to improve the project, please review our `contributing guidelines <docs/CONTRIBUTING.rst>`_.
+
+We are grateful for all our contributors! 🎉
+Seriously — every bug fix, improvement, or creative complaint has made this better.
+
+Please check the `contributors list <docs/CONTRIBUTORS.md>`_ for more details.
+
+*(Even fixing a typo counts. Probably. We'll review it very carefully either way.)*
+
+
+Donations
+=========
+.. image:: https://img.shields.io/badge/Donate-FFF000?logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
+   :alt: Support this project on Ko-fi
+   :target: ./docs/DONATE.rst
+
+I maintain this project on my own in my spare time — the finite, precious kind that competes with sleep, meals eaten while staring at a terminal, and the occasional social obligation.
+
+If it's saved you time, frustration, or a trip to the Google ecosystem, please consider supporting its development!
+
+Wondering how? Check out all the ways to `fuel this project <./docs/DONATE.rst>`_ — coffee, kind words, or cold hard crypto, it's all welcome.
 
 
 Copyright
