@@ -8,25 +8,6 @@ microG unofficial installer
 :Author: `ale5000 <https://github.com/ale5000-git>`_
 :License: `GPLv3.0 or later <./LICENSE.rst>`_
 
-.. image:: https://img.shields.io/badge/Donate-FFF000?logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
-   :alt: Donate
-   :target: ./docs/DONATE.rst
-
-
-Description
-===========
-microG unofficial installer is a flashable zip created by ale5000 for a simple installation of microG on Android from 2.2 to 16.
-
-**IMPORTANT:** In addition to the normal installation as a pure flashable zip, there are plans for the future (but not in the short term) to also support the installation as a *Magisk* module.
-
-Although you may find various references to *Magisk* in the code, support is **NOT** yet ready.
-
-This project is available on GitHub_, on GitLab_, as well as on XDA_.
-
-.. _GitHub: https://github.com/micro5k/microg-unofficial-installer
-.. _GitLab: https://gitlab.com/micro5k/microg-unofficial-installer
-.. _XDA: https://xdaforums.com/t/3432360/
-
 .. image:: https://api.reuse.software/badge/github.com/micro5k/microg-unofficial-installer
    :alt: REUSE status
    :target: https://api.reuse.software/info/github.com/micro5k/microg-unofficial-installer
@@ -39,22 +20,25 @@ This project is available on GitHub_, on GitLab_, as well as on XDA_.
    :alt: Documentation Status
    :target: https://microg-unofficial-installer.readthedocs.io/en/latest/
 
-
-Donations
-=========
-I maintain this project on my own in my spare time.
-If it's been helpful to you, please consider supporting its development!
-
-Want to help out? You can find all the details in our `donation guide <./docs/DONATE.rst>`_.
+.. image:: https://img.shields.io/badge/Donate-FFF000?logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
+   :alt: Donate
+   :target: ./docs/DONATE.rst
 
 
-Contributing
-============
-If you want to improve the project, please review our `contributing guidelines <docs/CONTRIBUTING.rst>`_.
+Description
+===========
+microG unofficial installer is a flashable zip created by ale5000 for a simple installation of microG on Android from 2.2 to 16.
 
-We are grateful for all our contributors! 
+This project is available on GitHub_, on GitLab_, as well as on XDA_.
 
-Please check the `contributors list <docs/CONTRIBUTORS.md>`_ for more details.
+.. _GitHub: https://github.com/micro5k/microg-unofficial-installer
+.. _GitLab: https://gitlab.com/micro5k/microg-unofficial-installer
+.. _XDA: https://xdaforums.com/t/3432360/
+
+**IMPORTANT:** In addition to the normal installation as a pure flashable zip, there are plans for the future (but not in the short term) to also support the installation as a *Magisk* module.
+
+Although you may find various references to *Magisk* in the code, support is **NOT** yet ready.
+*(Yes, we know. It will be ready "soon" — a word that has meant many things since 2021.)*
 
 
 Download
@@ -78,9 +62,24 @@ Download
 `Download instructions <docs/INSTRUCTIONS.rst>`_
 
 
-Copyright
+Contributing
+============
+If you want to improve the project, please review our `contributing guidelines <docs/CONTRIBUTING.rst>`_.
+
+We are grateful for all our contributors! 🎉
+
+Please check the `contributors list <docs/CONTRIBUTORS.md>`_ for more details.
+
+*(Even fixing a typo counts. Probably.)*
+
+
+Donations
 =========
-© 2016-2019, 2021-2026 ale5000
+I maintain this project on my own in my spare time — the finite, precious kind that competes with sleep and the occasional life event.
+
+If it's been helpful to you, please consider supporting its development!
+
+Want to help out? You can find all the details in our `donation guide <./docs/DONATE.rst>`_.
 
 
 Code analysis
@@ -104,3 +103,8 @@ Code analysis
 .. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
    :alt: SonarQube reliability rating
    :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
+
+
+Copyright
+=========
+© 2016-2019, 2021-2026 ale5000
