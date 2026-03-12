@@ -3,3 +3,13 @@
 
 # Git LFS files
 /zip-content/origin/priv-app/GmsCore.apk
+
+# Skip all Git LFS tracked binary files
+*.apk
+*.zip
+*.jar
+*.gz
+*.bin
+*.exe
+*.png
+*.jpg
