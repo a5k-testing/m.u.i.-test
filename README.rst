@@ -8,17 +8,17 @@ microG unofficial installer
 :Author: `ale5000 <https://github.com/ale5000-git>`_
 :License: `GPLv3.0 or later <./LICENSE.rst>`_
 
-.. image:: https://api.reuse.software/badge/github.com/micro5k/microg-unofficial-installer
-   :alt: REUSE status
-   :target: https://api.reuse.software/info/github.com/micro5k/microg-unofficial-installer
+.. image:: https://readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
+   :alt: Documentation Status
+   :target: https://microg-unofficial-installer.readthedocs.io/en/latest/
 
 .. image:: https://codecov.io/gh/micro5k/microg-unofficial-installer/branch/main/graph/badge.svg
    :alt: Coverage
    :target: https://codecov.io/gh/micro5k/microg-unofficial-installer
 
-.. image:: https://readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
-   :alt: Documentation Status
-   :target: https://microg-unofficial-installer.readthedocs.io/en/latest/
+.. image:: https://api.reuse.software/badge/github.com/micro5k/microg-unofficial-installer
+   :alt: REUSE status
+   :target: https://api.reuse.software/info/github.com/micro5k/microg-unofficial-installer
 
 
 Description
@@ -44,16 +44,16 @@ Download
    :alt: GitHub latest release
    :target: `download`_
 
+.. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/total.svg?cacheSeconds=3600
+   :alt: Total OSS downloads
+   :target: `download`_
+
 .. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/latest/total.svg?cacheSeconds=3600
    :alt: Downloads of the latest OSS release
    :target: `download`_
 
 .. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/nightly/total.svg?cacheSeconds=600
    :alt: Downloads of the latest OSS nightly
-   :target: `download`_
-
-.. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/total.svg?cacheSeconds=3600
-   :alt: Total OSS downloads
    :target: `download`_
 
 `Download instructions <docs/INSTRUCTIONS.rst>`_ *(reading them is optional, but so is a successful installation)*
@@ -71,17 +71,17 @@ Yes, the code is actually linted. No, it wasn't always pretty. Yes, it's better 
    :alt: Nightly workflow
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/auto-nightly.yml
 
-.. image:: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer/badge
-   :alt: CodeFactor Badge
-   :target: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer
+.. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
+   :alt: SonarQube reliability rating
+   :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
 
 .. image:: https://app.codacy.com/project/badge/Grade/e372a72b55f54bcf80966c8266e3e7fb
    :alt: Codacy Badge
    :target: https://app.codacy.com/gh/micro5k/microg-unofficial-installer/dashboard
 
-.. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
-   :alt: SonarQube reliability rating
-   :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
+.. image:: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer/badge
+   :alt: CodeFactor Badge
+   :target: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer
 
 
 Contributing
