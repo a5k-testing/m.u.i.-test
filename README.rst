@@ -8,8 +8,8 @@ microG unofficial installer
 :Author: `ale5000 <https://github.com/ale5000-git>`_
 :License: `GPLv3.0 or later <./LICENSE.rst>`_
 
-.. image:: https://readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
-   :alt: Documentation Status
+.. image:: https://app.readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
+   :alt: Documentation status
    :target: https://microg-unofficial-installer.readthedocs.io/en/latest/
 
 .. image:: https://codecov.io/gh/micro5k/microg-unofficial-installer/branch/main/graph/badge.svg
@@ -35,7 +35,6 @@ This project is available on GitHub_, on GitLab_, as well as on XDA_.
 **IMPORTANT:** In addition to the normal installation as a pure flashable zip, there are plans for the future (but not in the short term) to also support the installation as a *Magisk* module.
 
 Although you may find various references to *Magisk* in the code, support is **NOT** yet ready.
-*(Yes, we know. It will be ready "soon™" — a word that has bravely carried different meanings since 2021.)*
 
 
 Download
@@ -59,7 +58,7 @@ The badges below show the current version and download statistics.
    :alt: Downloads of the latest OSS nightly
    :target: `download`_
 
-`Download instructions <docs/INSTRUCTIONS.rst>`_ *(reading them is optional, but so is a successful installation)*
+`Download instructions <./docs/INSTRUCTIONS.rst>`_ *(reading them is optional, but so is a successful installation)*
 
 
 Code analysis
@@ -78,26 +77,26 @@ In addition, SonarCloud, Codacy, and CodeFactor provide continuous code quality 
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/auto-nightly.yml
 
 .. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
-   :alt: SonarQube reliability rating
+   :alt: SonarQube badge
    :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
 
 .. image:: https://app.codacy.com/project/badge/Grade/e372a72b55f54bcf80966c8266e3e7fb
-   :alt: Codacy Badge
+   :alt: Codacy badge
    :target: https://app.codacy.com/gh/micro5k/microg-unofficial-installer/dashboard
 
 .. image:: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer/badge
-   :alt: CodeFactor Badge
+   :alt: CodeFactor badge
    :target: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer
 
 
 Contributing
 ============
-If you want to improve the project, please review our `contributing guidelines <docs/CONTRIBUTING.rst>`_.
+If you want to improve the project, please review our `contributing guidelines <./docs/CONTRIBUTING.rst>`_.
 
 We are grateful for all our contributors! 🎉
 Seriously — every bug fix, improvement, or creative complaint has made this better.
 
-Please check the `contributors list <docs/CONTRIBUTORS.md>`_ for more details.
+Please check the `contributors list <./docs/CONTRIBUTORS.md>`_ for more details.
 
 *(Even fixing a typo counts. Probably. We'll review it very carefully either way.)*
 
@@ -105,7 +104,7 @@ Please check the `contributors list <docs/CONTRIBUTORS.md>`_ for more details.
 Donations
 =========
 .. image:: https://img.shields.io/badge/Donate-FFF000?logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
-   :alt: Support this project on Ko-fi
+   :alt: Support this project
    :target: ./docs/DONATE.rst
 
 I maintain this project on my own in my spare time — the finite, precious kind that competes with sleep, meals eaten while staring at a terminal, and the occasional social obligation.

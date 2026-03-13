@@ -1,22 +1,27 @@
+---
 # SPDX-FileCopyrightText: NONE
 # SPDX-License-Identifier: CC0-1.0
 
-# ReadTheDocs configuration file
-# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 
 version: 2
 
+# Set the OS, Python version and other tools you might need
 build:
-  os: ubuntu-24.04
+  os: "ubuntu-lts-latest"
   tools:
     python: "3"
   jobs:
-    pre_checkout:
-      - git lfs install --skip-smudge
+    post_install:
+      - pip install Sphinx==9.1.0 sphinx-rtd-theme
 
+# Build documentation in the "docs/" directory with Sphinx
 sphinx:
-  configuration: docs/conf.py
+  configuration: "docs/conf.py"
+  fail_on_warning: true
 
-python:
-  install:
-    - requirements: docs/requirements.txt
+# Optionally build your docs in additional formats such as PDF and ePub
+formats:
+  - pdf
+  - htmlzip
