@@ -9,15 +9,15 @@ microG unofficial installer
 :License: `GPLv3.0 or later <./LICENSE.rst>`_
 
 .. image:: https://app.readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
-   :alt: Documentation status
+   :alt: Read the Docs build status
    :target: https://microg-unofficial-installer.readthedocs.io/en/latest/
 
 .. image:: https://codecov.io/gh/micro5k/microg-unofficial-installer/branch/main/graph/badge.svg
-   :alt: Coverage
+   :alt: Code coverage on Codecov
    :target: https://codecov.io/gh/micro5k/microg-unofficial-installer
 
 .. image:: https://api.reuse.software/badge/github.com/micro5k/microg-unofficial-installer
-   :alt: REUSE status
+   :alt: REUSE compliance status
    :target: https://api.reuse.software/info/github.com/micro5k/microg-unofficial-installer
 
 
@@ -35,6 +35,7 @@ This project is available on GitHub_, on GitLab_, as well as on XDA_.
 **IMPORTANT:** In addition to the normal installation as a pure flashable zip, there are plans for the future (but not in the short term) to also support the installation as a *Magisk* module.
 
 Although you may find various references to *Magisk* in the code, support is **NOT** yet ready.
+*(Yes, we know. It will be ready "soon™" — a word that has bravely carried different meanings since 2021.)*
 
 
 Download
@@ -42,23 +43,25 @@ Download
 Grab the latest stable release or, if you like to live dangerously, the nightly build.
 The badges below show the current version and download statistics.
 
+.. _download: https://github.com/micro5k/microg-unofficial-installer/releases
+
 .. image:: https://img.shields.io/github/v/release/micro5k/microg-unofficial-installer.svg?cacheSeconds=3600
-   :alt: GitHub latest release
+   :alt: GitHub: latest release version
    :target: `download`_
 
 .. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/total.svg?cacheSeconds=3600
-   :alt: Total OSS downloads
+   :alt: GitHub: total OSS downloads
    :target: `download`_
 
 .. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/latest/total.svg?cacheSeconds=3600
-   :alt: Downloads of the latest OSS release
+   :alt: GitHub: downloads of the latest OSS release
    :target: `download`_
 
 .. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/nightly/total.svg?cacheSeconds=600
-   :alt: Downloads of the latest OSS nightly
+   :alt: GitHub: downloads of the latest OSS nightly
    :target: `download`_
 
-`Download instructions <./docs/INSTRUCTIONS.rst>`_ *(reading them is optional, but so is a successful installation)*
+`Read before you flash <./docs/INSTRUCTIONS.rst>`_ *(ten minutes of reading beats one hour of re-flashing)*
 
 
 Code analysis
@@ -69,23 +72,23 @@ CI pipelines run on every push to keep the build healthy — the code-lint workf
 In addition, SonarCloud, Codacy, and CodeFactor provide continuous code quality analysis from multiple angles, because one linter is never enough.
 
 .. image:: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml/badge.svg
-   :alt: Code lint workflow
+   :alt: Code lint: CI status
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml
 
 .. image:: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/auto-nightly.yml/badge.svg
-   :alt: Nightly workflow
+   :alt: Nightly build: CI status
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/auto-nightly.yml
 
 .. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
-   :alt: SonarQube badge
+   :alt: SonarCloud: reliability rating
    :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
 
 .. image:: https://app.codacy.com/project/badge/Grade/e372a72b55f54bcf80966c8266e3e7fb
-   :alt: Codacy badge
+   :alt: Codacy: code quality grade
    :target: https://app.codacy.com/gh/micro5k/microg-unofficial-installer/dashboard
 
 .. image:: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer/badge
-   :alt: CodeFactor badge
+   :alt: CodeFactor: code quality
    :target: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer
 
 
@@ -103,8 +106,8 @@ Please check the `contributors list <./docs/CONTRIBUTORS.md>`_ for more details.
 
 Donations
 =========
-.. image:: https://img.shields.io/badge/Donate-FFF000?logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
-   :alt: Support this project
+.. image:: https://img.shields.io/badge/Donate-FFF000?style=for-the-badge&logo=ko-fi&logoColor=black&cacheSeconds=21600
+   :alt: Ko-fi: support this project
    :target: ./docs/DONATE.rst
 
 I maintain this project on my own in my spare time — the finite, precious kind that competes with sleep, meals eaten while staring at a terminal, and the occasional social obligation.
@@ -112,6 +115,7 @@ I maintain this project on my own in my spare time — the finite, precious kind
 If it's saved you time, frustration, or a trip to the Google ecosystem, please consider supporting its development!
 
 Wondering how? Check out all the ways to `fuel this project <./docs/DONATE.rst>`_ — coffee, kind words, or cold hard crypto, it's all welcome.
+*(No pressure. But the coffee does make the bugs fix themselves slightly faster.)*
 
 
 Copyright
