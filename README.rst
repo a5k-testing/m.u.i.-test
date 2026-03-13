@@ -40,6 +40,9 @@ Although you may find various references to *Magisk* in the code, support is **N
 
 Download
 ========
+Grab the latest stable release or, if you like to live dangerously, the nightly build.
+The badges below show the current version and download statistics.
+
 .. image:: https://img.shields.io/github/v/release/micro5k/microg-unofficial-installer.svg?cacheSeconds=3600
    :alt: GitHub latest release
    :target: `download`_
@@ -62,6 +65,9 @@ Download
 Code analysis
 =============
 Yes, the code is actually linted. No, it wasn't always pretty. Yes, it's better now. 🔍
+
+CI pipelines run on every push to keep the build healthy — the code-lint workflow checks style and correctness, while the nightly workflow validates a full automated build.
+In addition, SonarCloud, Codacy, and CodeFactor provide continuous code quality analysis from multiple angles, because one linter is never enough.
 
 .. image:: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml/badge.svg
    :alt: Code lint workflow
