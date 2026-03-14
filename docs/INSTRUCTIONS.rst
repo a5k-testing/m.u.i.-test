@@ -136,3 +136,41 @@ Uninstallation
 ==============
 
 To uninstall re-flash the zip, enable live setup and select **Uninstall**.
+
+
+Troubleshooting
+===============
+
+Installation fails or device does not boot
+-------------------------------------------
+
+1. Check the debug log (``debug-a5k.log``), which is usually written to the microSD card or internal storage.
+2. Review the `Known issues <./KNOWN-ISSUES.rst>`_ page before reporting a new bug.
+3. If the issue is not listed, open an issue on GitHub with as much detail as possible — see `Support <./SUPPORT.rst>`_ for what information to include.
+
+.. tip::
+   To flash without making any changes (dry-run mode, useful for testing):
+
+   .. code-block:: sh
+
+      adb shell "setprop zip.microg-unofficial-installer.DRY_RUN 1"
+
+   Then flash as usual. The installer will run through all steps but will not write anything to the device.
+
+``adb`` command not found
+--------------------------
+
+``adb`` is part of the Android SDK Platform-Tools.
+Download it from the `official Android developer page <https://developer.android.com/tools/releases/platform-tools>`_
+or install it using your system's package manager (e.g., ``apt install adb`` on Debian/Ubuntu).
+
+Live setup timeout expires too quickly
+---------------------------------------
+
+Extend the timeout before flashing:
+
+.. code-block:: sh
+
+   adb shell "setprop zip.microg-unofficial-installer.LIVE_SETUP_TIMEOUT 10"
+
+The value is in seconds. The default is 4 seconds.
