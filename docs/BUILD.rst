@@ -21,9 +21,12 @@ All build methods require:
   The CI uses the `Eclipse Temurin <https://adoptium.net/>`_ distribution, which is also recommended locally.
   If you use `asdf <https://asdf-vm.com/>`_, run ``asdf install`` in the project root to install the exact version defined in ``.tool-versions``.
 
-- **Bash** — the main build script (``build.sh``) requires Bash.
-  It is pre-installed on Linux and macOS.
-  On Windows, use `Git Bash <https://git-scm.com/downloads>`_ or `WSL <https://learn.microsoft.com/en-us/windows/wsl/install>`_.
+- **Shell** — the main build script (``build.sh``) uses Bash by default, but it is written
+  to be compatible with most POSIX-compliant shells; special care is taken to ensure
+  BusyBox compatibility.
+  Bash is pre-installed on Linux and macOS.
+  On Windows, use ``build.bat`` instead — it invokes ``build.sh`` via the bundled
+  BusyBox for Windows (no extra installation required).
 
 Additional requirement depending on the build method:
 

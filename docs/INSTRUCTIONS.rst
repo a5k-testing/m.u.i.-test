@@ -59,6 +59,19 @@ Instead if you want to try the nightly builds you can find them here:
 .. note::
    If you get the error "No space left on device", you can find a workaround in `Known issues <./KNOWN-ISSUES.rst#no-space-left-on-device>`_.
 
+Verifying the download
+----------------------
+
+Each release ships a ``.sha256`` file alongside the zip.
+To verify the integrity of the downloaded file, run:
+
+.. code-block:: sh
+
+   sha256sum -c microg-unofficial-installer-*.zip.sha256
+
+An ``OK`` result confirms the file is intact and unmodified.
+The expected SHA-256 hash is also listed in the release notes for quick manual comparison.
+
 
 Configure
 =========
@@ -149,7 +162,8 @@ Troubleshooting
 Installation fails or device does not boot
 -------------------------------------------
 
-1. Check the debug log (``debug-a5k.log``), which is usually written to the microSD card or internal storage.
+1. If ``DEBUG_LOG`` was active during the failed installation, check the debug log
+   (``debug-a5k.log``), which is written to the microSD card or internal storage.
 2. Review the `Known issues <./KNOWN-ISSUES.rst>`_ page before reporting a new bug.
 3. If the issue is not listed, open an issue on GitHub with as much detail as possible — see `Support <./SUPPORT.rst>`_ for what information to include.
 
