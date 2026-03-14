@@ -83,21 +83,24 @@ file bundled inside the zip.
 Extract it and open it in any spreadsheet app or text editor to see everything that can be tuned.
 *(There are more knobs than you'd expect. We're not sorry.)*
 
-For example, to enable key recognition test mode:
+For example, to activate the key recognition test mode — useful when
+the volume keys are not being detected correctly during live setup:
 
 .. code-block:: sh
 
    adb shell "setprop zip.microg-unofficial-installer.KEY_TEST_ONLY 1"
 
-``KEY_TEST_ONLY`` activates a dedicated key-press diagnostic mode.
-Instead of performing the normal installation, the installer runs an
-interactive test loop that prompts you to press any hardware button
-8 times in a row, and for each press it prints the raw event data
-(key code and action) to the screen.
-No changes are written to the device (it implies dry-run mode).
-This is useful for diagnosing key-detection issues on devices with
-non-standard hardware buttons, or to find the key codes you need to
-configure custom input mappings.
+When ``KEY_TEST_ONLY`` is enabled, the installer **skips the actual
+installation entirely** and instead runs an interactive hardware-key
+diagnostic.
+It prompts you to press any button 8 times in a row; for every press
+it displays the raw input event (key code and action) directly on
+screen so you can see exactly which key codes your device reports.
+Because no installation takes place, **no changes are written to the
+device** (the mode implies dry-run).
+Use this to diagnose key-detection problems on devices with
+non-standard hardware buttons, or to find the correct key codes for
+custom input mappings.
 
 .. warning::
    Properties set via ``adb shell setprop`` are **temporary** and are lost on every reboot.
@@ -172,8 +175,16 @@ Troubleshooting
 Installation fails or device does not boot
 -------------------------------------------
 
-1. If ``DEBUG_LOG`` was active during the failed installation, check the debug log
-   (``debug-a5k.log``), which is written to the microSD card or internal storage.
+1. If ``DEBUG_LOG`` was not already active, enable it **before** re-flashing:
+
+   .. code-block:: sh
+
+      adb shell "setprop zip.common.DEBUG_LOG 1"
+
+   Then flash **immediately** without rebooting
+   *(``setprop`` values are lost on reboot — see the `Configure`_ section)*.
+   The log is written to ``debug-a5k.log`` on the microSD card or internal storage.
+
 2. Review the `Known issues <./KNOWN-ISSUES.rst>`_ page before reporting a new bug.
 3. If the issue is not listed, open an issue on GitHub with as much detail as possible — see `Support <./SUPPORT.rst>`_ for what information to include.
 

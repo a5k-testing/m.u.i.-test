@@ -1,0 +1,142 @@
+###############
+Release hashes
+###############
+..
+   SPDX-FileCopyrightText: (c) 2026 ale5000
+   SPDX-License-Identifier: GPL-3.0-or-later
+   SPDX-FileType: DOCUMENTATION
+
+This page lists the SHA-256 hashes of all beta and stable releases of the
+`microG unofficial installer <https://github.com/micro5k/microg-unofficial-installer>`_.
+
+Use these hashes to verify the integrity of a downloaded zip against its
+published checksum, independently of the ``.sha256`` file shipped alongside
+each release.
+
+.. note::
+   The **Full** flavour is distributed exclusively through
+   `XDA Forums <https://xdaforums.com/t/3432360/>`_ and its SHA-256 hashes
+   are not published in a machine-readable form there, so only **OSS** flavour
+   hashes are listed below.
+   Releases older than v1.0.33-beta did not ship ``.sha256`` files and are
+   therefore not listed.
+
+.. contents:: Contents:
+   :local:
+   :depth: 1
+   :backlinks: none
+
+
+OSS flavour
+===========
+
+v1.3.2-beta
+-----------
+
+:Released: 2025-03-22
+:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.2-beta
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.2-beta-23416e3-oss-by-ale5000-signed.zip``
+     - ``e1206d092e1bfb8849b0d43127026a45a14b5bb1996eb1ad08b77a31fafb7de9``
+
+
+v1.3.1-beta
+-----------
+
+:Released: 2023-04-30
+:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.1-beta
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-OSS-signed.zip``
+     - ``d5165c09c40d2bf6894eb06bd9f75f57407d7d14d7a0e283025d78cb5bc61dac``
+
+
+v1.3.0-beta
+-----------
+
+:Released: 2023-02-19
+:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.0-beta
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-OSS-signed.zip``
+     - ``f7e268beb5b1dcb0240b959ab77f7b690ef67274a25cb72dae5ec61ee4086877``
+
+
+v1.2.0-beta
+-----------
+
+:Released: 2022-12-30
+:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.2.0-beta
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-OSS-signed.zip``
+     - ``1591c958d5a78d4db27366e9a8d0465c4afdc60887581eb1d4322c526ab2045f``
+
+
+v1.1.0-beta
+-----------
+
+:Released: 2022-04-28
+:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.1.0-beta
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-OSS-signed.zip``
+     - ``e5eb20bc9cd9f21a1482b63d6530115559380dac528ef58175928b682613adc0``
+
+
+v1.0.34-beta
+------------
+
+:Released: 2019-07-07
+:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.34-beta
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microG-unofficial-installer-ale5000-v1.0.34-beta-OSS-signed.zip``
+     - ``62492043fdfab0bf7f5e3b56213ad942c98737226101ed81d18218e774835fb3``
+
+
+v1.0.33-beta
+------------
+
+:Released: 2018-12-04
+:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.33-beta
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microG-unofficial-installer-ale5000-v1.0.33-beta-OSS-signed.zip``
+     - ``9767e312d901c6e2dd14d4878961b0f3d1f0b4d52658e95c175294542baa844d``
