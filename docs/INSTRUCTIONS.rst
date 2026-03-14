@@ -73,6 +73,8 @@ An ``OK`` result confirms the file is intact and unmodified.
 The expected SHA-256 hash is also listed in the release notes for quick manual comparison.
 
 
+.. _configure:
+
 Configure
 =========
 

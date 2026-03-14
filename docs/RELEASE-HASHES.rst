@@ -16,8 +16,8 @@ each release.
 .. note::
    The **Full** flavour is distributed exclusively through
    `XDA Forums <https://xdaforums.com/t/3432360/>`_ and its SHA-256 hashes
-   are not published in a machine-readable form there, so only **OSS** flavour
-   hashes are listed below.
+   are not published in a machine-readable form there; the entries below
+   are reserved for manual insertion.
    Releases older than v1.0.33-beta did not ship ``.sha256`` files and are
    therefore not listed.
 
@@ -140,3 +140,123 @@ v1.0.33-beta
      - SHA-256
    * - ``microG-unofficial-installer-ale5000-v1.0.33-beta-OSS-signed.zip``
      - ``9767e312d901c6e2dd14d4878961b0f3d1f0b4d52658e95c175294542baa844d``
+
+
+Full flavour
+============
+
+.. note::
+   The Full flavour is distributed through `XDA Forums <https://xdaforums.com/t/3432360/>`_.
+   SHA-256 hashes for Full flavour releases are not published alongside the downloads,
+   so the hash column below is reserved for manual insertion.
+
+v1.3.2-beta
+-----------
+
+:Released: 2025-03-22
+:Release page: https://xdaforums.com/t/3432360/
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.2-beta-23416e3-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+v1.3.1-beta
+-----------
+
+:Released: 2023-04-30
+:Release page: https://xdaforums.com/t/3432360/
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+v1.3.0-beta
+-----------
+
+:Released: 2023-02-19
+:Release page: https://xdaforums.com/t/3432360/
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+v1.2.0-beta
+-----------
+
+:Released: 2022-12-30
+:Release page: https://xdaforums.com/t/3432360/
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+v1.1.0-beta
+-----------
+
+:Released: 2022-04-28
+:Release page: https://xdaforums.com/t/3432360/
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+v1.0.34-beta
+------------
+
+:Released: 2019-07-07
+:Release page: https://xdaforums.com/t/3432360/
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microG-unofficial-installer-ale5000-v1.0.34-beta-signed.zip``
+     - *(to be added)*
+
+
+v1.0.33-beta
+------------
+
+:Released: 2018-12-04
+:Release page: https://xdaforums.com/t/3432360/
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microG-unofficial-installer-ale5000-v1.0.33-beta-signed.zip``
+     - *(to be added)*
