@@ -83,11 +83,11 @@ file bundled inside the zip.
 Extract it and open it in any spreadsheet app or text editor to see everything that can be tuned.
 *(There are more knobs than you'd expect. We're not sorry.)*
 
-For example, to enable installation of NewPipe:
+For example, to enable key recognition testing:
 
 .. code-block:: sh
 
-   adb shell "setprop zip.microg-unofficial-installer.APP_NEWPIPE 1"
+   adb shell "setprop zip.microg-unofficial-installer.KEY_TEST_ONLY 1"
 
 .. warning::
    Properties set via ``adb shell setprop`` are **temporary** and are lost on every reboot.
