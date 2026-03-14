@@ -83,11 +83,21 @@ file bundled inside the zip.
 Extract it and open it in any spreadsheet app or text editor to see everything that can be tuned.
 *(There are more knobs than you'd expect. We're not sorry.)*
 
-For example, to enable key recognition testing:
+For example, to enable key recognition test mode:
 
 .. code-block:: sh
 
    adb shell "setprop zip.microg-unofficial-installer.KEY_TEST_ONLY 1"
+
+``KEY_TEST_ONLY`` activates a dedicated key-press diagnostic mode.
+Instead of performing the normal installation, the installer runs an
+interactive test loop that prompts you to press any hardware button
+8 times in a row, and for each press it prints the raw event data
+(key code and action) to the screen.
+No changes are written to the device (it implies dry-run mode).
+This is useful for diagnosing key-detection issues on devices with
+non-standard hardware buttons, or to find the key codes you need to
+configure custom input mappings.
 
 .. warning::
    Properties set via ``adb shell setprop`` are **temporary** and are lost on every reboot.
