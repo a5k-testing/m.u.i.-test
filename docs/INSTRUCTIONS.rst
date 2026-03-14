@@ -83,11 +83,11 @@ file bundled inside the zip.
 Extract it and open it in any spreadsheet app or text editor to see everything that can be tuned.
 *(There are more knobs than you'd expect. We're not sorry.)*
 
-For example, to enable installation of microG signed by ale5000:
+For example, to enable installation of NewPipe:
 
 .. code-block:: sh
 
-   adb shell "setprop zip.microg-unofficial-installer.USE_MICROG_BY_ALE5000 1"
+   adb shell "setprop zip.microg-unofficial-installer.APP_NEWPIPE 1"
 
 .. warning::
    Properties set via ``adb shell setprop`` are **temporary** and are lost on every reboot.
