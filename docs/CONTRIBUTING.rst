@@ -36,7 +36,7 @@ To run ShellCheck locally on a single script:
 
    shellcheck <path/to/script.sh>
 
-To run ShellCheck on all shell scripts in the project at once (mirroring CI), install the `a5k ShellChecker action <https://github.com/a5k-actions/shellchecker>`_ dependencies or simply run:
+To run ShellCheck on all shell scripts in the project at once (mirroring CI):
 
 .. code-block:: sh
 

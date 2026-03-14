@@ -76,9 +76,14 @@ For example, to set a longer live setup timeout:
 
    adb shell "setprop zip.microg-unofficial-installer.LIVE_SETUP_TIMEOUT 8"
 
-.. tip::
-   Properties set via ``adb shell setprop`` are temporary and reset on reboot.
-   Set them just before flashing so they take effect when the installer runs.
+.. warning::
+   Properties set via ``adb shell setprop`` are **temporary** and are lost on every reboot.
+   If you set them and then reboot the device (e.g., to enter recovery), they will be gone
+   before the installer ever reads them — making your configuration useless.
+   Always set the properties **after** the device has booted into the state from which you
+   will flash (e.g., from a running Android system when using ADB sideload or
+   ``zip-install.sh``, or from within your recovery's ADB shell), and flash **immediately**
+   afterwards without rebooting.
 
 
 Installation
@@ -155,7 +160,9 @@ Installation fails or device does not boot
 
       adb shell "setprop zip.microg-unofficial-installer.DRY_RUN 1"
 
-   Then flash as usual. The installer will run through all steps but will not write anything to the device.
+   Then flash **immediately** without rebooting.
+   The installer will run through all steps but will not write anything to the device.
+   *(Remember: ``setprop`` values are lost on reboot — see the `Configure`_ section.)*
 
 ``adb`` command not found
 --------------------------
@@ -167,7 +174,8 @@ or install it using your system's package manager (e.g., ``apt install adb`` on 
 Live setup timeout expires too quickly
 ---------------------------------------
 
-Extend the timeout before flashing:
+Extend the timeout before flashing, then flash **immediately** without rebooting
+*(``setprop`` values are lost on reboot — see the `Configure`_ section)*:
 
 .. code-block:: sh
 
