@@ -69,7 +69,7 @@ Code analysis
 Yes, the code is actually linted. No, it wasn't always pretty. Yes, it's better now. 🔍
 
 CI pipelines run on every push to keep the build healthy — the code-lint workflow checks style and correctness, while the nightly workflow validates a full automated build.
-In addition, SonarCloud, Codacy, and CodeFactor provide continuous code quality analysis from multiple angles, because one linter is never enough.
+In addition, SonarQube, Codacy, and CodeFactor provide continuous code quality analysis from multiple angles, because one linter is never enough.
 
 .. image:: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml/badge.svg
    :alt: Code lint: CI status
@@ -80,7 +80,7 @@ In addition, SonarCloud, Codacy, and CodeFactor provide continuous code quality 
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/auto-nightly.yml
 
 .. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
-   :alt: SonarCloud: reliability rating
+   :alt: SonarQube: reliability rating
    :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
 
 .. image:: https://app.codacy.com/project/badge/Grade/e372a72b55f54bcf80966c8266e3e7fb
@@ -106,8 +106,8 @@ Please check the `contributors list <./docs/CONTRIBUTORS.md>`_ for more details.
 
 Donations
 =========
-.. image:: https://img.shields.io/badge/Donate-FFF000?style=for-the-badge&logo=ko-fi&logoColor=black&cacheSeconds=21600
-   :alt: Ko-fi: support this project
+.. image:: https://img.shields.io/badge/Donate-FFF000?style=for-the-badge&logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
+   :alt: Support this project
    :target: ./docs/DONATE.rst
 
 I maintain this project on my own in my spare time — the finite, precious kind that competes with sleep, meals eaten while staring at a terminal, and the occasional social obligation.

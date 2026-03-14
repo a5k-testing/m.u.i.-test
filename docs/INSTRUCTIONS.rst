@@ -70,7 +70,7 @@ file bundled inside the zip.
 Extract it and open it in any spreadsheet app or text editor to see everything that can be tuned.
 *(There are more knobs than you'd expect. We're not sorry.)*
 
-For example, to set a longer live setup timeout before flashing:
+For example, to set a longer live setup timeout:
 
 .. code-block:: sh
 
