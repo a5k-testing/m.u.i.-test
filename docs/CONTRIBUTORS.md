@@ -4,7 +4,7 @@
     SPDX-FileType: DOCUMENTATION
 -->
 
-# Contributors
+# Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/en/emoji-key/)):
 
@@ -14,9 +14,22 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/e
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://www.manueljenny.ch"><img src="https://avatars.githubusercontent.com/u/4191545?v=4?s=100" width="100px;" alt="Manuel Jenny"/><br /><sub><b>Manuel Jenny</b></sub></a><br /><a href="#code-storm1ng" title="Code">💻</a></td>
+      <td align="center" valign="top" width="16.66%"><a href="https://www.nanolx.org"><img src="https://avatars.githubusercontent.com/u/3106131?v=4?s=100" width="100px;" alt="Chris 'Nano' Bratusek"/><br /><sub><b>Chris 'Nano' Bratusek</b></sub></a><br /><a href="https://github.com/micro5k/microg-unofficial-installer/commits?author=Nanolx" title="Code">💻</a></td>
+      <td align="center" valign="top" width="16.66%"><a href="https://github.com/theScrabi"><img src="https://avatars.githubusercontent.com/u/1891273?v=4?s=100" width="100px;" alt="Christian Schabesberger"/><br /><sub><b>Christian Schabesberger</b></sub></a><br /><a href="https://github.com/micro5k/microg-unofficial-installer/commits?author=theScrabi" title="Code">💻</a></td>
+      <td align="center" valign="top" width="16.66%"><a href="https://www.manueljenny.ch"><img src="https://avatars.githubusercontent.com/u/4191545?v=4?s=100" width="100px;" alt="Manuel Jenny"/><br /><sub><b>Manuel Jenny</b></sub></a><br /><a href="https://github.com/micro5k/microg-unofficial-installer/commits?author=storm1ng" title="Code">💻</a></td>
+      <td align="center" valign="top" width="16.66%"><a href="https://nadia.moe"><img src="https://avatars.githubusercontent.com/u/969721?v=4?s=100" width="100px;" alt="Nadia Santalla"/><br /><sub><b>Nadia Santalla</b></sub></a><br /><a href="https://github.com/micro5k/microg-unofficial-installer/commits?author=nadiamoe" title="Code">💻</a></td>
+      <td align="center" valign="top" width="16.66%"><a href="https://liberapay.com/~1769491/"><img src="https://avatars.githubusercontent.com/u/0?v=4?s=100" width="100px;" alt="~1769491"/><br /><sub><b>~1769491</b></sub></a><br /><a href="#financial" title="Financial">💵</a></td>
     </tr>
   </tbody>
+  <tfoot>
+    <tr>
+      <td align="center" size="13px" colspan="6">
+        <img src="https://raw.githubusercontent.com/all-contributors/all-contributors-cli/1b8533af435da9854653492b1327a23a4dbd0a10/assets/logo-small.svg">
+          <a href="https://all-contributors.js.org/docs/en/bot/usage">Add your contributions</a>
+        </img>
+      </td>
+    </tr>
+  </tfoot>
 </table>
 
 <!-- markdownlint-restore -->

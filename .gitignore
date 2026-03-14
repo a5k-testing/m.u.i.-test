@@ -10,7 +10,9 @@
 /.ssh/
 /coverage/
 /dependency-graph-reports/
+/node_modules/
 /vendor/
+
 /.ash_history
 /.bash_history
 /.lesshst
@@ -47,6 +49,8 @@ user.gradle
 /build
 /cmdline
 
+/docs/_build/
+
 # Custom project folders
 /cache/
 /output/
@@ -55,3 +59,5 @@ user.gradle
 /utils/data/
 /tools/output/
 /utils/output/
+
+/zip-content/origin/priv-app/GmsCore.apk

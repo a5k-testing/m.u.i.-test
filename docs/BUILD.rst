@@ -1,6 +1,6 @@
-##############################
+###########################
 Build the flashable OTA zip
-##############################
+###########################
 ..
    SPDX-FileCopyrightText: (c) 2026 ale5000
    SPDX-License-Identifier: GPL-3.0-or-later
@@ -9,6 +9,8 @@ Build the flashable OTA zip
 .. contents:: Build methods:
    :local:
    :depth: 1
+   :backlinks: none
+
 
 make / pdpmake
 ==============
@@ -43,8 +45,8 @@ Emulates an Android recovery on the PC and runs the produced zip inside it:
 .. note::
    Run ``buildota`` or ``buildotaoss`` first so that the zip exists in the ``output/`` folder.
 
+
 `Gradle wrapper <https://docs.gradle.org/current/userguide/gradle_wrapper.html>`_
-======================================================================================
 
 Full flavour
 ------------
@@ -76,8 +78,8 @@ Emulates an Android recovery on the PC and runs the produced zip inside it:
 .. note::
    Run ``buildOta`` or ``buildOtaOSS`` first so that the zip exists in the ``output/`` folder.
 
+
 `VS Code <https://code.visualstudio.com/>`_
-================================================
 
 Full flavour
 ------------
