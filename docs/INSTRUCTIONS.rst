@@ -73,8 +73,6 @@ An ``OK`` result confirms the file is intact and unmodified.
 The expected SHA-256 hash is also listed in the release notes for quick manual comparison.
 
 
-.. _configure:
-
 Configure
 =========
 
@@ -184,7 +182,7 @@ Installation fails or device does not boot
       adb shell "setprop zip.common.DEBUG_LOG 1"
 
    Then flash **immediately** without rebooting
-   *(``setprop`` values are lost on reboot — see the `Configure`_ section)*.
+   (``setprop`` values are lost on reboot — see the `Configure`_ section).
    The log is written to ``debug-a5k.log`` on the microSD card or internal storage.
 
 2. Review the `Known issues <./KNOWN-ISSUES.rst>`_ page before reporting a new bug.
@@ -199,7 +197,7 @@ Installation fails or device does not boot
 
    Then flash **immediately** without rebooting.
    The installer will run through all steps but will not write anything to the device.
-   *(Remember: ``setprop`` values are lost on reboot — see the `Configure`_ section.)*
+   (``setprop`` values are lost on reboot — see the `Configure`_ section.)
 
 ``adb`` command not found
 --------------------------
@@ -212,7 +210,7 @@ Live setup timeout expires too quickly
 ---------------------------------------
 
 Extend the timeout before flashing, then flash **immediately** without rebooting
-*(``setprop`` values are lost on reboot — see the `Configure`_ section)*:
+(``setprop`` values are lost on reboot — see the `Configure`_ section):
 
 .. code-block:: sh
 
