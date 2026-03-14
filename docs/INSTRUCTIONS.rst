@@ -63,8 +63,7 @@ Instead if you want to try the nightly builds you can find them here:
 Configure
 =========
 
-You can pre-configure options before flashing — or adjust them at any time after installation —
-by setting system properties on the device.
+You can pre-configure options before flashing by setting system properties on the device.
 
 All available options and their accepted values are listed in the ``setprop-settings-list.csv``
 file bundled inside the zip.
