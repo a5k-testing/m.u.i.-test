@@ -30,7 +30,7 @@ jobs:
     if: "${{ github.event_name == 'push' }}"
     concurrency:
       group: "${{ github.repository_id }}-${{ github.workflow }}-nightly"
-      cancel-in-progress: true
+      cancel-in-progress: false
     permissions:
       contents: write # Needed to delete a release and to modify a tag
       id-token: write # Needed to attest build provenance
@@ -223,7 +223,7 @@ jobs:
               throw new Error(errorMsg);
             }
       - name: "Create nightly release"
-        uses: softprops/action-gh-release@v2.4.2
+        uses: softprops/action-gh-release@v2
         if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
         with:
           name: "${{ steps.build.outputs.ZIP_VERSION }} nightly"
