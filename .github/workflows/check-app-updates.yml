@@ -22,75 +22,49 @@ jobs:
       - name: "Checkout sources"
         uses: actions/checkout@v6
         with:
-          lfs: true
-      - name: "Extract APK info"
+          lfs: false
+          sparse-checkout: |
+            zip-content/origin/file-list.dat
+          sparse-checkout-cone-mode: false
+      - name: "Parse APK list"
         shell: bash
         run: |
-          # Extract package name, version code, and SHA-256 signature from APKs.
-          # Uses only preinstalled tools: aapt (Android SDK build-tools) + keytool (JDK).
-
-          # Locate aapt: prefer PATH, fall back to Android SDK build-tools
-          aapt_bin=''
-          if command -v 'aapt' 1>/dev/null; then
-            aapt_bin="$(command -v 'aapt')"
-          elif test -n "${ANDROID_SDK_ROOT:-}"; then
-            aapt_bin="$(find "${ANDROID_SDK_ROOT}/build-tools" \
-              -name 'aapt' -type f 2>/dev/null \
-              | sort -V | tail -1)"
-          fi
-          test -n "${aapt_bin}" \
-            || { printf 'ERROR: aapt not found\n' >&2; exit 1; }
-          printf 'Using aapt: %s\n' "${aapt_bin}"
+          # Parse file-list.dat to obtain package names and APK SHA-256 hashes.
+          # No APK binaries are downloaded; all data comes from the plain-text
+          # file-list.dat which is not LFS-tracked.
+          # file-list.dat fields: path|minSdk|maxSdk|apkName|subDir|pkg|sha256
 
           apk_count='0'
           json_entries=''
-          for apk_dir in \
-            'zip-content/origin/priv-app' \
-            'zip-content/origin/app'
+          while IFS='|' read -r \
+            path_field min_sdk max_sdk apk_name sub_dir pkg sha256
           do
-            for apk_path in "${GITHUB_WORKSPACE}/${apk_dir}"/*.apk; do
-              test -f "${apk_path}" || continue
-              file_name="$(basename "${apk_path}")"
+            # Only process priv-app/ and app/ entries
+            case "${path_field}" in
+              priv-app/* | app/*) ;;
+              *) continue ;;
+            esac
+            # Skip entries with no package name or hash
+            test -n "${pkg}" || continue
+            test -n "${sha256}" || continue
 
-              # Package name: anchored sed avoids matching 'codename=' attrs
-              pkg_line="$("${aapt_bin}" dump badging "${apk_path}" \
-                2>/dev/null | grep '^package:' || true)"
-              pkg_name="$(printf '%s' "${pkg_line}" \
-                | sed "s/^package:[[:space:]]*name='\([^']*\)'.*/\1/")"
-              version_code="$(printf '%s' "${pkg_line}" \
-                | grep -o "[[:space:]]versionCode='[^']*'" \
-                | head -1 | cut -d"'" -f2)"
+            file_name="$(basename "${path_field}")"
+            # Ensure the filename ends with .apk (path entries in
+            # file-list.dat do not include the extension, but guard anyway)
+            case "${file_name}" in
+              *.apk) ;;
+              *) file_name="${file_name}.apk" ;;
+            esac
+            printf 'INFO: %s: package=%s, sha256=%s\n' \
+              "${file_name}" "${pkg}" "${sha256}"
 
-              # SHA-256 certificate fingerprint via keytool
-              signature="$(keytool -printcert -jarfile "${apk_path}" \
-                2>/dev/null \
-                | grep 'SHA256:' | head -1 \
-                | sed 's/.*SHA256:[[:space:]]*//' \
-                | tr -d ':' \
-                | tr '[:upper:]' '[:lower:]' \
-                | tr -d '[:space:]')"
-
-              if test -z "${pkg_name}" || test -z "${signature}"; then
-                printf 'WARNING: skipping %s (pkg=%s, sig=%s)\n' \
-                  "${file_name}" \
-                  "${pkg_name:-missing}" \
-                  "${signature:-missing}" >&2
-                continue
-              fi
-
-              printf 'INFO: %s: package=%s, versionCode=%s, sig=%s\n' \
-                "${file_name}" "${pkg_name}" \
-                "${version_code:-?}" "${signature}"
-
-              # Build JSON entry (package names and hex sigs need no escaping)
-              entry='{"fileName":"'"${file_name}"'"'
-              entry="${entry}"',"packageName":"'"${pkg_name}"'"'
-              entry="${entry}"',"versionCode":'"${version_code:-0}"
-              entry="${entry}"',"signature":"'"${signature}"'"}'
-              json_entries="${json_entries:+${json_entries},}${entry}"
-              apk_count="$((apk_count + 1))"
-            done
-          done
+            # Build JSON entry (pkg names and hex SHA-256s need no escaping)
+            entry='{"fileName":"'"${file_name}"'"'
+            entry="${entry}"',"packageName":"'"${pkg}"'"'
+            entry="${entry}"',"sha256":"'"${sha256}"'"}'
+            json_entries="${json_entries:+${json_entries},}${entry}"
+            apk_count="$((apk_count + 1))"
+          done < "${GITHUB_WORKSPACE}/zip-content/origin/file-list.dat"
 
           printf '[%s]\n' "${json_entries}" \
             > "${RUNNER_TEMP}/apk_info.json"
@@ -155,64 +129,52 @@ jobs:
               });
             }
 
-            // Parse a repo's index.xml → Map<packageId, {sig, version, versionCode}>
-            function parseRepoXml(xml) {
+            // Parse index-v2.json → Map<pkgId, {bySha256, latestVc, latestVn}>
+            // In index-v2.json each version is keyed by the SHA-256 of its APK
+            // file, which matches the hashes stored in file-list.dat.
+            function parseRepoV2(data) {
               const apps = new Map();
-              const parts = xml.split('<application ');
-              for (let i = 1; i < parts.length; i++) {
-                const part = parts[i];
-                const idM = part.match(/^\s*id="([^"]+)"/);
-                if (!idM) continue;
-                const id = idM[1];
-
-                const endIdx = part.indexOf('</application>');
-                if (endIdx === -1) continue;
-                const body = part.substring(0, endIdx);
-
-                // Only inspect app-level fields (before the first <package>)
-                const pkgIdx = body.indexOf('<package>');
-                const appBody =
-                  pkgIdx !== -1 ? body.substring(0, pkgIdx) : body;
-
-                const sigM = appBody.match(
-                  /<sig>([0-9a-fA-F]{32,64})<\/sig>/
-                );
-                const verM = appBody.match(
-                  /<marketversion>([^<]*)<\/marketversion>/
-                );
-                const vercodeM = appBody.match(
-                  /<marketvercode>(\d+)<\/marketvercode>/
-                );
-
-                if (sigM) {
-                  apps.set(id, {
-                    sig: sigM[1].toLowerCase(),
-                    version: verM ? verM[1] : '',
-                    versionCode: vercodeM
-                      ? parseInt(vercodeM[1], 10)
-                      : null,
-                  });
+              for (const [pkgId, pkg] of
+                Object.entries(data.packages || {})
+              ) {
+                let latestVc = null;
+                let latestVn = '';
+                const bySha256 = {};
+                for (const [sha256, ver] of
+                  Object.entries(pkg.versions || {})
+                ) {
+                  const m = ver.manifest || {};
+                  const vc = m.versionCode ?? null;
+                  const vn = m.versionName || '';
+                  bySha256[sha256] = { vc, vn };
+                  if (vc !== null &&
+                    (latestVc === null || vc > latestVc)
+                  ) {
+                    latestVc = vc;
+                    latestVn = vn;
+                  }
                 }
+                apps.set(pkgId, { bySha256, latestVc, latestVn });
               }
               return apps;
             }
 
             // Fetch and parse F-Droid repo
-            core.info('Fetching F-Droid index.xml…');
-            const fdroidXml = await fetchUrl(
-              'https://f-droid.org/repo/index.xml'
-            );
-            const fdroidApps = parseRepoXml(fdroidXml);
+            core.info('Fetching F-Droid index-v2.json…');
+            const fdroidData = JSON.parse(await fetchUrl(
+              'https://f-droid.org/repo/index-v2.json'
+            ));
+            const fdroidApps = parseRepoV2(fdroidData);
             core.info(
               `  Parsed ${fdroidApps.size} app(s) from F-Droid`
             );
 
             // Fetch and parse microG repo
-            core.info('Fetching microG repo index.xml…');
-            const microgXml = await fetchUrl(
-              'https://repo.microg.org/fdroid/repo/index.xml'
-            );
-            const microgApps = parseRepoXml(microgXml);
+            core.info('Fetching microG repo index-v2.json…');
+            const microgData = JSON.parse(await fetchUrl(
+              'https://repo.microg.org/fdroid/repo/index-v2.json'
+            ));
+            const microgApps = parseRepoV2(microgData);
             core.info(
               `  Parsed ${microgApps.size} app(s) from microG`
             );
@@ -221,24 +183,25 @@ jobs:
             core.info('');
             core.info('=== Update Check Results ===');
             for (const apk of apkInfoList) {
-              const inFdroid = fdroidApps.get(apk.packageName);
-              const inMicrog = microgApps.get(apk.packageName);
-              const fdroidMatch =
-                inFdroid && inFdroid.sig === apk.signature;
-              const microgMatch =
-                inMicrog && inMicrog.sig === apk.signature;
+              const fp = fdroidApps.get(apk.packageName);
+              const mp = microgApps.get(apk.packageName);
+              // Direct version lookup: index-v2 versions are keyed by APK SHA-256
+              const fv = fp?.bySha256[apk.sha256];
+              const mv = mp?.bySha256[apk.sha256];
 
-              if (fdroidMatch || microgMatch) {
-                const repoName = fdroidMatch ? 'F-Droid' : 'microG';
-                const repoInfo = fdroidMatch ? inFdroid : inMicrog;
-                const repoVc = repoInfo.versionCode;
-                const localVc = apk.versionCode;
+              if (fv || mv) {
+                // Our exact APK is present in one of the repos
+                const repo = fv ? 'F-Droid' : 'microG';
+                const info = fv ? fp : mp;
+                const localVc = (fv ?? mv).vc;
+                const repoVc = info.latestVc;
                 let status;
                 if (repoVc !== null && localVc !== null) {
                   if (repoVc > localVc) {
                     status =
-                      `UPDATE AVAILABLE: repo=${repoInfo.version}` +
-                      ` (${repoVc}) > local (${localVc})`;
+                      `UPDATE AVAILABLE:` +
+                      ` repo=${info.latestVn} (${repoVc})` +
+                      ` > local (${localVc})`;
                   } else if (repoVc === localVc) {
                     status =
                       `UP TO DATE (versionCode=${localVc})`;
@@ -248,31 +211,23 @@ jobs:
                       ` > repo (${repoVc})`;
                   }
                 } else {
-                  status =
-                    `found in ${repoName}:` +
-                    ` latest=${repoInfo.version}`;
+                  status = `found, latest=${info.latestVn}`;
                 }
                 core.info(
-                  `[${repoName}] ${apk.fileName}` +
+                  `[${repo}] ${apk.fileName}` +
                   ` (${apk.packageName}): ${status}`
                 );
-              } else if (inFdroid || inMicrog) {
-                const repos = [
-                  inFdroid && 'F-Droid',
-                  inMicrog && 'microG',
-                ].filter(Boolean).join(', ');
+              } else if (fp || mp) {
+                // Package is in a repo but our APK hash was not found
+                const repos = [fp && 'F-Droid', mp && 'microG']
+                  .filter(Boolean).join(', ');
+                const latestVn = (fp ?? mp).latestVn;
+                const latestVc = (fp ?? mp).latestVc;
                 core.info(
-                  `[SIG MISMATCH] ${apk.fileName}` +
-                  ` (${apk.packageName}): found in ${repos}` +
-                  ` but signature does not match`
+                  `[UNKNOWN VERSION] ${apk.fileName}` +
+                  ` (${apk.packageName}): in ${repos},` +
+                  ` latest=${latestVn} (${latestVc})`
                 );
-                if (inFdroid) {
-                  core.info(`  F-Droid sig : ${inFdroid.sig}`);
-                }
-                if (inMicrog) {
-                  core.info(`  microG sig  : ${inMicrog.sig}`);
-                }
-                core.info(`  Local sig   : ${apk.signature}`);
               } else {
                 core.info(
                   `[NOT IN REPO] ${apk.fileName}` +
