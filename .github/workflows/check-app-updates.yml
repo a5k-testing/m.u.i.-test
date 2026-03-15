@@ -296,7 +296,7 @@ jobs:
                   core.info(
                     `[DIFFERENT SIGNER] ${apk.fileName}` +
                     ` (${apk.packageName}):` +
-                    ` ${signerMismatch.join(', ')},` +
+                    ` ${signerMismatch.join(', ')}` +
                     ` but signed with a different certificate`
                   );
                 } else {
