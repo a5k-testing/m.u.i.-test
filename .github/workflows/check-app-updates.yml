@@ -5,6 +5,11 @@
 name: "Check app updates"
 permissions: {}
 on:
+  push:
+    paths:
+      - ".github/workflows/check-app-updates.yml"
+      - "zip-content/origin/**"
+      - "tools/test-check-updates.js"
   workflow_dispatch:
   schedule:
     # At 05:00 AM, every 7 days (UTC)
