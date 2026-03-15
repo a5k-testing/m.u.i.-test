@@ -223,50 +223,51 @@ jobs:
               return apps;
             }
 
-            // Fetch and parse F-Droid repo
-            core.info('Fetching F-Droid index-v2.json…');
-            const fdroidData = JSON.parse(await fetchUrl(
-              'https://f-droid.org/repo/index-v2.json'
-            ));
-            const fdroidApps = parseRepoV2(fdroidData);
-            core.info(
-              `  Parsed ${fdroidApps.size} app(s) from F-Droid`
-            );
+            // Ordered list of F-Droid-compatible repository base URLs.
+            // "/index-v2.json" is appended automatically when fetching.
+            const repos = [
+              'https://f-droid.org/repo',
+              'https://repo.microg.org/fdroid/repo',
+            ];
 
-            // Fetch and parse microG repo
-            core.info('Fetching microG repo index-v2.json…');
-            const microgData = JSON.parse(await fetchUrl(
-              'https://repo.microg.org/fdroid/repo/index-v2.json'
-            ));
-            const microgApps = parseRepoV2(microgData);
-            core.info(
-              `  Parsed ${microgApps.size} app(s) from microG`
-            );
+            // Fetch and parse every repo index
+            const repoData = [];
+            for (const baseUrl of repos) {
+              const indexUrl = `${baseUrl}/index-v2.json`;
+              core.info(`Fetching ${indexUrl}…`);
+              const data = JSON.parse(await fetchUrl(indexUrl));
+              const apps = parseRepoV2(data);
+              core.info(`  Parsed ${apps.size} app(s) from ${baseUrl}`);
+              repoData.push({ baseUrl, apps });
+            }
 
             // Report results
             core.info('');
             core.info('=== Update Check Results ===');
             for (const apk of apkInfoList) {
-              const fp = fdroidApps.get(apk.packageName);
-              const mp = microgApps.get(apk.packageName);
-              // Match by signing certificate SHA-256 (from keytool) against
-              // manifest.signer.sha256 entries in the index
-              const fv = fp?.byCert[apk.certSha256];
-              const mv = mp?.byCert[apk.certSha256];
+              // Loop through repos in order; stop at the first one that has
+              // both a matching package name and a matching signing certificate
+              let certMatch = null;
+              for (const { baseUrl, apps } of repoData) {
+                const pkg = apps.get(apk.packageName);
+                const ver = pkg?.byCert[apk.certSha256];
+                if (ver) {
+                  certMatch = { baseUrl, ver };
+                  break;
+                }
+              }
 
-              if (fv || mv) {
-                // Our cert is known in at least one repo
-                const repo = fv ? 'F-Droid' : 'microG';
-                // Use the latest version with our cert for the comparison
-                const matched = fv ?? mv;
+              if (certMatch) {
+                // Package found with our signing certificate
+                const { baseUrl, ver } = certMatch;
                 const localVc = apk.versionCode;
-                const repoVc = matched.vc;
+                const repoVc = ver.vc;
                 let status;
                 if (repoVc !== null && localVc) {
                   if (repoVc > localVc) {
                     status =
                       `UPDATE AVAILABLE:` +
-                      ` repo=${matched.vn} (${repoVc})` +
+                      ` repo=${ver.vn} (${repoVc})` +
                       ` > local (${localVc})`;
                   } else if (repoVc === localVc) {
                     status =
@@ -277,28 +278,32 @@ jobs:
                       ` > repo (${repoVc})`;
                   }
                 } else {
-                  status = `found, latest=${matched.vn}`;
+                  status = `found, latest=${ver.vn}`;
                 }
                 core.info(
-                  `[${repo}] ${apk.fileName}` +
+                  `[${baseUrl}] ${apk.fileName}` +
                   ` (${apk.packageName}): ${status}`
                 );
-              } else if (fp || mp) {
-                // Package is in a repo but signed with a different certificate
-                const repos = [fp && 'F-Droid', mp && 'microG']
-                  .filter(Boolean).join(', ');
-                const latestVn = (fp ?? mp).latestVn;
-                const latestVc = (fp ?? mp).latestVc;
-                core.info(
-                  `[DIFFERENT SIGNER] ${apk.fileName}` +
-                  ` (${apk.packageName}): in ${repos},` +
-                  ` latest=${latestVn} (${latestVc}),` +
-                  ` but signed with a different certificate`
-                );
               } else {
-                core.info(
-                  `[NOT IN REPO] ${apk.fileName}` +
-                  ` (${apk.packageName}): not found in any repo`
-                );
+                // Collect repos where the package exists under a different cert
+                const signerMismatch = repoData
+                  .filter(({ apps }) => apps.has(apk.packageName))
+                  .map(({ baseUrl, apps }) => {
+                    const p = apps.get(apk.packageName);
+                    return `${baseUrl} (latest=${p.latestVn} ${p.latestVc})`;
+                  });
+                if (signerMismatch.length > 0) {
+                  core.info(
+                    `[DIFFERENT SIGNER] ${apk.fileName}` +
+                    ` (${apk.packageName}):` +
+                    ` ${signerMismatch.join(', ')},` +
+                    ` but signed with a different certificate`
+                  );
+                } else {
+                  core.info(
+                    `[NOT IN REPO] ${apk.fileName}` +
+                    ` (${apk.packageName}): not found in any repo`
+                  );
+                }
               }
             }
