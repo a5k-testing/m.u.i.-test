@@ -27,14 +27,13 @@ each release.
    :backlinks: none
 
 
-OSS flavour
-===========
-
-v1.3.2-beta
------------
+`v1.3.2-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.2-beta>`__
+===================================================================================================
 
 :Released: 2025-03-22
-:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.2-beta
+
+OSS flavour
+-----------
 
 .. list-table::
    :header-rows: 1
@@ -46,11 +45,26 @@ v1.3.2-beta
      - ``e1206d092e1bfb8849b0d43127026a45a14b5bb1996eb1ad08b77a31fafb7de9``
 
 
-v1.3.1-beta
------------
+Full flavour
+------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.2-beta-23416e3-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+`v1.3.1-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.1-beta>`__
+===================================================================================================
 
 :Released: 2023-04-30
-:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.1-beta
+
+OSS flavour
+-----------
 
 .. list-table::
    :header-rows: 1
@@ -62,11 +76,26 @@ v1.3.1-beta
      - ``d5165c09c40d2bf6894eb06bd9f75f57407d7d14d7a0e283025d78cb5bc61dac``
 
 
-v1.3.0-beta
------------
+Full flavour
+------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+`v1.3.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.0-beta>`__
+===================================================================================================
 
 :Released: 2023-02-19
-:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.0-beta
+
+OSS flavour
+-----------
 
 .. list-table::
    :header-rows: 1
@@ -78,11 +107,26 @@ v1.3.0-beta
      - ``f7e268beb5b1dcb0240b959ab77f7b690ef67274a25cb72dae5ec61ee4086877``
 
 
-v1.2.0-beta
------------
+Full flavour
+------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+`v1.2.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.2.0-beta>`__
+===================================================================================================
 
 :Released: 2022-12-30
-:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.2.0-beta
+
+OSS flavour
+-----------
 
 .. list-table::
    :header-rows: 1
@@ -94,11 +138,26 @@ v1.2.0-beta
      - ``1591c958d5a78d4db27366e9a8d0465c4afdc60887581eb1d4322c526ab2045f``
 
 
-v1.1.0-beta
------------
+Full flavour
+------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+`v1.1.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.1.0-beta>`__
+===================================================================================================
 
 :Released: 2022-04-28
-:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.1.0-beta
+
+OSS flavour
+-----------
 
 .. list-table::
    :header-rows: 1
@@ -110,11 +169,26 @@ v1.1.0-beta
      - ``e5eb20bc9cd9f21a1482b63d6530115559380dac528ef58175928b682613adc0``
 
 
-v1.0.34-beta
+Full flavour
 ------------
 
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-signed.zip``
+     - *(to be added)*
+
+
+`v1.0.34-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.34-beta>`__
+=====================================================================================================
+
 :Released: 2019-07-07
-:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.34-beta
+
+OSS flavour
+-----------
 
 .. list-table::
    :header-rows: 1
@@ -126,11 +200,26 @@ v1.0.34-beta
      - ``62492043fdfab0bf7f5e3b56213ad942c98737226101ed81d18218e774835fb3``
 
 
-v1.0.33-beta
+Full flavour
 ------------
 
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - File
+     - SHA-256
+   * - ``microG-unofficial-installer-ale5000-v1.0.34-beta-signed.zip``
+     - *(to be added)*
+
+
+`v1.0.33-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.33-beta>`__
+=====================================================================================================
+
 :Released: 2018-12-04
-:Release page: https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.33-beta
+
+OSS flavour
+-----------
 
 .. list-table::
    :header-rows: 1
@@ -143,114 +232,7 @@ v1.0.33-beta
 
 
 Full flavour
-============
-
-.. note::
-   The Full flavour is distributed through `XDA Forums <https://xdaforums.com/t/3432360/>`_.
-   SHA-256 hashes for Full flavour releases are not published alongside the downloads,
-   so the hash column below is reserved for manual insertion.
-
-v1.3.2-beta
------------
-
-:Released: 2025-03-22
-:Release page: https://xdaforums.com/t/3432360/
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.3.2-beta-23416e3-by-ale5000-signed.zip``
-     - *(to be added)*
-
-
-v1.3.1-beta
------------
-
-:Released: 2023-04-30
-:Release page: https://xdaforums.com/t/3432360/
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-signed.zip``
-     - *(to be added)*
-
-
-v1.3.0-beta
------------
-
-:Released: 2023-02-19
-:Release page: https://xdaforums.com/t/3432360/
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-signed.zip``
-     - *(to be added)*
-
-
-v1.2.0-beta
------------
-
-:Released: 2022-12-30
-:Release page: https://xdaforums.com/t/3432360/
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-signed.zip``
-     - *(to be added)*
-
-
-v1.1.0-beta
------------
-
-:Released: 2022-04-28
-:Release page: https://xdaforums.com/t/3432360/
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-signed.zip``
-     - *(to be added)*
-
-
-v1.0.34-beta
 ------------
-
-:Released: 2019-07-07
-:Release page: https://xdaforums.com/t/3432360/
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microG-unofficial-installer-ale5000-v1.0.34-beta-signed.zip``
-     - *(to be added)*
-
-
-v1.0.33-beta
-------------
-
-:Released: 2018-12-04
-:Release page: https://xdaforums.com/t/3432360/
 
 .. list-table::
    :header-rows: 1
