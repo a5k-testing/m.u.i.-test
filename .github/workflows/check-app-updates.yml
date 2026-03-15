@@ -24,29 +24,47 @@ jobs:
         with:
           lfs: false
           sparse-checkout: |
-            zip-content/origin/file-list.dat
-          sparse-checkout-cone-mode: false
-      - name: "Parse APK list"
+            zip-content/origin
+      - name: "Extract APK info"
         shell: bash
         run: |
-          # Parse file-list.dat to obtain package names and APK SHA-256 hashes.
-          # No APK binaries are downloaded; all data comes from the plain-text
-          # file-list.dat which is not LFS-tracked.
+          # Extract package name, version code, and signing certificate SHA-256
+          # from APKs listed in file-list.dat.
+          # APKs stored in LFS appear as tiny pointer files when lfs: false;
+          # those are detected by size and skipped.
           # file-list.dat fields: path|minSdk|maxSdk|apkName|subDir|pkg|sha256
+          # (sha256 there is the APK file hash, not the cert hash)
+
+          # Locate aapt: prefer PATH, fall back to Android SDK build-tools
+          aapt_bin=''
+          if command -v 'aapt' 1>/dev/null; then
+            aapt_bin="$(command -v 'aapt')"
+          elif test -n "${ANDROID_SDK_ROOT:-}"; then
+            aapt_bin="$(find "${ANDROID_SDK_ROOT}/build-tools" \
+              -name 'aapt' -type f 2>/dev/null \
+              | sort -V | tail -1)"
+          fi
+          test -n "${aapt_bin}" \
+            || { printf 'ERROR: aapt not found\n' >&2; exit 1; }
+          printf 'Using aapt: %s\n' "${aapt_bin}"
 
           apk_count='0'
           json_entries=''
           while IFS='|' read -r \
-            path_field min_sdk max_sdk apk_name sub_dir pkg sha256
+            path_field min_sdk max_sdk apk_name sub_dir pkg _file_sha256
           do
             # Only process priv-app/ and app/ entries
             case "${path_field}" in
               priv-app/* | app/*) ;;
               *) continue ;;
             esac
-            # Skip entries with no package name or hash
             test -n "${pkg}" || continue
-            test -n "${sha256}" || continue
+
+            apk_path="${GITHUB_WORKSPACE}/zip-content/origin/${path_field}.apk"
+            test -f "${apk_path}" || {
+              printf 'WARNING: not found: %s\n' "${apk_path}" >&2
+              continue
+            }
 
             file_name="$(basename "${path_field}")"
             # Ensure the filename ends with .apk (path entries in
@@ -55,13 +73,47 @@ jobs:
               *.apk) ;;
               *) file_name="${file_name}.apk" ;;
             esac
-            printf 'INFO: %s: package=%s, sha256=%s\n' \
-              "${file_name}" "${pkg}" "${sha256}"
 
-            # Build JSON entry (pkg names and hex SHA-256s need no escaping)
+            # Detect LFS pointer files: real APKs are always much larger than
+            # the ~130-byte stub written by git-lfs when lfs: false is used
+            file_size="$(wc -c < "${apk_path}")"
+            if [ "${file_size}" -lt 1000 ]; then
+              printf 'WARNING: skipping LFS pointer: %s\n' \
+                "${file_name}" >&2
+              continue
+            fi
+
+            # Version code from APK manifest
+            pkg_line="$("${aapt_bin}" dump badging "${apk_path}" \
+              2>/dev/null | grep '^package:' || true)"
+            version_code="$(printf '%s' "${pkg_line}" \
+              | grep -o "[[:space:]]versionCode='[^']*'" \
+              | head -1 | cut -d"'" -f2)"
+
+            # SHA-256 of the signing certificate via keytool
+            cert_sha256="$(keytool -printcert -jarfile "${apk_path}" \
+              2>/dev/null \
+              | grep 'SHA256:' | head -1 \
+              | sed 's/.*SHA256:[[:space:]]*//' \
+              | tr -d ':' \
+              | tr '[:upper:]' '[:lower:]' \
+              | tr -d '[:space:]')"
+
+            if test -z "${cert_sha256}"; then
+              printf 'WARNING: skipping %s (cert not found)\n' \
+                "${file_name}" >&2
+              continue
+            fi
+
+            printf 'INFO: %s: pkg=%s, vc=%s, cert=%s\n' \
+              "${file_name}" "${pkg}" \
+              "${version_code:-?}" "${cert_sha256}"
+
+            # Build JSON entry (pkg names and hex hashes need no escaping)
             entry='{"fileName":"'"${file_name}"'"'
             entry="${entry}"',"packageName":"'"${pkg}"'"'
-            entry="${entry}"',"sha256":"'"${sha256}"'"}'
+            entry="${entry}"',"versionCode":'"${version_code:-0}"
+            entry="${entry}"',"certSha256":"'"${cert_sha256}"'"}'
             json_entries="${json_entries:+${json_entries},}${entry}"
             apk_count="$((apk_count + 1))"
           done < "${GITHUB_WORKSPACE}/zip-content/origin/file-list.dat"
@@ -129,9 +181,11 @@ jobs:
               });
             }
 
-            // Parse index-v2.json → Map<pkgId, {bySha256, latestVc, latestVn}>
-            // In index-v2.json each version is keyed by the SHA-256 of its APK
-            // file, which matches the hashes stored in file-list.dat.
+            // Parse index-v2.json → Map<pkgId, {byCert, latestVc, latestVn}>
+            // Each version entry carries manifest.signer.sha256 (array of
+            // signing certificate SHA-256 hashes). We index versions by cert
+            // so that we can match our local APKs (identified via keytool) to
+            // the exact signer family present in the repo.
             function parseRepoV2(data) {
               const apps = new Map();
               for (const [pkgId, pkg] of
@@ -139,14 +193,24 @@ jobs:
               ) {
                 let latestVc = null;
                 let latestVn = '';
-                const bySha256 = {};
-                for (const [sha256, ver] of
+                const byCert = {};
+                for (const [, ver] of
                   Object.entries(pkg.versions || {})
                 ) {
                   const m = ver.manifest || {};
                   const vc = m.versionCode ?? null;
                   const vn = m.versionName || '';
-                  bySha256[sha256] = { vc, vn };
+                  const certs = m.signer?.sha256 ?? [];
+                  for (const cert of certs) {
+                    const c = cert.toLowerCase();
+                    if (
+                      !(c in byCert) ||
+                      (vc !== null &&
+                        (byCert[c].vc === null || vc > byCert[c].vc))
+                    ) {
+                      byCert[c] = { vc, vn };
+                    }
+                  }
                   if (vc !== null &&
                     (latestVc === null || vc > latestVc)
                   ) {
@@ -154,7 +218,7 @@ jobs:
                     latestVn = vn;
                   }
                 }
-                apps.set(pkgId, { bySha256, latestVc, latestVn });
+                apps.set(pkgId, { byCert, latestVc, latestVn });
               }
               return apps;
             }
@@ -185,22 +249,24 @@ jobs:
             for (const apk of apkInfoList) {
               const fp = fdroidApps.get(apk.packageName);
               const mp = microgApps.get(apk.packageName);
-              // Direct version lookup: index-v2 versions are keyed by APK SHA-256
-              const fv = fp?.bySha256[apk.sha256];
-              const mv = mp?.bySha256[apk.sha256];
+              // Match by signing certificate SHA-256 (from keytool) against
+              // manifest.signer.sha256 entries in the index
+              const fv = fp?.byCert[apk.certSha256];
+              const mv = mp?.byCert[apk.certSha256];
 
               if (fv || mv) {
-                // Our exact APK is present in one of the repos
+                // Our cert is known in at least one repo
                 const repo = fv ? 'F-Droid' : 'microG';
-                const info = fv ? fp : mp;
-                const localVc = (fv ?? mv).vc;
-                const repoVc = info.latestVc;
+                // Use the latest version with our cert for the comparison
+                const matched = fv ?? mv;
+                const localVc = apk.versionCode;
+                const repoVc = matched.vc;
                 let status;
-                if (repoVc !== null && localVc !== null) {
+                if (repoVc !== null && localVc) {
                   if (repoVc > localVc) {
                     status =
                       `UPDATE AVAILABLE:` +
-                      ` repo=${info.latestVn} (${repoVc})` +
+                      ` repo=${matched.vn} (${repoVc})` +
                       ` > local (${localVc})`;
                   } else if (repoVc === localVc) {
                     status =
@@ -211,22 +277,23 @@ jobs:
                       ` > repo (${repoVc})`;
                   }
                 } else {
-                  status = `found, latest=${info.latestVn}`;
+                  status = `found, latest=${matched.vn}`;
                 }
                 core.info(
                   `[${repo}] ${apk.fileName}` +
                   ` (${apk.packageName}): ${status}`
                 );
               } else if (fp || mp) {
-                // Package is in a repo but our APK hash was not found
+                // Package is in a repo but signed with a different certificate
                 const repos = [fp && 'F-Droid', mp && 'microG']
                   .filter(Boolean).join(', ');
                 const latestVn = (fp ?? mp).latestVn;
                 const latestVc = (fp ?? mp).latestVc;
                 core.info(
-                  `[UNKNOWN VERSION] ${apk.fileName}` +
+                  `[DIFFERENT SIGNER] ${apk.fileName}` +
                   ` (${apk.packageName}): in ${repos},` +
-                  ` latest=${latestVn} (${latestVc})`
+                  ` latest=${latestVn} (${latestVc}),` +
+                  ` but signed with a different certificate`
                 );
               } else {
                 core.info(
