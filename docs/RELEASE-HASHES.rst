@@ -32,29 +32,18 @@ each release.
 
 :Released: 2025-03-22
 
-OSS flavour
------------
-
 .. list-table::
    :header-rows: 1
-   :widths: 70 30
+   :widths: 10 60 30
 
-   * - File
+   * - Flavour
+     - File
      - SHA-256
-   * - ``microg-unofficial-installer-v1.3.2-beta-23416e3-oss-by-ale5000-signed.zip``
+   * - OSS
+     - ``microg-unofficial-installer-v1.3.2-beta-23416e3-oss-by-ale5000-signed.zip``
      - ``e1206d092e1bfb8849b0d43127026a45a14b5bb1996eb1ad08b77a31fafb7de9``
-
-
-Full flavour
-------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.3.2-beta-23416e3-by-ale5000-signed.zip``
+   * - Full
+     - ``microg-unofficial-installer-v1.3.2-beta-23416e3-by-ale5000-signed.zip``
      - *(to be added)*
 
 
@@ -63,29 +52,18 @@ Full flavour
 
 :Released: 2023-04-30
 
-OSS flavour
------------
-
 .. list-table::
    :header-rows: 1
-   :widths: 70 30
+   :widths: 10 60 30
 
-   * - File
+   * - Flavour
+     - File
      - SHA-256
-   * - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-OSS-signed.zip``
+   * - OSS
+     - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-OSS-signed.zip``
      - ``d5165c09c40d2bf6894eb06bd9f75f57407d7d14d7a0e283025d78cb5bc61dac``
-
-
-Full flavour
-------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-signed.zip``
+   * - Full
+     - ``microg-unofficial-installer-v1.3.1-beta-by-ale5000-signed.zip``
      - *(to be added)*
 
 
@@ -94,29 +72,18 @@ Full flavour
 
 :Released: 2023-02-19
 
-OSS flavour
------------
-
 .. list-table::
    :header-rows: 1
-   :widths: 70 30
+   :widths: 10 60 30
 
-   * - File
+   * - Flavour
+     - File
      - SHA-256
-   * - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-OSS-signed.zip``
+   * - OSS
+     - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-OSS-signed.zip``
      - ``f7e268beb5b1dcb0240b959ab77f7b690ef67274a25cb72dae5ec61ee4086877``
-
-
-Full flavour
-------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-signed.zip``
+   * - Full
+     - ``microg-unofficial-installer-v1.3.0-beta-by-ale5000-signed.zip``
      - *(to be added)*
 
 
@@ -125,29 +92,18 @@ Full flavour
 
 :Released: 2022-12-30
 
-OSS flavour
------------
-
 .. list-table::
    :header-rows: 1
-   :widths: 70 30
+   :widths: 10 60 30
 
-   * - File
+   * - Flavour
+     - File
      - SHA-256
-   * - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-OSS-signed.zip``
+   * - OSS
+     - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-OSS-signed.zip``
      - ``1591c958d5a78d4db27366e9a8d0465c4afdc60887581eb1d4322c526ab2045f``
-
-
-Full flavour
-------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-signed.zip``
+   * - Full
+     - ``microg-unofficial-installer-v1.2.0-beta-by-ale5000-signed.zip``
      - *(to be added)*
 
 
@@ -156,29 +112,18 @@ Full flavour
 
 :Released: 2022-04-28
 
-OSS flavour
------------
-
 .. list-table::
    :header-rows: 1
-   :widths: 70 30
+   :widths: 10 60 30
 
-   * - File
+   * - Flavour
+     - File
      - SHA-256
-   * - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-OSS-signed.zip``
+   * - OSS
+     - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-OSS-signed.zip``
      - ``e5eb20bc9cd9f21a1482b63d6530115559380dac528ef58175928b682613adc0``
-
-
-Full flavour
-------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-signed.zip``
+   * - Full
+     - ``microg-unofficial-installer-v1.1.0-beta-by-ale5000-signed.zip``
      - *(to be added)*
 
 
@@ -187,29 +132,18 @@ Full flavour
 
 :Released: 2019-07-07
 
-OSS flavour
------------
-
 .. list-table::
    :header-rows: 1
-   :widths: 70 30
+   :widths: 10 60 30
 
-   * - File
+   * - Flavour
+     - File
      - SHA-256
-   * - ``microG-unofficial-installer-ale5000-v1.0.34-beta-OSS-signed.zip``
+   * - OSS
+     - ``microG-unofficial-installer-ale5000-v1.0.34-beta-OSS-signed.zip``
      - ``62492043fdfab0bf7f5e3b56213ad942c98737226101ed81d18218e774835fb3``
-
-
-Full flavour
-------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microG-unofficial-installer-ale5000-v1.0.34-beta-signed.zip``
+   * - Full
+     - ``microG-unofficial-installer-ale5000-v1.0.34-beta-signed.zip``
      - *(to be added)*
 
 
@@ -218,27 +152,16 @@ Full flavour
 
 :Released: 2018-12-04
 
-OSS flavour
------------
-
 .. list-table::
    :header-rows: 1
-   :widths: 70 30
+   :widths: 10 60 30
 
-   * - File
+   * - Flavour
+     - File
      - SHA-256
-   * - ``microG-unofficial-installer-ale5000-v1.0.33-beta-OSS-signed.zip``
+   * - OSS
+     - ``microG-unofficial-installer-ale5000-v1.0.33-beta-OSS-signed.zip``
      - ``9767e312d901c6e2dd14d4878961b0f3d1f0b4d52658e95c175294542baa844d``
-
-
-Full flavour
-------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 70 30
-
-   * - File
-     - SHA-256
-   * - ``microG-unofficial-installer-ale5000-v1.0.33-beta-signed.zip``
+   * - Full
+     - ``microG-unofficial-installer-ale5000-v1.0.33-beta-signed.zip``
      - *(to be added)*
