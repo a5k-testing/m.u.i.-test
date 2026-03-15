@@ -82,14 +82,14 @@ jobs:
       - name: "Final newline check"
         shell: bash
         run: |
-          status='0'
+          status=0
           while IFS= read -r file; do
             if [ -f "${file}" ] && file --mime-type "${file}" | grep -q "text/"; then
               if [ -s "${file}" ]; then
                 last_char="$(tail -c1 -- "${file}" | od -An -tx1 | tr -d ' \n')"
                 if [ "${last_char}" != "0a" ]; then
                   echo "Missing final newline: ${file}"
-                  status='1'
+                  status=1
                 fi
               fi
             fi
