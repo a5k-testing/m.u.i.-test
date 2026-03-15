@@ -27,10 +27,8 @@ each release.
    :backlinks: none
 
 
-`v1.3.2-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.2-beta>`__
-===================================================================================================
-
-:Released: 2025-03-22
+`v1.3.2-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.2-beta>`_ - 2025-03-22
+=============================================================================================================
 
 .. list-table::
    :header-rows: 1
@@ -47,10 +45,8 @@ each release.
      - *(to be added)*
 
 
-`v1.3.1-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.1-beta>`__
-===================================================================================================
-
-:Released: 2023-04-30
+`v1.3.1-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.1-beta>`_ - 2023-04-30
+=============================================================================================================
 
 .. list-table::
    :header-rows: 1
@@ -67,10 +63,8 @@ each release.
      - *(to be added)*
 
 
-`v1.3.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.0-beta>`__
-===================================================================================================
-
-:Released: 2023-02-19
+`v1.3.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.3.0-beta>`_ - 2023-02-19
+=============================================================================================================
 
 .. list-table::
    :header-rows: 1
@@ -87,10 +81,8 @@ each release.
      - *(to be added)*
 
 
-`v1.2.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.2.0-beta>`__
-===================================================================================================
-
-:Released: 2022-12-30
+`v1.2.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.2.0-beta>`_ - 2022-12-30
+=============================================================================================================
 
 .. list-table::
    :header-rows: 1
@@ -107,10 +99,8 @@ each release.
      - *(to be added)*
 
 
-`v1.1.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.1.0-beta>`__
-===================================================================================================
-
-:Released: 2022-04-28
+`v1.1.0-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.1.0-beta>`_ - 2022-04-28
+=============================================================================================================
 
 .. list-table::
    :header-rows: 1
@@ -127,10 +117,8 @@ each release.
      - *(to be added)*
 
 
-`v1.0.34-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.34-beta>`__
-=====================================================================================================
-
-:Released: 2019-07-07
+`v1.0.34-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.34-beta>`_ - 2019-07-07
+===============================================================================================================
 
 .. list-table::
    :header-rows: 1
@@ -147,10 +135,8 @@ each release.
      - *(to be added)*
 
 
-`v1.0.33-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.33-beta>`__
-=====================================================================================================
-
-:Released: 2018-12-04
+`v1.0.33-beta <https://github.com/micro5k/microg-unofficial-installer/releases/tag/v1.0.33-beta>`_ - 2018-12-04
+===============================================================================================================
 
 .. list-table::
    :header-rows: 1
