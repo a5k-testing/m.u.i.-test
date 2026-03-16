@@ -18,6 +18,7 @@ function parseRepoV2(data) {
       const m = ver.manifest || {};
       const vc = m.versionCode ?? null;
       const vn = m.versionName || '';
+      const apkName = ver.file?.name || '';
       const certs = m.signer?.sha256 ?? [];
       for (const cert of certs) {
         const c = cert.toLowerCase();
@@ -25,7 +26,7 @@ function parseRepoV2(data) {
           !(c in byCert) ||
           (vc !== null && (byCert[c].vc === null || vc > byCert[c].vc))
         ) {
-          byCert[c] = { vc, vn };
+          byCert[c] = { vc, vn, apkName };
         }
       }
       if (vc !== null && (latestVc === null || vc > latestVc)) {
@@ -48,12 +49,19 @@ function shortUrl(url) {
 }
 
 const ICON = {
-  UPDATE_AVAILABLE: '⬆️',
+  UPDATE_AVAILABLE: '📥',
   UP_TO_DATE:       '✅',
-  LOCAL_NEWER:      '⬇️',
-  DIFFERENT_SIGNER: '🔏',
-  NOT_IN_REPO:      '❓',
+  LOCAL_NEWER:      '🏆',
+  DIFFERENT_SIGNER: '🔐',
+  NOT_IN_REPO:      '🚫',
 };
+
+const SPECIAL_PKG_CERT =
+  'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
+const SPECIAL_PKGS = new Set([
+  'com.google.android.gms',
+  'com.android.vending',
+]);
 
 function checkApks(apkInfoList, repoData) {
   const results = [];
@@ -61,10 +69,19 @@ function checkApks(apkInfoList, repoData) {
     let certMatch = null;
     for (const { baseUrl, apps } of repoData) {
       const pkg = apps.get(apk.packageName);
+      // Normal cert match
       const ver = pkg?.byCert[apk.certSha256];
       if (ver) {
         certMatch = { baseUrl, ver };
         break;
+      }
+      // Special fallback for GMS packages: also try known cert
+      if (SPECIAL_PKGS.has(apk.packageName)) {
+        const verFallback = pkg?.byCert[SPECIAL_PKG_CERT];
+        if (verFallback) {
+          certMatch = { baseUrl, ver: verFallback };
+          break;
+        }
       }
     }
 
@@ -73,6 +90,7 @@ function checkApks(apkInfoList, repoData) {
       const label = shortUrl(baseUrl);
       const localVc = apk.versionCode;
       const repoVc = ver.vc;
+      const apkUrl = ver.apkName ? `${baseUrl}${ver.apkName}` : '';
       let statusText;
       if (repoVc !== null && localVc) {
         if (repoVc > localVc) {
@@ -94,12 +112,17 @@ function checkApks(apkInfoList, repoData) {
       const logLine =
         `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
       const noticeLine = (repoVc !== null && localVc && repoVc > localVc)
+        ? `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}` +
+          (apkUrl ? `\n${apkUrl}` : '')
+        : null;
+      const warningLine = (repoVc !== null && localVc && repoVc < localVc)
         ? `${apk.fileName} (${apk.packageName}): ${statusText}`
         : null;
       results.push({
         logLine,
         tableRow: [apk.fileName, apk.packageName, label, statusText],
         noticeLine,
+        warningLine,
       });
     } else {
       const signerMismatch = repoData
@@ -121,6 +144,7 @@ function checkApks(apkInfoList, repoData) {
             repoLabel, `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
           ],
           noticeLine: null,
+          warningLine: null,
         });
       } else {
         results.push({
@@ -132,6 +156,7 @@ function checkApks(apkInfoList, repoData) {
             '-', `${ICON.NOT_IN_REPO} NOT IN REPO`,
           ],
           noticeLine: null,
+          warningLine: null,
         });
       }
     }
@@ -183,6 +208,7 @@ const FDROID_INDEX = {
     'org.fdroid.fdroid.privileged': {
       versions: {
         v1: {
+          file: { name: '/org.fdroid.fdroid.privileged_2130.apk' },
           manifest: {
             versionCode: 2130, versionName: '0.2.13',
             signer: { sha256: [CERT_FDROID] },
@@ -193,6 +219,7 @@ const FDROID_INDEX = {
     'org.schabi.newpipe': {
       versions: {
         v1: {
+          file: { name: '/org.schabi.newpipe_1000.apk' },
           manifest: {
             versionCode: 1000, versionName: '0.25.0',
             signer: { sha256: [CERT_NEWPIPE] },
@@ -200,6 +227,7 @@ const FDROID_INDEX = {
         },
         // Older version with same cert — should not affect latest
         v0: {
+          file: { name: '/org.schabi.newpipe_990.apk' },
           manifest: {
             versionCode: 990, versionName: '0.24.0',
             signer: { sha256: [CERT_NEWPIPE] },
@@ -211,9 +239,22 @@ const FDROID_INDEX = {
     'com.google.android.gms': {
       versions: {
         v1: {
+          file: { name: '/com.google.android.gms_240000000.apk' },
           manifest: {
             versionCode: 240000000, versionName: '24.0',
             signer: { sha256: [CERT_GOOGLE] },
+          },
+        },
+      },
+    },
+    // FakeStore signed with the special cert in F-Droid
+    'com.android.vending': {
+      versions: {
+        v1: {
+          file: { name: '/com.android.vending_84022626.apk' },
+          manifest: {
+            versionCode: 84022626, versionName: '33.0',
+            signer: { sha256: [SPECIAL_PKG_CERT] },
           },
         },
       },
@@ -226,6 +267,7 @@ const MICROG_INDEX = {
     'com.google.android.gms': {
       versions: {
         v1: {
+          file: { name: '/com.google.android.gms_230913000.apk' },
           manifest: {
             versionCode: 230913000, versionName: '23.9.13',
             signer: { sha256: [CERT_MICROG] },
@@ -251,7 +293,7 @@ const fdroidApps = REPOS[0].apps;
 const microgApps = REPOS[1].apps;
 
 // Basic map size
-assertEqual(fdroidApps.size, 3, 'F-Droid: parsed 3 packages');
+assertEqual(fdroidApps.size, 4, 'F-Droid: parsed 4 packages');
 assertEqual(microgApps.size, 1, 'microG: parsed 1 package');
 
 // latestVc / latestVn
@@ -358,6 +400,13 @@ const results = checkApks([
     versionCode: 10,
     certSha256: CERT_AURORA,
   },
+  // 7. FakeStore: cert differs, but special cert fallback matches F-Droid
+  {
+    fileName: 'FakeStore.apk',
+    packageName: 'com.android.vending',
+    versionCode: 80000000,
+    certSha256: CERT_MICROG,
+  },
 ], REPOS);
 
 // 1. Up to date
@@ -372,6 +421,8 @@ assertEqual(results[0].tableRow[2], 'f-droid.org',
   'FDroid priv: tableRow repo = f-droid.org');
 assertEqual(results[0].noticeLine, null,
   'FDroid priv: no notice for UP TO DATE');
+assertEqual(results[0].warningLine, null,
+  'FDroid priv: no warning for UP TO DATE');
 
 // 2. Local newer
 assert(
@@ -380,9 +431,13 @@ assert(
   'NewPipe: LOCAL NEWER in F-Droid (short URL)'
 );
 assert(results[1].logLine.includes(ICON.LOCAL_NEWER),
-  'NewPipe: ⬇️ icon present');
+  'NewPipe: 🏆 icon present');
 assertEqual(results[1].noticeLine, null,
   'NewPipe: no notice for LOCAL NEWER');
+assert(results[1].warningLine !== null,
+  'NewPipe: warning emitted for LOCAL NEWER');
+assert(results[1].warningLine.includes('LOCAL NEWER'),
+  'NewPipe: warning text contains LOCAL NEWER');
 
 // 3. microG-signed GmsCore: matched in microG repo, update available
 assert(
@@ -391,13 +446,23 @@ assert(
   'GmsCore (microG cert): UPDATE AVAILABLE from microG repo (short URL)'
 );
 assert(results[2].logLine.includes(ICON.UPDATE_AVAILABLE),
-  'GmsCore (microG cert): ⬆️ icon present');
+  'GmsCore (microG cert): 📥 icon present');
 assertEqual(results[2].tableRow[2], 'microg.org',
   'GmsCore (microG cert): tableRow repo = microg.org');
 assert(results[2].noticeLine !== null,
   'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
 assert(results[2].noticeLine.includes('UPDATE AVAILABLE'),
   'GmsCore (microG cert): notice text contains UPDATE AVAILABLE');
+assert(results[2].noticeLine.includes('[microg.org]'),
+  'GmsCore (microG cert): notice text contains short repo URL');
+assert(
+  results[2].noticeLine.includes(
+    'https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk'
+  ),
+  'GmsCore (microG cert): notice text contains full APK URL'
+);
+assertEqual(results[2].warningLine, null,
+  'GmsCore (microG cert): no warning for UPDATE AVAILABLE');
 
 // 4. Google-cert GmsCore: matched in F-Droid (first repo)
 assert(
@@ -407,17 +472,27 @@ assert(
 );
 assert(results[3].noticeLine !== null,
   'GmsCore (Google cert): notice emitted');
+assert(results[3].noticeLine.includes('[f-droid.org]'),
+  'GmsCore (Google cert): notice contains short repo URL');
+assert(
+  results[3].noticeLine.includes(
+    'https://f-droid.org/repo/com.google.android.gms_240000000.apk'
+  ),
+  'GmsCore (Google cert): notice contains full APK URL'
+);
 
 // 5. Different signer
 assert(
   results[4].logLine.includes('[DIFFERENT SIGNER]') &&
-  results[4].logLine.includes('f-droid.org'),
+  /\bf-droid\.org\s/.test(results[4].logLine),
   'NewPipeFork: DIFFERENT SIGNER listing f-droid.org (short URL)'
 );
 assertEqual(results[4].tableRow[3], `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
-  'NewPipeFork: tableRow status has 🔏 DIFFERENT SIGNER');
+  'NewPipeFork: tableRow status has 🔐 DIFFERENT SIGNER');
 assertEqual(results[4].noticeLine, null,
   'NewPipeFork: no notice for DIFFERENT SIGNER');
+assertEqual(results[4].warningLine, null,
+  'NewPipeFork: no warning for DIFFERENT SIGNER');
 
 // 6. Not in repo
 assert(
@@ -425,11 +500,33 @@ assert(
   'AuroraServices: NOT IN REPO'
 );
 assertEqual(results[5].tableRow[3], `${ICON.NOT_IN_REPO} NOT IN REPO`,
-  'AuroraServices: tableRow status has ❓ NOT IN REPO');
+  'AuroraServices: tableRow status has 🚫 NOT IN REPO');
 assertEqual(results[5].tableRow[2], '-',
   'AuroraServices: tableRow repo = -');
 assertEqual(results[5].noticeLine, null,
   'AuroraServices: no notice for NOT IN REPO');
+assertEqual(results[5].warningLine, null,
+  'AuroraServices: no warning for NOT IN REPO');
+
+// 7. Special cert fallback: FakeStore with mismatched cert → matched via
+//    SPECIAL_PKG_CERT in F-Droid
+assert(
+  results[6].logLine.includes('[f-droid.org]') &&
+  results[6].logLine.includes('UPDATE AVAILABLE'),
+  'FakeStore: UPDATE AVAILABLE via special cert fallback in F-Droid'
+);
+assert(results[6].noticeLine !== null,
+  'FakeStore: notice emitted for special-cert UPDATE AVAILABLE');
+assert(results[6].noticeLine.includes('[f-droid.org]'),
+  'FakeStore: notice contains short repo URL');
+assert(
+  results[6].noticeLine.includes(
+    'https://f-droid.org/repo/com.android.vending_84022626.apk'
+  ),
+  'FakeStore: notice contains full APK URL from special cert match'
+);
+assertEqual(results[6].warningLine, null,
+  'FakeStore: no warning for UPDATE AVAILABLE');
 
 // ---------------------------------------------------------------------------
 // /index-v2.json URL construction test

@@ -205,6 +205,7 @@ jobs:
                   const m = ver.manifest || {};
                   const vc = m.versionCode ?? null;
                   const vn = m.versionName || '';
+                  const apkName = ver.file?.name || '';
                   const certs = m.signer?.sha256 ?? [];
                   for (const cert of certs) {
                     const c = cert.toLowerCase();
@@ -213,7 +214,7 @@ jobs:
                       (vc !== null &&
                         (byCert[c].vc === null || vc > byCert[c].vc))
                     ) {
-                      byCert[c] = { vc, vn };
+                      byCert[c] = { vc, vn, apkName };
                     }
                   }
                   if (vc !== null &&
@@ -241,12 +242,20 @@ jobs:
 
             // Unicode icons for each result state
             const ICON = {
-              UPDATE_AVAILABLE: '⬆️',
+              UPDATE_AVAILABLE: '📥',
               UP_TO_DATE:       '✅',
-              LOCAL_NEWER:      '⬇️',
-              DIFFERENT_SIGNER: '🔏',
-              NOT_IN_REPO:      '❓',
+              LOCAL_NEWER:      '🏆',
+              DIFFERENT_SIGNER: '🔐',
+              NOT_IN_REPO:      '🚫',
             };
+
+            // Packages that also get a fallback cert check
+            const SPECIAL_PKG_CERT =
+              'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
+            const SPECIAL_PKGS = new Set([
+              'com.google.android.gms',
+              'com.android.vending',
+            ]);
 
             // Ordered list of F-Droid-compatible repository base URLs.
             // "/index-v2.json" is appended automatically when fetching.
@@ -283,6 +292,14 @@ jobs:
                   certMatch = { baseUrl, ver };
                   break;
                 }
+                // Special fallback for GMS packages: also try known cert
+                if (SPECIAL_PKGS.has(apk.packageName)) {
+                  const verFallback = pkg?.byCert[SPECIAL_PKG_CERT];
+                  if (verFallback) {
+                    certMatch = { baseUrl, ver: verFallback };
+                    break;
+                  }
+                }
               }
 
               if (certMatch) {
@@ -291,6 +308,8 @@ jobs:
                 const label = shortUrl(baseUrl);
                 const localVc = apk.versionCode;
                 const repoVc = ver.vc;
+                const apkUrl =
+                  ver.apkName ? `${baseUrl}${ver.apkName}` : '';
                 let statusText;
                 if (repoVc !== null && localVc) {
                   if (repoVc > localVc) {
@@ -315,8 +334,16 @@ jobs:
                 );
                 if (repoVc !== null && localVc && repoVc > localVc) {
                   core.notice(
-                    `${apk.fileName} (${apk.packageName}): ${statusText}`,
+                    `[${label}] ${apk.fileName} (${apk.packageName}):` +
+                    ` ${statusText}` +
+                    (apkUrl ? `\n${apkUrl}` : ''),
                     { title: 'Update Available' }
+                  );
+                }
+                if (repoVc !== null && localVc && repoVc < localVc) {
+                  core.warning(
+                    `${apk.fileName} (${apk.packageName}): ${statusText}`,
+                    { title: 'Local Newer' }
                   );
                 }
                 summaryRows.push([
