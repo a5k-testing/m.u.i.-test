@@ -33,7 +33,7 @@ jobs:
         run: node tests/test-app-update-checker.mjs
       - name: "Setup Bats and helpers"
         id: setup-bats
-        uses: bats-core/bats-action@4.0.0
+        uses: bats-core/bats-action@3.0.1
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       - name: "Run Bats tests"
