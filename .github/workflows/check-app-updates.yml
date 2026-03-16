@@ -357,21 +357,22 @@ jobs:
                 const repoVc = ver.vc;
                 const apkUrl =
                   ver.apkName ? `${baseUrl}${ver.apkName}` : '';
-                let statusText;
-                if (repoVc !== null && localVc) {
-                  if (repoVc > localVc) {
-                    statusText =
-                      `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE:` +
-                      ` repo=${ver.vn} (${repoVc})` +
-                      ` > local (${localVc})`;
-                  } else if (repoVc === localVc) {
-                    statusText =
-                      `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
-                  } else {
-                    statusText =
-                      `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
-                      ` > repo (${repoVc})`;
-                  }
+                const hasVc = repoVc !== null && localVc;
+                const isUpdateAvail = hasVc && repoVc > localVc;
+                const isLocalNewer = hasVc && repoVc < localVc;
+                let statusText, versionInfo;
+                if (isUpdateAvail) {
+                  versionInfo =
+                    `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
+                  statusText =
+                    `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
+                } else if (hasVc && repoVc === localVc) {
+                  statusText =
+                    `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
+                } else if (isLocalNewer) {
+                  statusText =
+                    `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
+                    ` > repo (${repoVc})`;
                 } else {
                   statusText = `found, latest=${ver.vn}`;
                 }
@@ -379,7 +380,7 @@ jobs:
                   `[${label}] ${apk.fileName}` +
                   ` (${apk.packageName}): ${statusText}`
                 );
-                if (repoVc !== null && localVc && repoVc > localVc) {
+                if (isUpdateAvail) {
                   core.notice(
                     `[${label}] ${apk.fileName} (${apk.packageName}):` +
                     ` ${statusText}` +
@@ -387,19 +388,22 @@ jobs:
                     { title: 'Update available' }
                   );
                 }
-                if (repoVc !== null && localVc && repoVc < localVc) {
+                if (isLocalNewer) {
                   core.warning(
                     `${apk.fileName} (${apk.packageName}): ${statusText}`,
                     { title: 'Local Newer' }
                   );
                 }
+                const tableStatus = (isUpdateAvail && apkUrl)
+                  ? `${ICON.UPDATE_AVAILABLE}` +
+                    ` <a href="${apkUrl}">UPDATE AVAILABLE</a>:` +
+                    ` ${versionInfo}`
+                  : statusText;
                 summaryRows.push([
                   apk.fileName,
                   apk.packageName,
                   label,
-                  (repoVc !== null && localVc && repoVc > localVc && apkUrl)
-                    ? `<a href="${apkUrl}">${statusText}</a>`
-                    : statusText,
+                  tableStatus,
                 ]);
               } else {
                 // Collect repos where the package exists under a different cert

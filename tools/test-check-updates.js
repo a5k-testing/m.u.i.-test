@@ -97,43 +97,42 @@ function checkApks(apkInfoList, repoData) {
       const localVc = apk.versionCode;
       const repoVc = ver.vc;
       const apkUrl = ver.apkName ? `${baseUrl}${ver.apkName}` : '';
-      let statusText;
-      if (repoVc !== null && localVc) {
-        if (repoVc > localVc) {
-          statusText =
-            `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE:` +
-            ` repo=${ver.vn} (${repoVc})` +
-            ` > local (${localVc})`;
-        } else if (repoVc === localVc) {
-          statusText =
-            `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
-        } else {
-          statusText =
-            `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
-            ` > repo (${repoVc})`;
-        }
+      const hasVc = repoVc !== null && localVc;
+      const isUpdateAvail = hasVc && repoVc > localVc;
+      const isLocalNewer = hasVc && repoVc < localVc;
+      let statusText, versionInfo;
+      if (isUpdateAvail) {
+        versionInfo =
+          `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
+        statusText =
+          `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
+      } else if (hasVc && repoVc === localVc) {
+        statusText =
+          `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
+      } else if (isLocalNewer) {
+        statusText =
+          `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
+          ` > repo (${repoVc})`;
       } else {
         statusText = `found, latest=${ver.vn}`;
       }
       const logLine =
         `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
-      const noticeLine = (repoVc !== null && localVc && repoVc > localVc)
+      const noticeLine = isUpdateAvail
         ? `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}` +
           (apkUrl ? `\n${apkUrl}` : '')
         : null;
-      const warningLine = (repoVc !== null && localVc && repoVc < localVc)
+      const warningLine = isLocalNewer
         ? `${apk.fileName} (${apk.packageName}): ${statusText}`
         : null;
+      const tableStatus = (isUpdateAvail && apkUrl)
+        ? `${ICON.UPDATE_AVAILABLE}` +
+          ` <a href="${apkUrl}">UPDATE AVAILABLE</a>:` +
+          ` ${versionInfo}`
+        : statusText;
       results.push({
         logLine,
-        tableRow: [
-          apk.fileName,
-          apk.packageName,
-          label,
-          (repoVc !== null && localVc && repoVc > localVc && apkUrl)
-            ? `<a href="${apkUrl}">${statusText}</a>`
-            : statusText,
-        ],
+        tableRow: [apk.fileName, apk.packageName, label, tableStatus],
         noticeLine,
         warningLine,
       });
@@ -475,14 +474,11 @@ assertEqual(results[2].tableRow[2], 'microg.org',
   'GmsCore (microG cert): tableRow repo = microg.org');
 assert(results[2].noticeLine !== null,
   'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
-assert(results[2].tableRow[3].includes('<a href=') &&
-  results[2].tableRow[3].includes('UPDATE AVAILABLE'),
-  'GmsCore (microG cert): tableRow status is a clickable link');
-assert(
-  results[2].tableRow[3].includes(
-    'https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk'
-  ),
-  'GmsCore (microG cert): tableRow link points to full APK URL');
+assertEqual(
+  results[2].tableRow[3],
+  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a>: repo=23.9.13 (230913000) > local (220000000)`,
+  'GmsCore (microG cert): tableRow links only "UPDATE AVAILABLE", icon and version info outside link'
+);
 assert(results[2].noticeLine.includes('UPDATE AVAILABLE'),
   'GmsCore (microG cert): notice text contains UPDATE AVAILABLE');
 assert(results[2].noticeLine.includes('[microg.org]'),
@@ -504,9 +500,11 @@ assert(
 );
 assert(results[3].noticeLine !== null,
   'GmsCore (Google cert): notice emitted');
-assert(results[3].tableRow[3].includes('<a href=') &&
-  results[3].tableRow[3].includes('UPDATE AVAILABLE'),
-  'GmsCore (Google cert): tableRow status is a clickable link');
+assertEqual(
+  results[3].tableRow[3],
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a>: repo=24.0 (240000000) > local (230000000)`,
+  'GmsCore (Google cert): tableRow links only "UPDATE AVAILABLE", icon and version info outside link'
+);
 assert(results[3].noticeLine.includes('[f-droid.org]'),
   'GmsCore (Google cert): notice contains short repo URL');
 assert(
@@ -556,9 +554,11 @@ assert(
 );
 assert(results[6].noticeLine !== null,
   'FakeStore: notice emitted for special-cert UPDATE AVAILABLE');
-assert(results[6].tableRow[3].includes('<a href=') &&
-  results[6].tableRow[3].includes('UPDATE AVAILABLE'),
-  'FakeStore: tableRow status is a clickable link');
+assertEqual(
+  results[6].tableRow[3],
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a>: repo=33.0 (84022626) > local (80000000)`,
+  'FakeStore: tableRow links only "UPDATE AVAILABLE", icon and version info outside link'
+);
 assert(results[6].noticeLine.includes('[f-droid.org]'),
   'FakeStore: notice contains short repo URL');
 assert(
