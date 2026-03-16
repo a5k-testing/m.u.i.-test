@@ -664,8 +664,8 @@ assertEqual(results[2].updateInfo.repoVc,    230913000,
 assertEqual(results[2].updateInfo.url,
   'https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk',
   'GmsCore updateInfo: url');
-assertEqual(results[2].updateInfo.repoSha256, SHA256_MICROG_GMS,
-  'GmsCore updateInfo: repoSha256');
+assertEqual(results[2].updateInfo.repoFileSha256, SHA256_MICROG_GMS,
+  'GmsCore updateInfo: repoFileSha256');
 
 // tableRow[3] for UPDATE_AVAILABLE still contains <br> (for GitHub summary)
 assert(results[2].tableRow[3].includes('<br>'),
@@ -704,10 +704,10 @@ const updateInfoEntries = [results[2], results[3], results[6]]
 assertEqual(updateInfoEntries.length, 3,
   'update-info.dat: 3 UPDATE AVAILABLE entries (2 GmsCore + FakeStore)');
 
-const infoLines = updateInfoEntries.map(
-  info =>
-    `${info.relPath}|${info.url}|${info.repoVn}|${info.repoVc}|${info.repoSha256}`
-);
+const infoLines = updateInfoEntries.map(info => {
+  const fields = [info.relPath, info.url, info.repoVn, String(info.repoVc), info.repoFileSha256];
+  return fields.join('|');
+});
 
 assertEqual(
   infoLines[0],
@@ -748,6 +748,63 @@ assertEqual(datContent.split('\n').length, 3,
   'update-info.dat: 3 lines joined by \\n');
 assert(!datContent.endsWith('\n'),
   'update-info.dat: no trailing newline (separator semantics)');
+
+// ---------------------------------------------------------------------------
+// update-info.dat field validation (| and \n are forbidden)
+// ---------------------------------------------------------------------------
+
+console.log('\n── update-info.dat field validation ──');
+
+function validateUpdateInfoFields(fields) {
+  for (const field of fields) {
+    if (field.includes('|') || field.includes('\n')) {
+      throw new Error(
+        `update-info.dat: field contains reserved character ('|' or '\\n'): ${JSON.stringify(field)}`
+      );
+    }
+  }
+}
+
+// Clean fields must not throw
+{
+  let threw = false;
+  try {
+    validateUpdateInfoFields(['priv-app/GmsCore.apk', 'https://repo.example.org/gms.apk', '23.9.13', '230913000', 'aabbccdd']);
+  } catch { threw = true; }
+  assert(!threw, 'field validation: clean fields do not throw');
+}
+
+// Pipe in relPath must throw
+{
+  let threw = false;
+  try { validateUpdateInfoFields(['priv-app/Gms|Core.apk', 'https://example.org/gms.apk', '1.0', '1', 'aabb']); }
+  catch { threw = true; }
+  assert(threw, 'field validation: pipe in relPath throws');
+}
+
+// Newline in url must throw
+{
+  let threw = false;
+  try { validateUpdateInfoFields(['ok.apk', 'https://example.org/\ngms.apk', '1.0', '1', 'aabb']); }
+  catch { threw = true; }
+  assert(threw, 'field validation: newline in url throws');
+}
+
+// Pipe in versionName must throw
+{
+  let threw = false;
+  try { validateUpdateInfoFields(['ok.apk', 'https://example.org/gms.apk', '1.0|bad', '1', 'aabb']); }
+  catch { threw = true; }
+  assert(threw, 'field validation: pipe in versionName throws');
+}
+
+// Newline in sha256 must throw
+{
+  let threw = false;
+  try { validateUpdateInfoFields(['ok.apk', 'https://example.org/gms.apk', '1.0', '1', 'aa\nbb']); }
+  catch { threw = true; }
+  assert(threw, 'field validation: newline in sha256 throws');
+}
 
 // ---------------------------------------------------------------------------
 // checkApks: CHECK_FAILED tests

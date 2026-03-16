@@ -315,7 +315,7 @@ export function checkApks(apkInfoList, repoData) {
             localVc,
             repoVn:     ver.vn,
             repoVc,
-            repoSha256: ver.sha256,
+            repoFileSha256: ver.sha256,
             url:        apkUrl,
           };
           break;
@@ -542,9 +542,9 @@ export async function extractApkInfo(
 
   for (const apkPath of apkPaths) {
     const fileName = path.basename(apkPath);
-    const relPath = (apkFiles != null
-      ? (workspace ? path.relative(workspace, apkPath) : path.basename(apkPath))
-      : path.relative(baseDir, apkPath)).replace(/\\/g, '/');
+    const relPath = apkFiles != null
+      ? (workspace ? path.posix.relative(workspace, apkPath) : path.basename(apkPath))
+      : path.posix.relative(baseDir, apkPath);
 
     // Detect and resolve LFS pointer files
     let resolvedPath = apkPath;
@@ -762,10 +762,17 @@ export default async function run(
 
   // Write update-info.dat when requested
   if (dumpInfoFile && updateInfoEntries.length > 0) {
-    const lines = updateInfoEntries.map(
-      info =>
-        `${info.relPath}|${info.url}|${info.repoVn}|${info.repoVc}|${info.repoSha256}`
-    );
+    const lines = updateInfoEntries.map(info => {
+      const fields = [info.relPath, info.url, info.repoVn, String(info.repoVc), info.repoFileSha256];
+      for (const field of fields) {
+        if (field.includes('|') || field.includes('\n')) {
+          throw new Error(
+            `update-info.dat: field contains reserved character ('|' or '\\n'): ${JSON.stringify(field)}`
+          );
+        }
+      }
+      return fields.join('|');
+    });
     writeFileSync(dumpInfoFile, lines.join('\n'));
     core.info(`Wrote update info for ${updateInfoEntries.length} APK(s) to ${dumpInfoFile}`);
   }

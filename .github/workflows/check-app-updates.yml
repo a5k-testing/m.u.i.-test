@@ -36,7 +36,6 @@ jobs:
       - name: "Run JS tests"
         run: node tests/test-app-update-checker.mjs
       - name: "Setup Bats and helpers"
-        if: runner.os != 'Windows'
         uses: bats-core/bats-action@4.0.0
         with:
           support-install: false
@@ -45,7 +44,6 @@ jobs:
           file-install: false
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       - name: "Run Bats tests"
-        if: runner.os != 'Windows'
         shell: bash
         run: bats tests/test-check-app-updates.bats
 
