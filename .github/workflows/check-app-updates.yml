@@ -50,9 +50,6 @@ jobs:
           # Base directory for the APK search
           base_dir="${GITHUB_WORKSPACE}/zip-content/origin"
 
-          # Files to skip (relative to base_dir, newline-separated)
-          skip_list=$'priv-app/FakeStore-0.3.6.apk\npriv-app/GmsCore-0.3.6.apk\npriv-app/GmsCoreVtm.apk\npriv-app/GmsCoreVtmLegacy.apk\n'
-
           # Locate aapt: prefer PATH, fall back to Android SDK build-tools
           aapt_bin=''
           if command -v 'aapt' 1>/dev/null; then
@@ -73,14 +70,6 @@ jobs:
 
             file_name="$(basename "${apk_path}")"
             rel_path="${apk_path#"${base_dir}/"}"
-
-            # Check skip list
-            case "${skip_list}" in
-              *"${rel_path}"*)
-                printf 'INFO: skipping (skip list): %s\n' "${rel_path}"
-                continue
-                ;;
-            esac
 
             # Detect LFS pointer files (mirrors is_lfs_pointers in includes/common.sh)
             file_size="$(wc -c < "${apk_path}")"
@@ -139,6 +128,7 @@ jobs:
 
             # Build JSON entry (pkg names and hex hashes need no escaping)
             entry='{"fileName":"'"${file_name}"'"'
+            entry="${entry}"',"relPath":"'"${rel_path}"'"'
             entry="${entry}"',"packageName":"'"${pkg}"'"'
             entry="${entry}"',"versionCode":'"${version_code:-0}"
             entry="${entry}"',"certSha256":"'"${cert_sha256}"'"}'
@@ -166,14 +156,34 @@ jobs:
             const path = require('path');
             const https = require('https');
 
-            // Load APK info produced by the shell step
-            const apkInfoList = JSON.parse(
+            // Files to skip the update check (relative to zip-content/origin/)
+            const SKIP_LIST = new Set([
+              'priv-app/FakeStore-0.3.6.apk',
+              'priv-app/GmsCore-0.3.6.apk',
+              'priv-app/GmsCoreVtm.apk',
+              'priv-app/GmsCoreVtmLegacy.apk',
+            ]);
+
+            // Load APK info produced by the shell step, filtering out skipped entries
+            const allApkInfo = JSON.parse(
               fs.readFileSync(
                 path.join(process.env.RUNNER_TEMP, 'apk_info.json'),
                 'utf-8'
               )
             );
-            core.info(`Loaded info for ${apkInfoList.length} APK(s)`);
+            const apkInfoList = allApkInfo.filter(apk => {
+              if (SKIP_LIST.has(apk.relPath)) {
+                core.info(`Skipping (skip list): ${apk.relPath}`);
+                return false;
+              }
+              return true;
+            });
+            core.info(
+              `Loaded info for ${apkInfoList.length} APK(s)` +
+              (allApkInfo.length !== apkInfoList.length
+                ? ` (skipped ${allApkInfo.length - apkInfoList.length})`
+                : '')
+            );
 
             // Fetch a URL over HTTPS only, following up to maxRedirects redirects
             function fetchUrl(url, maxRedirects = 3) {
@@ -355,6 +365,42 @@ jobs:
                       ` repo=${ver.vn} (${repoVc})` +
                       ` > local (${localVc})`;
                   } else if (repoVc === localVc) {
+                    statusText =
+                      `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
+                  } else {
+                    statusText =
+                      `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
+                      ` > repo (${repoVc})`;
+                  }
+                } else {
+                  statusText = `found, latest=${ver.vn}`;
+                }
+                core.info(
+                  `[${label}] ${apk.fileName}` +
+                  ` (${apk.packageName}): ${statusText}`
+                );
+                if (repoVc !== null && localVc && repoVc > localVc) {
+                  core.notice(
+                    `[${label}] ${apk.fileName} (${apk.packageName}):` +
+                    ` ${statusText}` +
+                    (apkUrl ? `\n${apkUrl}` : ''),
+                    { title: 'Update available' }
+                  );
+                }
+                if (repoVc !== null && localVc && repoVc < localVc) {
+                  core.warning(
+                    `${apk.fileName} (${apk.packageName}): ${statusText}`,
+                    { title: 'Local Newer' }
+                  );
+                }
+                summaryRows.push([
+                  apk.fileName,
+                  apk.packageName,
+                  label,
+                  (repoVc !== null && localVc && repoVc > localVc && apkUrl)
+                    ? `<a href="${apkUrl}">${statusText}</a>`
+                    : statusText,
+                ]);
               } else {
                 // Collect repos where the package exists under a different cert
                 const signerMismatch = repoData
@@ -368,7 +414,7 @@ jobs:
                   repoLabel = signerMismatch.join(', ');
                   statusText = `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`;
                   core.info(
-                    `[DIFFERENT SIGNER] ${apk.fileName}` +
+                    `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${apk.fileName}` +
                     ` (${apk.packageName}):` +
                     ` ${repoLabel}` +
                     ` but signed with a different certificate`
@@ -377,7 +423,7 @@ jobs:
                   repoLabel = '-';
                   statusText = `${ICON.NOT_IN_REPO} NOT IN REPO`;
                   core.info(
-                    `[NOT IN REPO] ${apk.fileName}` +
+                    `${ICON.NOT_IN_REPO} [NOT IN REPO] ${apk.fileName}` +
                     ` (${apk.packageName}): not found in any repo`
                   );
                 }
@@ -392,7 +438,7 @@ jobs:
 
             // Write Job Summary table
             await core.summary
-              .addHeading('Update Check Results')
+              .addHeading('Update check results')
               .addTable([
                 [
                   { data: 'APK', header: true },

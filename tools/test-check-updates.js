@@ -126,7 +126,14 @@ function checkApks(apkInfoList, repoData) {
         : null;
       results.push({
         logLine,
-        tableRow: [apk.fileName, apk.packageName, label, statusText],
+        tableRow: [
+          apk.fileName,
+          apk.packageName,
+          label,
+          (repoVc !== null && localVc && repoVc > localVc && apkUrl)
+            ? `<a href="${apkUrl}">${statusText}</a>`
+            : statusText,
+        ],
         noticeLine,
         warningLine,
       });
@@ -141,7 +148,7 @@ function checkApks(apkInfoList, repoData) {
         const repoLabel = signerMismatch.join(', ');
         results.push({
           logLine:
-            `[DIFFERENT SIGNER] ${apk.fileName}` +
+            `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${apk.fileName}` +
             ` (${apk.packageName}):` +
             ` ${repoLabel}` +
             ` but signed with a different certificate`,
@@ -155,7 +162,7 @@ function checkApks(apkInfoList, repoData) {
       } else {
         results.push({
           logLine:
-            `[NOT IN REPO] ${apk.fileName}` +
+            `${ICON.NOT_IN_REPO} [NOT IN REPO] ${apk.fileName}` +
             ` (${apk.packageName}): not found in any repo`,
           tableRow: [
             apk.fileName, apk.packageName,
@@ -432,6 +439,8 @@ assert(results[0].logLine.includes(ICON.UP_TO_DATE),
   'FDroid priv: ✅ icon present');
 assertEqual(results[0].tableRow[2], 'f-droid.org',
   'FDroid priv: tableRow repo = f-droid.org');
+assert(!results[0].tableRow[3].includes('<a href='),
+  'FDroid priv: tableRow status is plain text (up to date, no link)');
 assertEqual(results[0].noticeLine, null,
   'FDroid priv: no notice for UP TO DATE');
 assertEqual(results[0].warningLine, null,
@@ -447,6 +456,8 @@ assert(results[1].logLine.includes(ICON.LOCAL_NEWER),
   'NewPipe: 🚀 icon present');
 assertEqual(results[1].noticeLine, null,
   'NewPipe: no notice for LOCAL NEWER');
+assert(!results[1].tableRow[3].includes('<a href='),
+  'NewPipe: tableRow status is plain text (local newer, no link)');
 assert(results[1].warningLine !== null,
   'NewPipe: warning emitted for LOCAL NEWER');
 assert(results[1].warningLine.includes('LOCAL NEWER'),
@@ -464,6 +475,14 @@ assertEqual(results[2].tableRow[2], 'microg.org',
   'GmsCore (microG cert): tableRow repo = microg.org');
 assert(results[2].noticeLine !== null,
   'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
+assert(results[2].tableRow[3].includes('<a href=') &&
+  results[2].tableRow[3].includes('UPDATE AVAILABLE'),
+  'GmsCore (microG cert): tableRow status is a clickable link');
+assert(
+  results[2].tableRow[3].includes(
+    'https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk'
+  ),
+  'GmsCore (microG cert): tableRow link points to full APK URL');
 assert(results[2].noticeLine.includes('UPDATE AVAILABLE'),
   'GmsCore (microG cert): notice text contains UPDATE AVAILABLE');
 assert(results[2].noticeLine.includes('[microg.org]'),
@@ -485,6 +504,9 @@ assert(
 );
 assert(results[3].noticeLine !== null,
   'GmsCore (Google cert): notice emitted');
+assert(results[3].tableRow[3].includes('<a href=') &&
+  results[3].tableRow[3].includes('UPDATE AVAILABLE'),
+  'GmsCore (Google cert): tableRow status is a clickable link');
 assert(results[3].noticeLine.includes('[f-droid.org]'),
   'GmsCore (Google cert): notice contains short repo URL');
 assert(
@@ -500,6 +522,8 @@ assert(
   /\bf-droid\.org\s/.test(results[4].logLine),
   'NewPipeFork: DIFFERENT SIGNER listing f-droid.org (short URL)'
 );
+assert(results[4].logLine.includes(ICON.DIFFERENT_SIGNER),
+  'NewPipeFork: 🔐 icon present in log line');
 assertEqual(results[4].tableRow[3], `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
   'NewPipeFork: tableRow status has 🔐 DIFFERENT SIGNER');
 assertEqual(results[4].noticeLine, null,
@@ -512,6 +536,8 @@ assert(
   results[5].logLine.includes('[NOT IN REPO]'),
   'AuroraServices: NOT IN REPO'
 );
+assert(results[5].logLine.includes(ICON.NOT_IN_REPO),
+  'AuroraServices: ❓ icon present in log line');
 assertEqual(results[5].tableRow[3], `${ICON.NOT_IN_REPO} NOT IN REPO`,
   'AuroraServices: tableRow status has ❓ NOT IN REPO');
 assertEqual(results[5].tableRow[2], '-',
@@ -530,6 +556,9 @@ assert(
 );
 assert(results[6].noticeLine !== null,
   'FakeStore: notice emitted for special-cert UPDATE AVAILABLE');
+assert(results[6].tableRow[3].includes('<a href=') &&
+  results[6].tableRow[3].includes('UPDATE AVAILABLE'),
+  'FakeStore: tableRow status is a clickable link');
 assert(results[6].noticeLine.includes('[f-droid.org]'),
   'FakeStore: notice contains short repo URL');
 assert(
@@ -592,6 +621,54 @@ assert(isHttpsUrl('https://f-droid.org/repo'), 'HTTPS URL passes check');
 // Max redirects constant
 const MAX_REDIRECTS = 3;
 assertEqual(MAX_REDIRECTS, 3, 'Max redirects is 3');
+
+// ---------------------------------------------------------------------------
+// SKIP_LIST tests
+// ---------------------------------------------------------------------------
+
+console.log('\n── SKIP_LIST ──');
+
+const SKIP_LIST = new Set([
+  'priv-app/FakeStore-0.3.6.apk',
+  'priv-app/GmsCore-0.3.6.apk',
+  'priv-app/GmsCoreVtm.apk',
+  'priv-app/GmsCoreVtmLegacy.apk',
+]);
+
+assertEqual(SKIP_LIST.size, 4, 'SKIP_LIST has 4 entries');
+assert(SKIP_LIST.has('priv-app/FakeStore-0.3.6.apk'),
+  'SKIP_LIST: priv-app/FakeStore-0.3.6.apk included');
+assert(SKIP_LIST.has('priv-app/GmsCore-0.3.6.apk'),
+  'SKIP_LIST: priv-app/GmsCore-0.3.6.apk included');
+assert(SKIP_LIST.has('priv-app/GmsCoreVtm.apk'),
+  'SKIP_LIST: priv-app/GmsCoreVtm.apk included');
+assert(SKIP_LIST.has('priv-app/GmsCoreVtmLegacy.apk'),
+  'SKIP_LIST: priv-app/GmsCoreVtmLegacy.apk included');
+
+// Current (non-versioned) builds must NOT be skipped
+assert(!SKIP_LIST.has('priv-app/GmsCore.apk'),
+  'SKIP_LIST: priv-app/GmsCore.apk (no version suffix) is NOT skipped');
+assert(!SKIP_LIST.has('priv-app/FakeStore.apk'),
+  'SKIP_LIST: priv-app/FakeStore.apk (no version suffix) is NOT skipped');
+
+// Filter simulation (mirrors workflow JS)
+const mockApkList = [
+  { fileName: 'FakeStore-0.3.6.apk', relPath: 'priv-app/FakeStore-0.3.6.apk' },
+  { fileName: 'FakeStore.apk',        relPath: 'priv-app/FakeStore.apk' },
+  { fileName: 'GmsCore-0.3.6.apk',   relPath: 'priv-app/GmsCore-0.3.6.apk' },
+  { fileName: 'GmsCore.apk',          relPath: 'priv-app/GmsCore.apk' },
+  { fileName: 'GmsCoreVtm.apk',       relPath: 'priv-app/GmsCoreVtm.apk' },
+  { fileName: 'GmsCoreVtmLegacy.apk', relPath: 'priv-app/GmsCoreVtmLegacy.apk' },
+  { fileName: 'Something.apk',        relPath: 'app/Something.apk' },
+];
+const filtered = mockApkList.filter(apk => !SKIP_LIST.has(apk.relPath));
+assertEqual(filtered.length, 3, 'SKIP_LIST filter: 3 of 7 APKs kept');
+assertEqual(filtered[0].fileName, 'FakeStore.apk',
+  'SKIP_LIST filter: FakeStore.apk (no suffix) kept');
+assertEqual(filtered[1].fileName, 'GmsCore.apk',
+  'SKIP_LIST filter: GmsCore.apk (no suffix) kept');
+assertEqual(filtered[2].fileName, 'Something.apk',
+  'SKIP_LIST filter: Something.apk kept');
 
 // ---------------------------------------------------------------------------
 // Summary
