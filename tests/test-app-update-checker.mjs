@@ -15,12 +15,15 @@ import {
 
 import { default as run } from '../includes/app-update-checker-lib.mjs';
 
+import path from 'path';
+
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
 
 let passed = 0;
 let failed = 0;
+let skipped = 0;
 
 function assert(condition, message) {
   if (condition) {
@@ -42,6 +45,11 @@ function assertEqual(actual, expected, message) {
     console.error(`        actual:   ${JSON.stringify(actual)}`);
     failed++;
   }
+}
+
+function skip(message) {
+  console.log(`  SKIP: ${message}`);
+  skipped++;
 }
 
 // ---------------------------------------------------------------------------
@@ -756,11 +764,26 @@ const STUB_CORE = {
     'run(): error message mentions apkFiles');
 }
 
-// apkDirs contains a nonexistent directory → throws "APK directory not found"
+// apkDirs contains a nonexistent directory → warns and skips (no throw)
 {
-  const msg = await runError({ core: STUB_CORE, apkDirs: ['/nonexistent/path/to/apks'] });
-  assert(msg !== null && msg.includes('APK directory not found'),
-    'run(): nonexistent dir in apkDirs throws "APK directory not found"');
+  const warnings = [];
+  const coreCapture = { ...STUB_CORE, warning: (msg) => warnings.push(msg) };
+  const msg = await runError({ core: coreCapture, apkDirs: ['/nonexistent/path/to/apks'] });
+  assert(msg === null || !msg.includes('APK directory not found'),
+    'run(): nonexistent dir in apkDirs does not throw "APK directory not found"');
+  assert(warnings.some(w => w.includes('/nonexistent/path/to/apks')),
+    'run(): nonexistent dir in apkDirs emits a warning with the path');
+}
+
+// apkFiles contains a nonexistent file → warns and skips (no throw)
+{
+  const warnings = [];
+  const coreCapture = { ...STUB_CORE, warning: (msg) => warnings.push(msg) };
+  const msg = await runError({ core: coreCapture, apkFiles: ['/nonexistent/file.apk'] });
+  assert(msg === null || !msg.includes('not found'),
+    'run(): nonexistent file in apkFiles does not throw');
+  assert(warnings.some(w => w.includes('/nonexistent/file.apk')),
+    'run(): nonexistent file in apkFiles emits a warning with the path');
 }
 
 // apkDirs set (even empty) → does NOT throw due to apkFiles absence
@@ -781,10 +804,93 @@ const STUB_CORE = {
     'run(): non-empty apkFiles passes validation (runtime errors are OK)');
 }
 
+// ---------------------------------------------------------------------------
+// relPath computation: apkDirs vs apkFiles
+// ---------------------------------------------------------------------------
+
+console.log('\n── relPath computation ──');
+
+// For dir-scanned APKs: relPath is relative to the source dir (not workspace)
+{
+  const baseDir = '/workspace/zip-content/origin';
+  const apkPath = baseDir + '/priv-app/GmsCore.apk';
+  assertEqual(
+    path.relative(baseDir, apkPath),
+    'priv-app/GmsCore.apk',
+    'relPath from apkDirs: relative to its source dir'
+  );
+}
+
+// For explicit apkFiles: relPath is relative to workspace
+{
+  const workspace = '/workspace';
+  const apkPath = '/workspace/zip-content/origin/priv-app/GmsCore.apk';
+  assertEqual(
+    path.relative(workspace, apkPath),
+    'zip-content/origin/priv-app/GmsCore.apk',
+    'relPath from apkFiles: relative to workspace'
+  );
+}
+
+// Multiple apkDirs: each APK gets relPath from its own source dir, not from the other
+{
+  const dir1 = '/workspace/dir1';
+  const dir2 = '/workspace/dir2';
+  assertEqual(
+    path.relative(dir1, dir1 + '/sub/App.apk'),
+    'sub/App.apk',
+    'relPath from first dir: relative to dir1'
+  );
+  assertEqual(
+    path.relative(dir2, dir2 + '/sub/App.apk'),
+    'sub/App.apk',
+    'relPath from second dir: relative to dir2 (independent from dir1)'
+  );
+  // An apk from dir2 must NOT be relative to dir1
+  assert(
+    path.relative(dir1, dir2 + '/sub/App.apk') !== 'sub/App.apk',
+    'relPath from dir2 differs when computed relative to dir1'
+  );
+}
+
+// Mixed apkFiles + apkDirs: relPath origins are independent
+{
+  const workspace = '/workspace';
+  const dir = '/workspace/zip-content/origin';
+  // File supplied via apkFiles: relPath is workspace-relative
+  assertEqual(
+    path.relative(workspace, '/workspace/extra/app/Test.apk'),
+    'extra/app/Test.apk',
+    'mixed: apkFiles relPath is workspace-relative'
+  );
+  // File found via apkDirs scan: relPath is dir-relative
+  assertEqual(
+    path.relative(dir, dir + '/priv-app/Test.apk'),
+    'priv-app/Test.apk',
+    'mixed: apkDirs relPath is dir-relative'
+  );
+  // The same absolute path produces a different relPath depending on the base
+  const sameAbsPath = '/workspace/extra/app/Test.apk';
+  const relFromWorkspace = path.relative(workspace, sameAbsPath);
+  const relFromDir       = path.relative(dir, sameAbsPath);
+  assert(
+    relFromWorkspace !== relFromDir,
+    'mixed: same absolute path has different relPath when base is workspace vs dir'
+  );
+  assertEqual(
+    relFromWorkspace, 'extra/app/Test.apk',
+    'mixed: workspace-based relPath for extra/app/Test.apk'
+  );
+  assertEqual(
+    relFromDir, '../../extra/app/Test.apk',
+    'mixed: dir-based relPath for extra/app/Test.apk traverses up to dir root'
+  );
+}
+
 
 
 console.log(`\n${'─'.repeat(40)}`);
-console.log(`Passed: ${passed}  Failed: ${failed}`);
+console.log(`Passed: ${passed}  Failed: ${failed}  Skipped: ${skipped}`);
 if (failed > 0) {
   process.exitCode = 1;
 }

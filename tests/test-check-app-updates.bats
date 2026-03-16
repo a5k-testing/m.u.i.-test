@@ -13,6 +13,10 @@ setup_file() {
   export REPO_DIR
   SCRIPT="${REPO_DIR}/tools/check-app-updates.sh"
   export SCRIPT
+
+  # Shared file to track per-test results for the final summary
+  BATS_RESULTS_FILE="$(mktemp)"
+  export BATS_RESULTS_FILE
 }
 
 # ---------------------------------------------------------------------------
@@ -23,16 +27,15 @@ setup() {
   MOCK_DIR="$(mktemp -d)"
   export MOCK_OUTPUT_FILE="${MOCK_DIR}/node_output"
 
-  # Mock node: validates APKS_DIRS (mimics app-update-checker-lib.mjs run()),
-  # then records APKS_DIRS and APKS_FILES to MOCK_OUTPUT_FILE, then exits cleanly.
+  # Mock node: validates APKS_DIRS elements (mimics app-update-checker-lib.mjs run()),
+  # warning and skipping entries that are not directories, then records env vars.
   cat > "${MOCK_DIR}/node" << 'MOCK'
 #!/bin/sh
 if [ -n "${APKS_DIRS:-}" ]; then
   while IFS= read -r _dir || [ -n "${_dir}" ]; do
     [ -z "${_dir}" ] && continue
     if ! test -d "${_dir}"; then
-      printf 1>&2 'ERROR: APK directory not found: %s\n' "${_dir}"
-      exit 1
+      printf 1>&2 'WARNING: APK directory not found, skipping: %s\n' "${_dir}"
     fi
   done << __DIRS__
 ${APKS_DIRS}
@@ -53,7 +56,35 @@ MOCK
 }
 
 teardown() {
+  local _result
+  if [ -n "${BATS_TEST_SKIPPED:-}" ]; then
+    _result='skipped'
+  elif [ "${BATS_TEST_COMPLETED:-0}" = '1' ]; then
+    _result='passed'
+  else
+    _result='failed'
+  fi
+  printf '%s\n' "${_result}" >> "${BATS_RESULTS_FILE:-/dev/null}"
   rm -rf "${MOCK_DIR}"
+}
+
+teardown_file() {
+  local _total _passed _failed _skipped _line
+  _total=0; _passed=0; _failed=0; _skipped=0
+  if [ -f "${BATS_RESULTS_FILE:-}" ]; then
+    while IFS= read -r _line || [ -n "${_line}" ]; do
+      [ -z "${_line}" ] && continue
+      _total=$((_total + 1))
+      case "${_line}" in
+        passed)  _passed=$((_passed + 1)) ;;
+        failed)  _failed=$((_failed + 1)) ;;
+        skipped) _skipped=$((_skipped + 1)) ;;
+      esac
+    done < "${BATS_RESULTS_FILE}"
+    rm -f "${BATS_RESULTS_FILE}"
+  fi
+  printf '\n── Test Summary ──\nTotal: %d  Passed: %d  Failed: %d  Skipped: %d\n' \
+    "${_total}" "${_passed}" "${_failed}" "${_skipped}"
 }
 
 # ---------------------------------------------------------------------------
@@ -83,19 +114,20 @@ teardown() {
 # --dir validation
 # ---------------------------------------------------------------------------
 
-@test "--dir with nonexistent path reports error and exits 1" {
+@test "--dir with nonexistent path warns and exits 0" {
   run sh "${SCRIPT}" --dir '/nonexistent/path/to/apks'
-  [ "${status}" -eq 1 ]
-  echo "${output}" | grep -q 'APK directory not found'
+  [ "${status}" -eq 0 ]
+  # The path is still forwarded to node (node warns and skips it internally)
+  grep -qF '/nonexistent/path/to/apks' "${MOCK_OUTPUT_FILE}"
 }
 
-@test "first --dir nonexistent even when second exists reports error and exits 1" {
+@test "first --dir nonexistent with second existing exits 0" {
   local tmp_dir
   tmp_dir="$(mktemp -d)"
   run sh "${SCRIPT}" --dir '/nonexistent/first' --dir "${tmp_dir}"
   rmdir "${tmp_dir}"
-  [ "${status}" -eq 1 ]
-  echo "${output}" | grep -q 'APK directory not found'
+  [ "${status}" -eq 0 ]
+  grep -qF "${tmp_dir}" "${MOCK_OUTPUT_FILE}"
 }
 
 # ---------------------------------------------------------------------------

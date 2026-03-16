@@ -642,12 +642,15 @@ export default async function run(
         : apkDirs)
     : [];
 
-  // Validate APK directories exist
+  // Validate apkDirs elements: skip entries that are not directories
+  const validDirs = [];
   for (const dir of effectiveDirs) {
     let isDir = false;
     try { isDir = statSync(dir).isDirectory(); } catch { /* ignore */ }
-    if (!isDir) {
-      throw new Error(`APK directory not found: ${dir}`);
+    if (isDir) {
+      validDirs.push(dir);
+    } else {
+      core.warning(`APK directory not found, skipping: ${dir}`);
     }
   }
 
@@ -655,17 +658,32 @@ export default async function run(
   const lfsDir  = lfsCacheDir  ?? path.join(workspace, 'cache/lfs');
   const reposDir = repoCacheDir ?? path.join(workspace, 'cache/repos');
 
-  // Extract APK info from all directories
+  // Extract APK info from all valid directories
   let allApkInfo = [];
-  for (const dir of effectiveDirs) {
+  for (const dir of validDirs) {
     const info = await extractApkInfo(dir, { workspace, lfsCacheDir: lfsDir, core });
     allApkInfo = allApkInfo.concat(info);
   }
 
-  // Extract APK info from explicit file list (if provided)
+  // Validate apkFiles elements: skip entries that are not files
+  let validApkFiles = null;
   if (apkFiles?.length) {
+    validApkFiles = [];
+    for (const f of apkFiles) {
+      let isFile = false;
+      try { isFile = statSync(f).isFile(); } catch { /* ignore */ }
+      if (isFile) {
+        validApkFiles.push(f);
+      } else {
+        core.warning(`APK file not found or not a file, skipping: ${f}`);
+      }
+    }
+  }
+
+  // Extract APK info from explicit file list (if provided)
+  if (validApkFiles?.length) {
     const info = await extractApkInfo(null, {
-      apkFiles,
+      apkFiles: validApkFiles,
       workspace,
       lfsCacheDir: lfsDir,
       core,
