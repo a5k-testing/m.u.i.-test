@@ -167,20 +167,6 @@ export function shortUrl(url) {
   }
 }
 
-// Get a compact display label for the table Repo column (narrower than shortUrl).
-// Strips common non-descriptive subdomain prefixes and the TLD.
-// e.g. "https://repo.microg.org/fdroid/repo" → "microg"
-//      "https://f-droid.org/repo"             → "f-droid"
-//      "https://apt.izzysoft.de/fdroid/repo"  → "izzysoft"
-function tableLabel(url) {
-  try {
-    const host = new URL(url).hostname;
-    return host.replace(/^(repo|apt)\./i, '').split('.')[0];
-  } catch (_) {
-    return shortUrl(url);
-  }
-}
-
 // Sanitize a repository base URL into a safe cache filename.
 // e.g. "https://repo.microg.org/fdroid/repo" → "repo.microg.org_fdroid_repo.json"
 function repoCacheFilename(baseUrl) {
@@ -236,6 +222,7 @@ async function loadOrFetchRepoIndex(baseUrl, repoCacheDir, core) {
 export function checkApks(apkInfoList, repoData) {
   const results = [];
   for (const apk of apkInfoList) {
+    const displayName = apk.relPath;
     // Loop through repos in order; stop at the first one that has
     // both a matching package name and a matching signing certificate
     let certMatch = null;
@@ -265,11 +252,10 @@ export function checkApks(apkInfoList, repoData) {
       const { baseUrl, ver } = certMatch;
       const label  = shortUrl(baseUrl);
       const tLabel = label.split('.')[0];
-      const localVc = apk.versionCode ?? 0;
-      const repoVc  = ver.vc ?? 0;
+      const localVc = apk.versionCode || 0;
+      const repoVc  = ver.vc || 0;
       const apkUrl  = ver.apkName ? `${baseUrl}${ver.apkName}` : '';
       const localVn = apk.versionName || '';
-      const displayName = apk.relPath ?? apk.fileName;
       const updateStatus = (() => {
         if (localVc < 1 || repoVc < 1) return 'check-failed';
         if (repoVc === localVc) return 'up-to-date';
@@ -346,7 +332,6 @@ export function checkApks(apkInfoList, repoData) {
       // Collect repos where the package exists under a different cert
       const signerMismatch = repoData
         .filter(({ apps }) => apps.has(apk.packageName));
-      const displayName = apk.relPath ?? apk.fileName;
       if (signerMismatch.length > 0) {
         const logRepoLabel = signerMismatch
           .map(({ baseUrl }) => shortUrl(baseUrl))
@@ -513,8 +498,10 @@ async function getCertSha256(apkPath) {
 // Options:
 //   apkFiles    {string[]|null} – explicit list of absolute APK paths to process
 //                                 instead of scanning baseDir; when provided,
-//                                 baseDir may be null (relPath falls back to
-//                                 the filename in that case)
+//                                 baseDir may be null
+//   workspace   {string|null}   – workspace root used to compute relPath for every
+//                                 APK (path relative to workspace); required so
+//                                 that apk.relPath is always a meaningful path
 //   lfsCacheDir {string|null}   – path to a Git-LFS cache directory
 //                                 (e.g. GITHUB_WORKSPACE/cache/lfs)
 //   core        {object}        – logger implementing .info(msg) (optional)
@@ -522,7 +509,7 @@ async function getCertSha256(apkPath) {
 // Returns: Promise<Array<{fileName, relPath, packageName, versionCode, versionName, certSha256}>>
 export async function extractApkInfo(
   baseDir,
-  { apkFiles = null, lfsCacheDir = null, core } = {}
+  { apkFiles = null, workspace = null, lfsCacheDir = null, core } = {}
 ) {
   const aaptBin = findAaptBin();
   if (!aaptBin) {
@@ -537,10 +524,10 @@ export async function extractApkInfo(
   const results = [];
 
   for (const apkPath of apkPaths) {
-    const fileName  = path.basename(apkPath);
-    const relPath   = baseDir
-      ? path.relative(baseDir, apkPath)
-      : fileName;
+    const fileName = path.basename(apkPath);
+    const relPath  = workspace
+      ? path.relative(workspace, apkPath)
+      : path.basename(apkPath);
 
     // Detect and resolve LFS pointer files
     let resolvedPath = apkPath;
@@ -662,7 +649,7 @@ export default async function run(
   // Extract APK info from all directories
   let allApkInfo = [];
   for (const dir of effectiveDirs) {
-    const info = await extractApkInfo(dir, { lfsCacheDir: lfsDir, core });
+    const info = await extractApkInfo(dir, { workspace, lfsCacheDir: lfsDir, core });
     allApkInfo = allApkInfo.concat(info);
   }
 
@@ -670,6 +657,7 @@ export default async function run(
   if (apkFiles?.length) {
     const info = await extractApkInfo(null, {
       apkFiles,
+      workspace,
       lfsCacheDir: lfsDir,
       core,
     });
