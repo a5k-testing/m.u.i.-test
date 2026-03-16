@@ -45,22 +45,33 @@ show_error()
 
 main()
 {
-  local apk_dir="${1:-}" apk_files="${2:-}"
-  local script_dir repo_dir apk_file_count
+  local apk_dirs="${1:-}" apk_files="${2:-}"
+  local script_dir repo_dir _dir _dirs_ok apk_file_count
 
   # Resolve the directory containing this script and the repo root
   script_dir="$(cd "$(dirname "${0}")" && pwd)"
   repo_dir="$(cd "${script_dir}/.." && pwd)"
 
   # Default APK directory when neither --dir nor --file is given
-  if test -z "${apk_dir}" && test -z "${apk_files}"; then
-    apk_dir="${repo_dir}/zip-content/origin"
+  if test -z "${apk_dirs}" && test -z "${apk_files}"; then
+    apk_dirs="${repo_dir}/zip-content/origin"
   fi
 
-  test -z "${apk_dir}" || test -d "${apk_dir}" || {
-    show_error "APK directory not found: ${apk_dir}"
-    return 1
-  }
+  # Validate each directory in the newline-separated list
+  if test -n "${apk_dirs}"; then
+    _dirs_ok='true'
+    while IFS= read -r _dir || test -n "${_dir}"; do
+      test -z "${_dir}" && continue
+      if ! test -d "${_dir}"; then
+        show_error "APK directory not found: ${_dir}"
+        _dirs_ok='false'
+        break
+      fi
+    done <<EOF
+${apk_dirs}
+EOF
+    test "${_dirs_ok}" = 'true' || return 1
+  fi
 
   # Node.js 24+ is required (the library checks at import time, but give a
   # clear error here too so the user sees it before Node even starts)
@@ -69,8 +80,13 @@ main()
     return 1
   }
 
-  if test -n "${apk_dir}"; then
-    printf 'APK directory: %s\n' "${apk_dir}"
+  if test -n "${apk_dirs}"; then
+    while IFS= read -r _dir || test -n "${_dir}"; do
+      test -z "${_dir}" && continue
+      printf 'APK directory: %s\n' "${_dir}"
+    done <<EOF
+${apk_dirs}
+EOF
   fi
   if test -n "${apk_files}"; then
     apk_file_count="$(printf '%s' "${apk_files}" | grep -c . || true)"
@@ -79,15 +95,15 @@ main()
   printf '\n'
 
   # APK info extraction and update checking are both handled by the JS library.
-  # APKS_BASE_DIR: directory used for scanning and relPath computation.
-  # APKS_FILES: newline-separated list of explicit APK paths (overrides scan).
-  APKS_BASE_DIR="${apk_dir}" APKS_FILES="${apk_files}" \
-    node "${script_dir}/run-check-app-updates.mjs"
+  # APKS_DIRS:  newline-separated list of APK directories to scan.
+  # APKS_FILES: newline-separated list of explicit APK paths (overrides/adds to scan).
+  APKS_DIRS="${apk_dirs}" APKS_FILES="${apk_files}" \
+    node "${repo_dir}/includes/app-update-checker-lib.mjs"
 }
 
 STATUS=0
 execute_script='true'
-apk_dir_arg=''
+apk_dirs_arg=''
 apk_files_arg=''
 
 while test "${#}" -gt 0; do
@@ -101,7 +117,8 @@ while test "${#}" -gt 0; do
 
     --dir)
       shift
-      apk_dir_arg="${1?}"
+      apk_dirs_arg="${apk_dirs_arg:+${apk_dirs_arg}
+}${1?}"
       ;;
 
     --file)
@@ -136,15 +153,15 @@ while test "${#}" -gt 0; do
 done
 
 # Accept a positional argument as an alternative to --dir
-if test "${#}" -gt 0 && test -z "${apk_dir_arg}"; then
-  apk_dir_arg="${1}"
+if test "${#}" -gt 0 && test -z "${apk_dirs_arg}"; then
+  apk_dirs_arg="${1}"
   shift
 fi
 
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
 
-  main "${apk_dir_arg}" "${apk_files_arg}" || STATUS="${?}"
+  main "${apk_dirs_arg}" "${apk_files_arg}" || STATUS="${?}"
 fi
 
 pause_if_needed "${STATUS:?}"

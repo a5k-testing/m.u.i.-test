@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 // Library module: APK update checker for F-Droid and microG repositories.
-// This file is intended to be imported as a library, not executed directly.
+// When invoked directly by Node.js it also acts as a CLI entry point.
 
 // Node.js 24 or later is required
 if (parseInt(process.versions.node.split('.')[0], 10) < 24) {
@@ -16,6 +16,7 @@ import path from 'path';
 import https from 'https';
 import { execFile as execFileCb, spawnSync } from 'child_process';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
 
 const execFile = promisify(execFileCb);
 
@@ -162,6 +163,20 @@ export function shortUrl(url) {
   }
 }
 
+// Get a compact display label for the table Repo column (narrower than shortUrl).
+// Strips common non-descriptive subdomain prefixes and the TLD.
+// e.g. "https://repo.microg.org/fdroid/repo" → "microg"
+//      "https://f-droid.org/repo"             → "f-droid"
+//      "https://apt.izzysoft.de/fdroid/repo"  → "izzysoft"
+function tableLabel(url) {
+  try {
+    const host = new URL(url).hostname;
+    return host.replace(/^(repo|apt)\./i, '').split('.')[0];
+  } catch (_) {
+    return shortUrl(url);
+  }
+}
+
 // Sanitize a repository base URL into a safe cache filename.
 // e.g. "https://repo.microg.org/fdroid/repo" → "repo.microg.org_fdroid_repo.json"
 function repoCacheFilename(baseUrl) {
@@ -244,11 +259,11 @@ export function checkApks(apkInfoList, repoData) {
     if (certMatch) {
       // Package found with our signing certificate
       const { baseUrl, ver } = certMatch;
-      const label = shortUrl(baseUrl);
+      const label  = shortUrl(baseUrl);
+      const tLabel = tableLabel(baseUrl);
       const localVc = apk.versionCode ?? 0;
-      const repoVc = ver.vc ?? 0;
-      const apkUrl =
-        ver.apkName ? `${baseUrl}${ver.apkName}` : '';
+      const repoVc  = ver.vc ?? 0;
+      const apkUrl  = ver.apkName ? `${baseUrl}${ver.apkName}` : '';
       const updateStatus = (() => {
         if (localVc < 1 || repoVc < 1) return 'check-failed';
         if (repoVc === localVc) return 'up-to-date';
@@ -266,18 +281,22 @@ export function checkApks(apkInfoList, repoData) {
           statusText =
             `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
           break;
-        case 'update-available':
-          versionInfo =
-            `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
+        case 'update-available': {
+          const localVn = apk.versionName ?? '';
+          versionInfo = localVn
+            ? `repo=${ver.vn} (${repoVc}) > local ${localVn} (${localVc})`
+            : `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
           statusText =
             `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
           break;
+        }
         case 'local-newer':
           statusText =
             `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
             ` > repo (${repoVc})`;
           break;
       }
+      const displayName = apk.relPath ?? apk.fileName;
       const logLine =
         `[${label}] ${apk.fileName}` +
         ` (${apk.packageName}): ${statusText}`;
@@ -299,7 +318,7 @@ export function checkApks(apkInfoList, repoData) {
         : statusText;
       results.push({
         logLine,
-        tableRow: [apk.fileName, apk.packageName, label, tableStatus],
+        tableRow: [displayName, apk.packageName, tLabel, tableStatus],
         noticeLine,
         warningLine,
         checkFailedLine,
@@ -307,23 +326,28 @@ export function checkApks(apkInfoList, repoData) {
     } else {
       // Collect repos where the package exists under a different cert
       const signerMismatch = repoData
-        .filter(({ apps }) => apps.has(apk.packageName))
-        .map(({ baseUrl, apps }) => {
-          const p = apps.get(apk.packageName);
-          return `${shortUrl(baseUrl)} (latest=${p.latestVn} ${p.latestVc})`;
-        });
+        .filter(({ apps }) => apps.has(apk.packageName));
       if (signerMismatch.length > 0) {
-        const repoLabel = signerMismatch.join(', ');
+        const logRepoLabel = signerMismatch
+          .map(({ baseUrl, apps }) => {
+            const p = apps.get(apk.packageName);
+            return `${shortUrl(baseUrl)} (latest=${p.latestVn} ${p.latestVc})`;
+          })
+          .join(', ');
+        const tableRepoLabel = signerMismatch
+          .map(({ baseUrl }) => tableLabel(baseUrl))
+          .join(', ');
+        const displayName = apk.relPath ?? apk.fileName;
         results.push({
           logLine:
             `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${apk.fileName}` +
             ` (${apk.packageName}):` +
-            ` ${repoLabel}` +
+            ` ${logRepoLabel}` +
             ` but signed with a different certificate`,
           tableRow: [
-            apk.fileName,
+            displayName,
             apk.packageName,
-            repoLabel,
+            tableRepoLabel,
             `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
           ],
           noticeLine: null,
@@ -331,12 +355,13 @@ export function checkApks(apkInfoList, repoData) {
           checkFailedLine: null,
         });
       } else {
+        const displayName = apk.relPath ?? apk.fileName;
         results.push({
           logLine:
             `${ICON.NOT_IN_REPO} [NOT IN REPO] ${apk.fileName}` +
             ` (${apk.packageName}): not found in any repo`,
           tableRow: [
-            apk.fileName,
+            displayName,
             apk.packageName,
             '-',
             `${ICON.NOT_IN_REPO} NOT IN REPO`,
@@ -402,8 +427,8 @@ function findApkFiles(baseDir) {
   return results.sort();
 }
 
-// Extract package name and version code from an APK via aapt dump badging.
-// Returns { packageName, versionCode } or null on failure.
+// Extract package name, version code, and version name from an APK via aapt.
+// Returns { packageName, versionCode, versionName } or null on failure.
 async function getApkManifestInfo(aaptBin, apkPath) {
   try {
     const { stdout } = await execFile(
@@ -416,9 +441,11 @@ async function getApkManifestInfo(aaptBin, apkPath) {
       stdout.split('\n').find(l => l.startsWith('package:')) ?? '';
     const nameMatch = pkgLine.match(/ name='([^']*)'/);
     const vcMatch   = pkgLine.match(/ versionCode='([^']*)'/);
+    const vnMatch   = pkgLine.match(/ versionName='([^']*)'/);
     return {
-      packageName: nameMatch?.[1] ?? null,
-      versionCode: vcMatch ? parseInt(vcMatch[1], 10) : 0,
+      packageName:  nameMatch?.[1] ?? null,
+      versionCode:  vcMatch ? parseInt(vcMatch[1], 10) : 0,
+      versionName:  vnMatch?.[1] ?? '',
     };
   } catch { return null; }
 }
@@ -461,8 +488,8 @@ async function getCertSha256(apkPath) {
 }
 
 // Scan baseDir recursively for *.apk files (or use an explicit apkFiles list),
-// extract package name, version code, and signing-certificate SHA-256 for each
-// one, and return the list.
+// extract package name, version code, version name, and signing-certificate
+// SHA-256 for each one, and return the list.
 //
 // LFS pointer files (tiny text stubs) are resolved from lfsCacheDir when
 // provided; if not resolvable they are skipped with a log message.
@@ -476,7 +503,7 @@ async function getCertSha256(apkPath) {
 //                                 (e.g. GITHUB_WORKSPACE/cache/lfs)
 //   core        {object}        – logger implementing .info(msg) (optional)
 //
-// Returns: Promise<Array<{fileName, relPath, packageName, versionCode, certSha256}>>
+// Returns: Promise<Array<{fileName, relPath, packageName, versionCode, versionName, certSha256}>>
 export async function extractApkInfo(
   baseDir,
   { apkFiles = null, lfsCacheDir = null, core } = {}
@@ -536,7 +563,7 @@ export async function extractApkInfo(
       }
     }
 
-    // Extract package name and version code
+    // Extract package name, version code, and version name
     const manifest = await getApkManifestInfo(aaptBin, resolvedPath);
     if (!manifest?.packageName) {
       core?.info(`WARNING: skipping ${fileName} (package name not found)`);
@@ -552,13 +579,15 @@ export async function extractApkInfo(
 
     core?.info(
       `INFO: ${fileName}: pkg=${manifest.packageName},` +
-      ` vc=${manifest.versionCode}, cert=${certSha256}`
+      ` vc=${manifest.versionCode}, vn=${manifest.versionName},` +
+      ` cert=${certSha256}`
     );
     results.push({
       fileName,
       relPath,
-      packageName: manifest.packageName,
-      versionCode: manifest.versionCode,
+      packageName:  manifest.packageName,
+      versionCode:  manifest.versionCode,
+      versionName:  manifest.versionName,
       certSha256,
     });
   }
@@ -574,8 +603,11 @@ export async function extractApkInfo(
 //
 // Options:
 //   core         {object}      – @actions/core or compatible shim (required)
-//   baseDir      {string}      – APK root directory to scan; defaults to
-//                                GITHUB_WORKSPACE/zip-content/origin
+//   baseDir      {string}      – Single APK root directory to scan (legacy;
+//                                use baseDirs for multiple directories)
+//   baseDirs     {string[]}    – APK root directories to scan; takes precedence
+//                                over baseDir. Defaults to
+//                                [GITHUB_WORKSPACE/zip-content/origin].
 //   lfsCacheDir  {string|null} – LFS cache dir; defaults to
 //                                GITHUB_WORKSPACE/cache/lfs (when GITHUB_WORKSPACE
 //                                is set), or null
@@ -584,16 +616,25 @@ export async function extractApkInfo(
 //                                REPO_CACHE_TTL_MS (7 days). Defaults to
 //                                GITHUB_WORKSPACE/cache/repos (when GITHUB_WORKSPACE
 //                                is set), or null (no caching).
-//   apkFiles     {string[]}    – explicit list of APK paths to check instead of
-//                                scanning baseDir; when provided, baseDir is
-//                                optional (used only for relPath computation)
-export default async function ({ core, baseDir, lfsCacheDir, repoCacheDir, apkFiles } = {}) {
+//   apkFiles     {string[]}    – explicit list of APK paths to check in addition to
+//                                (or instead of) scanning directories
+export default async function run(
+  { core, baseDir, baseDirs, lfsCacheDir, repoCacheDir, apkFiles } = {}
+) {
   const workspace = process.env.GITHUB_WORKSPACE ?? '';
-  const apkBaseDir = baseDir ??
-    (workspace ? path.join(workspace, 'zip-content/origin') : null);
-  if (!apkBaseDir && !apkFiles?.length) {
+
+  // Resolve effective APK scan directories
+  const effectiveDirs = baseDirs?.length
+    ? baseDirs
+    : baseDir
+      ? [baseDir]
+      : workspace
+        ? [path.join(workspace, 'zip-content/origin')]
+        : [];
+
+  if (!effectiveDirs.length && !apkFiles?.length) {
     throw new Error(
-      'APK base directory must be provided via the baseDir option ' +
+      'APK base directory must be provided via the baseDir/baseDirs option ' +
       'or the GITHUB_WORKSPACE environment variable.'
     );
   }
@@ -602,12 +643,22 @@ export default async function ({ core, baseDir, lfsCacheDir, repoCacheDir, apkFi
   const reposCacheDir = repoCacheDir ??
     (workspace ? path.join(workspace, 'cache/repos') : null);
 
-  // Extract APK info from the filesystem
-  const allApkInfo = await extractApkInfo(apkBaseDir, {
-    apkFiles: apkFiles?.length ? apkFiles : null,
-    lfsCacheDir: lfsDir,
-    core,
-  });
+  // Extract APK info from all directories
+  let allApkInfo = [];
+  for (const dir of effectiveDirs) {
+    const info = await extractApkInfo(dir, { lfsCacheDir: lfsDir, core });
+    allApkInfo = allApkInfo.concat(info);
+  }
+
+  // Extract APK info from explicit file list (if provided)
+  if (apkFiles?.length) {
+    const info = await extractApkInfo(null, {
+      apkFiles,
+      lfsCacheDir: lfsDir,
+      core,
+    });
+    allApkInfo = allApkInfo.concat(info);
+  }
 
   // Filter out skip-listed entries
   const apkInfoList = allApkInfo.filter(apk => {
@@ -667,4 +718,69 @@ export default async function ({ core, baseDir, lfsCacheDir, repoCacheDir, apkFi
       ...summaryRows,
     ])
     .write();
+}
+
+// ---------------------------------------------------------------------------
+// CLI entry point — runs only when invoked directly by Node.js
+// ---------------------------------------------------------------------------
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const summary = {
+    _items: [],
+    addHeading(text) {
+      this._items.push({ type: 'heading', text });
+      return this;
+    },
+    addTable(rows) {
+      this._items.push({ type: 'table', rows });
+      return this;
+    },
+    async write() {
+      for (const item of this._items) {
+        if (item.type === 'heading') {
+          console.log(`\n=== ${item.text} ===`);
+        } else if (item.type === 'table') {
+          const [headerRow, ...dataRows] = item.rows;
+          const cols = headerRow.map(
+            h => (h && typeof h === 'object' ? h.data : h) ?? ''
+          );
+          // Strip HTML tags (e.g. <a href="...">…</a>) for terminal output
+          const strip = s => String(s ?? '').replace(/<[^>]*>/g, '');
+          const widths = cols.map((c, i) =>
+            Math.max(c.length, ...dataRows.map(r => strip(r[i]).length))
+          );
+          const fmt = row =>
+            row.map((cell, i) => strip(cell).padEnd(widths[i])).join(' | ');
+          console.log(fmt(cols));
+          console.log(widths.map(w => '-'.repeat(w)).join('-+-'));
+          for (const row of dataRows) console.log(fmt(row));
+        }
+      }
+    },
+  };
+
+  const core = {
+    info:    msg        => console.log(msg),
+    warning: (msg, _o) => console.warn(`\x1b[33mWARNING: ${msg}\x1b[0m`),
+    notice:  (msg, _o) => console.log(`\x1b[36mNOTICE: ${msg}\x1b[0m`),
+    error:   (msg, _o) => console.error(`\x1b[31mERROR: ${msg}\x1b[0m`),
+    summary,
+  };
+
+  const apkDirs = process.env.APKS_DIRS
+    ? process.env.APKS_DIRS.split('\n').filter(Boolean)
+    : undefined;
+  const apkFiles = process.env.APKS_FILES
+    ? process.env.APKS_FILES.split('\n').filter(Boolean)
+    : undefined;
+
+  run({
+    core,
+    baseDirs:    apkDirs?.length  ? apkDirs  : undefined,
+    repoCacheDir: process.env.APKS_REPO_CACHE_DIR || undefined,
+    apkFiles:    apkFiles?.length ? apkFiles : undefined,
+  }).catch(err => {
+    console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
+    process.exitCode = 1;
+  });
 }

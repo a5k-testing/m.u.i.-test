@@ -46,10 +46,10 @@ function assertEqual(actual, expected, message) {
 // Test data
 // ---------------------------------------------------------------------------
 
-const CERT_FDROID = 'fdroid_cert_aaaa';
-const CERT_MICROG = 'microg_cert_bbbb';
-const CERT_GOOGLE = 'google_cert_cccc';
-const CERT_AURORA = 'aurora_cert_dddd';
+const CERT_FDROID  = 'fdroid_cert_aaaa';
+const CERT_MICROG  = 'microg_cert_bbbb';
+const CERT_GOOGLE  = 'google_cert_cccc';
+const CERT_AURORA  = 'aurora_cert_dddd';
 const CERT_NEWPIPE = 'newpipe_cert_eeee';
 
 const FDROID_INDEX = {
@@ -128,9 +128,120 @@ const MICROG_INDEX = {
 };
 
 const REPOS = [
-  { baseUrl: 'https://f-droid.org/repo', apps: parseRepoV2(FDROID_INDEX) },
+  { baseUrl: 'https://f-droid.org/repo',            apps: parseRepoV2(FDROID_INDEX) },
   { baseUrl: 'https://repo.microg.org/fdroid/repo', apps: parseRepoV2(MICROG_INDEX) },
 ];
+
+// ---------------------------------------------------------------------------
+// Constants: SKIP_LIST
+// ---------------------------------------------------------------------------
+
+console.log('\n── SKIP_LIST ──');
+
+assertEqual(SKIP_LIST.size, 4, 'SKIP_LIST has 4 entries');
+assert(SKIP_LIST.has('priv-app/FakeStore-0.3.6.apk'),
+  'SKIP_LIST: priv-app/FakeStore-0.3.6.apk included');
+assert(SKIP_LIST.has('priv-app/GmsCore-0.3.6.apk'),
+  'SKIP_LIST: priv-app/GmsCore-0.3.6.apk included');
+assert(SKIP_LIST.has('priv-app/GmsCoreVtm.apk'),
+  'SKIP_LIST: priv-app/GmsCoreVtm.apk included');
+assert(SKIP_LIST.has('priv-app/GmsCoreVtmLegacy.apk'),
+  'SKIP_LIST: priv-app/GmsCoreVtmLegacy.apk included');
+
+// Current (non-versioned) builds must NOT be skipped
+assert(!SKIP_LIST.has('priv-app/GmsCore.apk'),
+  'SKIP_LIST: priv-app/GmsCore.apk (no version suffix) is NOT skipped');
+assert(!SKIP_LIST.has('priv-app/FakeStore.apk'),
+  'SKIP_LIST: priv-app/FakeStore.apk (no version suffix) is NOT skipped');
+
+// Filter simulation (mirrors workflow JS)
+const mockApkList = [
+  { fileName: 'FakeStore-0.3.6.apk', relPath: 'priv-app/FakeStore-0.3.6.apk' },
+  { fileName: 'FakeStore.apk',        relPath: 'priv-app/FakeStore.apk' },
+  { fileName: 'GmsCore-0.3.6.apk',   relPath: 'priv-app/GmsCore-0.3.6.apk' },
+  { fileName: 'GmsCore.apk',          relPath: 'priv-app/GmsCore.apk' },
+  { fileName: 'GmsCoreVtm.apk',       relPath: 'priv-app/GmsCoreVtm.apk' },
+  { fileName: 'GmsCoreVtmLegacy.apk', relPath: 'priv-app/GmsCoreVtmLegacy.apk' },
+  { fileName: 'Something.apk',        relPath: 'app/Something.apk' },
+];
+const filtered = mockApkList.filter(apk => !SKIP_LIST.has(apk.relPath));
+assertEqual(filtered.length, 3, 'SKIP_LIST filter: 3 of 7 APKs kept');
+assertEqual(filtered[0].fileName, 'FakeStore.apk',
+  'SKIP_LIST filter: FakeStore.apk (no suffix) kept');
+assertEqual(filtered[1].fileName, 'GmsCore.apk',
+  'SKIP_LIST filter: GmsCore.apk (no suffix) kept');
+assertEqual(filtered[2].fileName, 'Something.apk',
+  'SKIP_LIST filter: Something.apk kept');
+
+// ---------------------------------------------------------------------------
+// Constants: REPO_CACHE_TTL_MS
+// ---------------------------------------------------------------------------
+
+console.log('\n── REPO_CACHE_TTL_MS ──');
+
+assertEqual(REPO_CACHE_TTL_MS, 7 * 24 * 60 * 60 * 1000,
+  'REPO_CACHE_TTL_MS equals 7 days in milliseconds');
+assert(REPO_CACHE_TTL_MS > 0,
+  'REPO_CACHE_TTL_MS is positive');
+
+// ---------------------------------------------------------------------------
+// URL utilities: shortUrl
+// ---------------------------------------------------------------------------
+
+console.log('\n── shortUrl ──');
+
+assertEqual(
+  shortUrl('https://repo.microg.org/fdroid/repo'), 'microg.org',
+  'shortUrl: subdomain trimmed to base domain'
+);
+assertEqual(
+  shortUrl('https://f-droid.org/repo'), 'f-droid.org',
+  'shortUrl: two-part hostname unchanged'
+);
+assertEqual(
+  shortUrl('https://apt.izzysoft.de/fdroid/repo'), 'izzysoft.de',
+  'shortUrl: apt.izzysoft.de → izzysoft.de'
+);
+assert(shortUrl('not-a-url') === 'not-a-url',
+  'shortUrl: invalid URL returns input unchanged');
+
+// ---------------------------------------------------------------------------
+// URL utilities: index-v2.json URL construction
+// ---------------------------------------------------------------------------
+
+console.log('\n── index-v2.json URL construction ──');
+
+const indexUrls = repos.map(b => `${b}/index-v2.json`);
+
+assertEqual(indexUrls[0], 'https://repo.microg.org/fdroid/repo/index-v2.json',
+  'microG: /index-v2.json appended correctly');
+assertEqual(indexUrls[1], 'https://f-droid.org/repo/index-v2.json',
+  'F-Droid: /index-v2.json appended correctly');
+assertEqual(indexUrls[2], 'https://apt.izzysoft.de/fdroid/repo/index-v2.json',
+  'IzzyOnDroid: /index-v2.json appended correctly');
+
+// ---------------------------------------------------------------------------
+// URL utilities: fetchUrl HTTPS enforcement
+// ---------------------------------------------------------------------------
+
+console.log('\n── fetchUrl: HTTPS enforcement ──');
+
+// All configured repo URLs must be HTTPS
+for (const baseUrl of repos) {
+  assert(baseUrl.startsWith('https://'), `Repo base URL is HTTPS: ${baseUrl}`);
+}
+
+// URL validation (mirrors the check inside fetchUrl)
+function isHttpsUrl(url) {
+  return url.startsWith('https://');
+}
+assert(!isHttpsUrl('http://example.com/repo'), 'HTTP URL fails HTTPS check');
+assert(!isHttpsUrl('ftp://example.com/repo'), 'FTP URL fails HTTPS check');
+assert(isHttpsUrl('https://f-droid.org/repo'), 'HTTPS URL passes check');
+
+// Max redirects constant
+const MAX_REDIRECTS = 3;
+assertEqual(MAX_REDIRECTS, 3, 'Max redirects is 3');
 
 // ---------------------------------------------------------------------------
 // parseRepoV2 unit tests
@@ -186,22 +297,7 @@ assert(fdroidApps.get('com.nonexistent.pkg') === undefined,
   'Non-existent package returns undefined');
 
 // ---------------------------------------------------------------------------
-// shortUrl unit tests
-// ---------------------------------------------------------------------------
-
-console.log('\n── shortUrl ──');
-
-assertEqual(
-  shortUrl('https://repo.microg.org/fdroid/repo'), 'microg.org',
-  'shortUrl: subdomain trimmed to base domain'
-);
-assertEqual(
-  shortUrl('https://f-droid.org/repo'), 'f-droid.org',
-  'shortUrl: two-part hostname unchanged'
-);
-
-// ---------------------------------------------------------------------------
-// checkApks integration tests
+// checkApks: main matching loop
 // ---------------------------------------------------------------------------
 
 console.log('\n── checkApks (matching loop) ──');
@@ -210,57 +306,73 @@ const results = checkApks([
   // 1. Exact cert match in F-Droid, already up to date
   {
     fileName: 'FDroidPrivilegedExtension.apk',
+    relPath:  'priv-app/FDroidPrivilegedExtension.apk',
     packageName: 'org.fdroid.fdroid.privileged',
     versionCode: 2130,
+    versionName: '0.2.13',
     certSha256: CERT_FDROID,
   },
   // 2. Cert match in F-Droid, local version is newer
   {
     fileName: 'NewPipe.apk',
+    relPath:  'app/NewPipe.apk',
     packageName: 'org.schabi.newpipe',
     versionCode: 1001,
+    versionName: '0.25.1',
     certSha256: CERT_NEWPIPE,
   },
   // 3. Cert matches microG (not F-Droid) → should stop at microG repo
   {
     fileName: 'GmsCore.apk',
+    relPath:  'priv-app/GmsCore.apk',
     packageName: 'com.google.android.gms',
     versionCode: 220000000,
+    versionName: '22.0',
     certSha256: CERT_MICROG,
   },
   // 4. Package in F-Droid with Google cert → matched in F-Droid first
   {
     fileName: 'GoogleGms.apk',
+    relPath:  'priv-app/GoogleGms.apk',
     packageName: 'com.google.android.gms',
     versionCode: 230000000,
+    versionName: '23.0',
     certSha256: CERT_GOOGLE,
   },
   // 5. Package present in F-Droid but cert does not match → DIFFERENT SIGNER
   {
     fileName: 'NewPipeFork.apk',
+    relPath:  'app/NewPipeFork.apk',
     packageName: 'org.schabi.newpipe',
     versionCode: 900,
+    versionName: '0.22.0',
     certSha256: 'unknown_cert',
   },
   // 6. Package not in any repo → NOT IN REPO
   {
     fileName: 'AuroraServices.apk',
+    relPath:  'app/AuroraServices.apk',
     packageName: 'com.aurora.services',
     versionCode: 10,
+    versionName: '1.0',
     certSha256: CERT_AURORA,
   },
   // 7. FakeStore: local cert is MICROG_CERT → special cert fallback matches F-Droid
   {
     fileName: 'FakeStore.apk',
+    relPath:  'priv-app/FakeStore.apk',
     packageName: 'com.android.vending',
     versionCode: 80000000,
+    versionName: '30.0',
     certSha256: MICROG_CERT,
   },
   // 8. GmsCore signed with a non-microG, non-Google cert → fallback NOT triggered
   {
     fileName: 'GmsCoreOther.apk',
+    relPath:  'priv-app/GmsCoreOther.apk',
     packageName: 'com.google.android.gms',
     versionCode: 100000000,
+    versionName: '10.0',
     certSha256: 'some_other_cert_ffff',
   },
 ], REPOS);
@@ -273,8 +385,10 @@ assert(
 );
 assert(results[0].logLine.includes(ICON.UP_TO_DATE),
   'FDroid priv: ✅ icon present');
-assertEqual(results[0].tableRow[2], 'f-droid.org',
-  'FDroid priv: tableRow repo = f-droid.org');
+assertEqual(results[0].tableRow[0], 'priv-app/FDroidPrivilegedExtension.apk',
+  'FDroid priv: tableRow[0] shows relPath');
+assertEqual(results[0].tableRow[2], 'f-droid',
+  'FDroid priv: tableRow repo = f-droid (compact label)');
 assert(!results[0].tableRow[3].includes('<a href='),
   'FDroid priv: tableRow status is plain text (up to date, no link)');
 assertEqual(results[0].noticeLine, null,
@@ -292,6 +406,8 @@ assert(
 );
 assert(results[1].logLine.includes(ICON.LOCAL_NEWER),
   'NewPipe: 🚀 icon present');
+assertEqual(results[1].tableRow[0], 'app/NewPipe.apk',
+  'NewPipe: tableRow[0] shows relPath (app/NewPipe.apk)');
 assertEqual(results[1].noticeLine, null,
   'NewPipe: no notice for LOCAL NEWER');
 assert(!results[1].tableRow[3].includes('<a href='),
@@ -311,14 +427,16 @@ assert(
 );
 assert(results[2].logLine.includes(ICON.UPDATE_AVAILABLE),
   'GmsCore (microG cert): ✨ icon present');
-assertEqual(results[2].tableRow[2], 'microg.org',
-  'GmsCore (microG cert): tableRow repo = microg.org');
+assertEqual(results[2].tableRow[0], 'priv-app/GmsCore.apk',
+  'GmsCore (microG cert): tableRow[0] shows relPath');
+assertEqual(results[2].tableRow[2], 'microg',
+  'GmsCore (microG cert): tableRow repo = microg (compact label)');
 assert(results[2].noticeLine !== null,
   'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
 assertEqual(
   results[2].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a>: repo=23.9.13 (230913000) > local (220000000)`,
-  'GmsCore (microG cert): tableRow links only "UPDATE AVAILABLE", icon and version info outside link'
+  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a>: repo=23.9.13 (230913000) > local 22.0 (220000000)`,
+  'GmsCore (microG cert): tableRow links only "UPDATE AVAILABLE", version info includes local vn'
 );
 assert(results[2].noticeLine.includes('UPDATE AVAILABLE'),
   'GmsCore (microG cert): notice text contains UPDATE AVAILABLE');
@@ -345,8 +463,8 @@ assert(results[3].noticeLine !== null,
   'GmsCore (Google cert): notice emitted');
 assertEqual(
   results[3].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a>: repo=24.0 (240000000) > local (230000000)`,
-  'GmsCore (Google cert): tableRow links only "UPDATE AVAILABLE", icon and version info outside link'
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a>: repo=24.0 (240000000) > local 23.0 (230000000)`,
+  'GmsCore (Google cert): tableRow links only "UPDATE AVAILABLE", version info includes local vn'
 );
 assert(results[3].noticeLine.includes('[f-droid.org]'),
   'GmsCore (Google cert): notice contains short repo URL');
@@ -365,6 +483,10 @@ assert(
 );
 assert(results[4].logLine.includes(ICON.DIFFERENT_SIGNER),
   'NewPipeFork: 🔐 icon present in log line');
+assertEqual(results[4].tableRow[0], 'app/NewPipeFork.apk',
+  'NewPipeFork: tableRow[0] shows relPath');
+assertEqual(results[4].tableRow[2], 'f-droid',
+  'NewPipeFork: tableRow repo = f-droid (compact label)');
 assertEqual(results[4].tableRow[3], `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
   'NewPipeFork: tableRow status has 🔐 DIFFERENT SIGNER');
 assertEqual(results[4].noticeLine, null,
@@ -381,6 +503,8 @@ assert(
 );
 assert(results[5].logLine.includes(ICON.NOT_IN_REPO),
   'AuroraServices: ❓ icon present in log line');
+assertEqual(results[5].tableRow[0], 'app/AuroraServices.apk',
+  'AuroraServices: tableRow[0] shows relPath');
 assertEqual(results[5].tableRow[3], `${ICON.NOT_IN_REPO} NOT IN REPO`,
   'AuroraServices: tableRow status has ❓ NOT IN REPO');
 assertEqual(results[5].tableRow[2], '-',
@@ -403,8 +527,8 @@ assert(results[6].noticeLine !== null,
   'FakeStore: notice emitted for special-cert UPDATE AVAILABLE');
 assertEqual(
   results[6].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a>: repo=33.0 (84022626) > local (80000000)`,
-  'FakeStore: tableRow links only "UPDATE AVAILABLE", icon and version info outside link'
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a>: repo=33.0 (84022626) > local 30.0 (80000000)`,
+  'FakeStore: tableRow version info includes local vn'
 );
 assert(results[6].noticeLine.includes('[f-droid.org]'),
   'FakeStore: notice contains short repo URL');
@@ -466,22 +590,28 @@ const checkFailedResults = checkApks([
   // 1. local versionCode = 0 (could not be extracted)
   {
     fileName: 'ZeroLocalVc.apk',
+    relPath:  'app/ZeroLocalVc.apk',
     packageName: 'org.fdroid.fdroid.privileged',
     versionCode: 0,
+    versionName: '',
     certSha256: CERT_FDROID,
   },
   // 2. local versionCode = null (explicitly null)
   {
     fileName: 'NullLocalVc.apk',
+    relPath:  'app/NullLocalVc.apk',
     packageName: 'org.fdroid.fdroid.privileged',
     versionCode: null,
+    versionName: '',
     certSha256: CERT_FDROID,
   },
   // 3. repo versionCode = null (no vc in index entry)
   {
     fileName: 'NullRepoVc.apk',
+    relPath:  'app/NullRepoVc.apk',
     packageName: 'com.example.nullvc',
     versionCode: 100,
+    versionName: '1.0.0',
     certSha256: 'cert_nullvc_aaaa',
   },
 ], REPOS_WITH_NULLVC);
@@ -547,96 +677,6 @@ assertEqual(checkFailedResults[2].noticeLine, null,
   'NullRepoVc: no noticeLine when CHECK FAILED');
 assertEqual(checkFailedResults[2].warningLine, null,
   'NullRepoVc: no warningLine when CHECK FAILED');
-
-// ---------------------------------------------------------------------------
-// /index-v2.json URL construction test
-// ---------------------------------------------------------------------------
-
-console.log('\n── index-v2.json URL construction ──');
-
-const indexUrls = repos.map(b => `${b}/index-v2.json`);
-
-assertEqual(indexUrls[0], 'https://repo.microg.org/fdroid/repo/index-v2.json',
-  'microG: /index-v2.json appended correctly');
-assertEqual(indexUrls[1], 'https://f-droid.org/repo/index-v2.json',
-  'F-Droid: /index-v2.json appended correctly');
-assertEqual(indexUrls[2], 'https://apt.izzysoft.de/fdroid/repo/index-v2.json',
-  'IzzyOnDroid: /index-v2.json appended correctly');
-
-// ---------------------------------------------------------------------------
-// fetchUrl: HTTPS enforcement and redirect limit
-// ---------------------------------------------------------------------------
-
-console.log('\n── fetchUrl: HTTPS enforcement ──');
-
-// All configured repo URLs must be HTTPS
-for (const baseUrl of repos) {
-  assert(baseUrl.startsWith('https://'), `Repo base URL is HTTPS: ${baseUrl}`);
-}
-
-// URL validation (mirrors the check inside fetchUrl)
-function isHttpsUrl(url) {
-  return url.startsWith('https://');
-}
-assert(!isHttpsUrl('http://example.com/repo'), 'HTTP URL fails HTTPS check');
-assert(!isHttpsUrl('ftp://example.com/repo'), 'FTP URL fails HTTPS check');
-assert(isHttpsUrl('https://f-droid.org/repo'), 'HTTPS URL passes check');
-
-// Max redirects constant
-const MAX_REDIRECTS = 3;
-assertEqual(MAX_REDIRECTS, 3, 'Max redirects is 3');
-
-// ---------------------------------------------------------------------------
-// SKIP_LIST tests
-// ---------------------------------------------------------------------------
-
-console.log('\n── SKIP_LIST ──');
-
-assertEqual(SKIP_LIST.size, 4, 'SKIP_LIST has 4 entries');
-assert(SKIP_LIST.has('priv-app/FakeStore-0.3.6.apk'),
-  'SKIP_LIST: priv-app/FakeStore-0.3.6.apk included');
-assert(SKIP_LIST.has('priv-app/GmsCore-0.3.6.apk'),
-  'SKIP_LIST: priv-app/GmsCore-0.3.6.apk included');
-assert(SKIP_LIST.has('priv-app/GmsCoreVtm.apk'),
-  'SKIP_LIST: priv-app/GmsCoreVtm.apk included');
-assert(SKIP_LIST.has('priv-app/GmsCoreVtmLegacy.apk'),
-  'SKIP_LIST: priv-app/GmsCoreVtmLegacy.apk included');
-
-// Current (non-versioned) builds must NOT be skipped
-assert(!SKIP_LIST.has('priv-app/GmsCore.apk'),
-  'SKIP_LIST: priv-app/GmsCore.apk (no version suffix) is NOT skipped');
-assert(!SKIP_LIST.has('priv-app/FakeStore.apk'),
-  'SKIP_LIST: priv-app/FakeStore.apk (no version suffix) is NOT skipped');
-
-// Filter simulation (mirrors workflow JS)
-const mockApkList = [
-  { fileName: 'FakeStore-0.3.6.apk', relPath: 'priv-app/FakeStore-0.3.6.apk' },
-  { fileName: 'FakeStore.apk',        relPath: 'priv-app/FakeStore.apk' },
-  { fileName: 'GmsCore-0.3.6.apk',   relPath: 'priv-app/GmsCore-0.3.6.apk' },
-  { fileName: 'GmsCore.apk',          relPath: 'priv-app/GmsCore.apk' },
-  { fileName: 'GmsCoreVtm.apk',       relPath: 'priv-app/GmsCoreVtm.apk' },
-  { fileName: 'GmsCoreVtmLegacy.apk', relPath: 'priv-app/GmsCoreVtmLegacy.apk' },
-  { fileName: 'Something.apk',        relPath: 'app/Something.apk' },
-];
-const filtered = mockApkList.filter(apk => !SKIP_LIST.has(apk.relPath));
-assertEqual(filtered.length, 3, 'SKIP_LIST filter: 3 of 7 APKs kept');
-assertEqual(filtered[0].fileName, 'FakeStore.apk',
-  'SKIP_LIST filter: FakeStore.apk (no suffix) kept');
-assertEqual(filtered[1].fileName, 'GmsCore.apk',
-  'SKIP_LIST filter: GmsCore.apk (no suffix) kept');
-assertEqual(filtered[2].fileName, 'Something.apk',
-  'SKIP_LIST filter: Something.apk kept');
-
-// ---------------------------------------------------------------------------
-// REPO_CACHE_TTL_MS tests
-// ---------------------------------------------------------------------------
-
-console.log('\n── REPO_CACHE_TTL_MS ──');
-
-assertEqual(REPO_CACHE_TTL_MS, 7 * 24 * 60 * 60 * 1000,
-  'REPO_CACHE_TTL_MS equals 7 days in milliseconds');
-assert(REPO_CACHE_TTL_MS > 0,
-  'REPO_CACHE_TTL_MS is positive');
 
 // ---------------------------------------------------------------------------
 // Summary
