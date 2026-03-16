@@ -141,7 +141,7 @@ export function parseRepoV2(data) {
           (vc !== null &&
             (byCert[c].vc === null || vc > byCert[c].vc))
         ) {
-          byCert[c] = { vc, vn, apkName };
+          byCert[c] = { vc, vn, apkName, sha256: ver.file?.sha256 ?? '' };
         }
       }
       if (vc !== null &&
@@ -308,14 +308,15 @@ export function checkApks(apkInfoList, repoData) {
           warningLine = null;
           checkFailedLine = null;
           updateInfo = {
-            relPath:   displayName,
-            package:   apk.packageName,
-            repo:      label,
+            relPath:    displayName,
+            package:    apk.packageName,
+            repo:       label,
             localVn,
             localVc,
-            repoVn:    ver.vn,
+            repoVn:     ver.vn,
             repoVc,
-            url:       apkUrl,
+            repoSha256: ver.sha256,
+            url:        apkUrl,
           };
           break;
         }
@@ -541,9 +542,9 @@ export async function extractApkInfo(
 
   for (const apkPath of apkPaths) {
     const fileName = path.basename(apkPath);
-    const relPath = apkFiles != null
+    const relPath = (apkFiles != null
       ? (workspace ? path.relative(workspace, apkPath) : path.basename(apkPath))
-      : path.relative(baseDir, apkPath);
+      : path.relative(baseDir, apkPath)).replace(/\\/g, '/');
 
     // Detect and resolve LFS pointer files
     let resolvedPath = apkPath;
@@ -761,16 +762,10 @@ export default async function run(
 
   // Write update-info.dat when requested
   if (dumpInfoFile && updateInfoEntries.length > 0) {
-    const lines = [];
-    for (const info of updateInfoEntries) {
-      lines.push(`file=${info.relPath}`);
-      lines.push(`package=${info.package}`);
-      lines.push(`repo=${info.repo}`);
-      lines.push(`localVersion=${info.localVn} (${info.localVc})`);
-      lines.push(`repoVersion=${info.repoVn} (${info.repoVc})`);
-      if (info.url) lines.push(`url=${info.url}`);
-      lines.push('');
-    }
+    const lines = updateInfoEntries.map(
+      info =>
+        `${info.relPath}|${info.url}|${info.repoVn}|${info.repoVc}|${info.repoSha256}`
+    );
     writeFileSync(dumpInfoFile, lines.join('\n'));
     core.info(`Wrote update info for ${updateInfoEntries.length} APK(s) to ${dumpInfoFile}`);
   }

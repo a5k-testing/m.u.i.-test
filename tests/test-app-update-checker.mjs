@@ -62,6 +62,10 @@ const CERT_GOOGLE  = 'google_cert_cccc';
 const CERT_AURORA  = 'aurora_cert_dddd';
 const CERT_NEWPIPE = 'newpipe_cert_eeee';
 
+const SHA256_MICROG_GMS  = 'aaaa1111microg_gms_230913000';
+const SHA256_FDROID_GMS  = 'bbbb2222fdroid_gms_240000000';
+const SHA256_FDROID_VNDR = 'cccc3333fdroid_vending_84022626';
+
 const FDROID_INDEX = {
   packages: {
     'org.fdroid.fdroid.privileged': {
@@ -98,7 +102,7 @@ const FDROID_INDEX = {
     'com.google.android.gms': {
       versions: {
         v1: {
-          file: { name: '/com.google.android.gms_240000000.apk' },
+          file: { name: '/com.google.android.gms_240000000.apk', sha256: SHA256_FDROID_GMS },
           manifest: {
             versionCode: 240000000, versionName: '24.0',
             signer: { sha256: [CERT_GOOGLE] },
@@ -110,7 +114,7 @@ const FDROID_INDEX = {
     'com.android.vending': {
       versions: {
         v1: {
-          file: { name: '/com.android.vending_84022626.apk' },
+          file: { name: '/com.android.vending_84022626.apk', sha256: SHA256_FDROID_VNDR },
           manifest: {
             versionCode: 84022626, versionName: '33.0',
             signer: { sha256: [SPECIAL_PKG_CERT] },
@@ -126,7 +130,7 @@ const MICROG_INDEX = {
     'com.google.android.gms': {
       versions: {
         v1: {
-          file: { name: '/com.google.android.gms_230913000.apk' },
+          file: { name: '/com.google.android.gms_230913000.apk', sha256: SHA256_MICROG_GMS },
           manifest: {
             versionCode: 230913000, versionName: '23.9.13',
             signer: { sha256: [CERT_MICROG] },
@@ -660,6 +664,8 @@ assertEqual(results[2].updateInfo.repoVc,    230913000,
 assertEqual(results[2].updateInfo.url,
   'https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk',
   'GmsCore updateInfo: url');
+assertEqual(results[2].updateInfo.repoSha256, SHA256_MICROG_GMS,
+  'GmsCore updateInfo: repoSha256');
 
 // tableRow[3] for UPDATE_AVAILABLE still contains <br> (for GitHub summary)
 assert(results[2].tableRow[3].includes('<br>'),
@@ -683,6 +689,65 @@ assert(!results[4].tableRow[3].includes('<br>'),
   'DIFFERENT SIGNER tableRow[3] has no <br> (single-line status)');
 assert(!results[5].tableRow[3].includes('<br>'),
   'NOT IN REPO tableRow[3] has no <br> (single-line status)');
+
+// ---------------------------------------------------------------------------
+// update-info.dat format
+// ---------------------------------------------------------------------------
+
+console.log('\n── update-info.dat format ──');
+
+// Simulate the update-info.dat line-building logic from run()
+const updateInfoEntries = [results[2], results[3], results[6]]
+  .map(r => r.updateInfo)
+  .filter(i => i !== null);
+
+assertEqual(updateInfoEntries.length, 3,
+  'update-info.dat: 3 UPDATE AVAILABLE entries (2 GmsCore + FakeStore)');
+
+const infoLines = updateInfoEntries.map(
+  info =>
+    `${info.relPath}|${info.url}|${info.repoVn}|${info.repoVc}|${info.repoSha256}`
+);
+
+assertEqual(
+  infoLines[0],
+  `priv-app/GmsCore.apk|https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk|23.9.13|230913000|${SHA256_MICROG_GMS}`,
+  'update-info.dat line 1: GmsCore (microG cert)'
+);
+assertEqual(
+  infoLines[1],
+  `priv-app/GoogleGms.apk|https://f-droid.org/repo/com.google.android.gms_240000000.apk|24.0|240000000|${SHA256_FDROID_GMS}`,
+  'update-info.dat line 2: GmsCore (Google cert)'
+);
+assertEqual(
+  infoLines[2],
+  `priv-app/FakeStore.apk|https://f-droid.org/repo/com.android.vending_84022626.apk|33.0|84022626|${SHA256_FDROID_VNDR}`,
+  'update-info.dat line 3: FakeStore'
+);
+
+// Each line has exactly 5 pipe-separated fields
+for (const line of infoLines) {
+  const parts = line.split('|');
+  assertEqual(parts.length, 5,
+    `update-info.dat: line has 5 fields: ${parts[0]}`);
+  assert(parts[0].length > 0,
+    `update-info.dat: relPath is non-empty: ${parts[0]}`);
+  assert(parts[1].startsWith('https://'),
+    `update-info.dat: url is HTTPS: ${parts[0]}`);
+  assert(parts[2].length > 0,
+    `update-info.dat: versionName is non-empty: ${parts[0]}`);
+  assert(Number(parts[3]) > 0,
+    `update-info.dat: versionCode is positive: ${parts[0]}`);
+  assert(parts[4].length > 0,
+    `update-info.dat: sha256 is non-empty: ${parts[0]}`);
+}
+
+// Entries are joined by \n (separator, not terminator)
+const datContent = infoLines.join('\n');
+assertEqual(datContent.split('\n').length, 3,
+  'update-info.dat: 3 lines joined by \\n');
+assert(!datContent.endsWith('\n'),
+  'update-info.dat: no trailing newline (separator semantics)');
 
 // ---------------------------------------------------------------------------
 // checkApks: CHECK_FAILED tests
@@ -897,11 +962,13 @@ const STUB_CORE = {
 console.log('\n── relPath computation ──');
 
 // For dir-scanned APKs: relPath is relative to the source dir (not workspace)
+// path.posix.relative is used here to mirror the library's forward-slash normalization,
+// ensuring the tests pass on both Linux and Windows.
 {
   const baseDir = '/workspace/zip-content/origin';
   const apkPath = baseDir + '/priv-app/GmsCore.apk';
   assertEqual(
-    path.relative(baseDir, apkPath),
+    path.posix.relative(baseDir, apkPath),
     'priv-app/GmsCore.apk',
     'relPath from apkDirs: relative to its source dir'
   );
@@ -912,7 +979,7 @@ console.log('\n── relPath computation ──');
   const workspace = '/workspace';
   const apkPath = '/workspace/zip-content/origin/priv-app/GmsCore.apk';
   assertEqual(
-    path.relative(workspace, apkPath),
+    path.posix.relative(workspace, apkPath),
     'zip-content/origin/priv-app/GmsCore.apk',
     'relPath from apkFiles: relative to workspace'
   );
@@ -923,18 +990,18 @@ console.log('\n── relPath computation ──');
   const dir1 = '/workspace/dir1';
   const dir2 = '/workspace/dir2';
   assertEqual(
-    path.relative(dir1, dir1 + '/sub/App.apk'),
+    path.posix.relative(dir1, dir1 + '/sub/App.apk'),
     'sub/App.apk',
     'relPath from first dir: relative to dir1'
   );
   assertEqual(
-    path.relative(dir2, dir2 + '/sub/App.apk'),
+    path.posix.relative(dir2, dir2 + '/sub/App.apk'),
     'sub/App.apk',
     'relPath from second dir: relative to dir2 (independent from dir1)'
   );
   // An apk from dir2 must NOT be relative to dir1
   assert(
-    path.relative(dir1, dir2 + '/sub/App.apk') !== 'sub/App.apk',
+    path.posix.relative(dir1, dir2 + '/sub/App.apk') !== 'sub/App.apk',
     'relPath from dir2 differs when computed relative to dir1'
   );
 }
@@ -945,20 +1012,20 @@ console.log('\n── relPath computation ──');
   const dir = '/workspace/zip-content/origin';
   // File supplied via apkFiles: relPath is workspace-relative
   assertEqual(
-    path.relative(workspace, '/workspace/extra/app/Test.apk'),
+    path.posix.relative(workspace, '/workspace/extra/app/Test.apk'),
     'extra/app/Test.apk',
     'mixed: apkFiles relPath is workspace-relative'
   );
   // File found via apkDirs scan: relPath is dir-relative
   assertEqual(
-    path.relative(dir, dir + '/priv-app/Test.apk'),
+    path.posix.relative(dir, dir + '/priv-app/Test.apk'),
     'priv-app/Test.apk',
     'mixed: apkDirs relPath is dir-relative'
   );
   // The same absolute path produces a different relPath depending on the base
   const sameAbsPath = '/workspace/extra/app/Test.apk';
-  const relFromWorkspace = path.relative(workspace, sameAbsPath);
-  const relFromDir       = path.relative(dir, sameAbsPath);
+  const relFromWorkspace = path.posix.relative(workspace, sameAbsPath);
+  const relFromDir       = path.posix.relative(dir, sameAbsPath);
   assert(
     relFromWorkspace !== relFromDir,
     'mixed: same absolute path has different relPath when base is workspace vs dir'
