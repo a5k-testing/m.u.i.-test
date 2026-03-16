@@ -264,73 +264,72 @@ export function checkApks(apkInfoList, repoData) {
       // Package found with our signing certificate
       const { baseUrl, ver } = certMatch;
       const label  = shortUrl(baseUrl);
-      const tLabel = tableLabel(baseUrl);
+      const tLabel = label.split('.')[0];
       const localVc = apk.versionCode ?? 0;
       const repoVc  = ver.vc ?? 0;
       const apkUrl  = ver.apkName ? `${baseUrl}${ver.apkName}` : '';
+      const localVn = apk.versionName || '';
+      const displayName = apk.relPath ?? apk.fileName;
       const updateStatus = (() => {
         if (localVc < 1 || repoVc < 1) return 'check-failed';
         if (repoVc === localVc) return 'up-to-date';
         if (repoVc > localVc) return 'update-available';
         return 'local-newer';
       })();
-      let tableStatus, versionInfo, logLine, noticeTitle, noticeLine, warningLine, checkFailedLine;
-      const displayName = apk.relPath ?? apk.fileName;
+      const logEntry = (icon, status, desc) =>
+        `${icon} [${status}] ${displayName} (${apk.packageName}): ${desc}`;
+      let tableStatus, logLine, noticeTitle, noticeLine, warningLine, checkFailedLine;
       switch (updateStatus) {
         case 'check-failed': {
-          const statusText =
-            `${ICON.CHECK_FAILED} CHECK FAILED` +
-            ` (localVc=${localVc}, repoVc=${repoVc})`;
-          tableStatus = statusText;
-          logLine = `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
+          const info = `(localVc=${localVc}, repoVc=${repoVc})`;
+          tableStatus = `${ICON.CHECK_FAILED} CHECK FAILED ${info}`;
+          logLine = logEntry(ICON.CHECK_FAILED, 'CHECK FAILED', `[${label}] ${info}`);
           noticeTitle = null;
           noticeLine = null;
           warningLine = null;
-          checkFailedLine = `${apk.fileName} (${apk.packageName}): ${statusText}`;
+          checkFailedLine =
+            `${displayName} (${apk.packageName}): CHECK FAILED ${info}`;
           break;
         }
-        case 'up-to-date':
-          tableStatus =
-            `${ICON.UP_TO_DATE} UP TO DATE<br>version=${ver.vn} (${repoVc})`;
-          logLine =
-            `${ICON.UP_TO_DATE} [UP TO DATE] ${displayName}` +
-            ` (${apk.packageName}): [${label}] version=${ver.vn} (${repoVc})`;
+        case 'up-to-date': {
+          const desc = `version=${ver.vn} (${repoVc})`;
+          tableStatus = `${ICON.UP_TO_DATE} UP TO DATE<br>${desc}`;
+          logLine = logEntry(ICON.UP_TO_DATE, 'UP TO DATE', `[${label}] ${desc}`);
           noticeTitle = null;
           noticeLine = null;
           warningLine = null;
           checkFailedLine = null;
           break;
+        }
         case 'update-available': {
-          const localVn = apk.versionName;
-          versionInfo = localVn
-            ? `repo=${ver.vn} (${repoVc}) > local=${localVn} (${localVc})`
-            : `repo=${ver.vn} (${repoVc}) > local=(${localVc})`;
+          const versionInfo =
+            `repo=${ver.vn} (${repoVc}) > local=${localVn} (${localVc})`;
           tableStatus = apkUrl
             ? `${ICON.UPDATE_AVAILABLE}` +
               ` <a href="${apkUrl}">UPDATE AVAILABLE</a><br>${versionInfo}`
             : `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE<br>${versionInfo}`;
-          logLine =
-            `${ICON.UPDATE_AVAILABLE} [UPDATE AVAILABLE] ${displayName}` +
-            ` (${apk.packageName}): [${label}] ${versionInfo}`;
+          logLine = logEntry(
+            ICON.UPDATE_AVAILABLE, 'UPDATE AVAILABLE', `[${label}] ${versionInfo}`
+          );
           noticeTitle =
             `${ICON.UPDATE_AVAILABLE} Update available for ${displayName}` +
-            ` (${apk.packageName})`;
-          noticeLine =
-            `[${label}] ${versionInfo}` +
-            (apkUrl ? `\n${apkUrl}` : '');
+            ` (${apk.packageName}): [${label}] version=${ver.vn} (${repoVc})`;
+          noticeLine = apkUrl;
           warningLine = null;
           checkFailedLine = null;
           break;
         }
         case 'local-newer': {
-          const statusText =
-            `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
-            ` > repo (${repoVc})`;
-          tableStatus = statusText;
-          logLine = `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
+          const versionInfo =
+            `local=${localVn} (${localVc}) > repo=${ver.vn} (${repoVc})`;
+          tableStatus = `${ICON.LOCAL_NEWER} LOCAL NEWER<br>${versionInfo}`;
+          logLine = logEntry(
+            ICON.LOCAL_NEWER, 'LOCAL NEWER', `[${label}] ${versionInfo}`
+          );
           noticeTitle = null;
           noticeLine = null;
-          warningLine = `${apk.fileName} (${apk.packageName}): ${statusText}`;
+          warningLine =
+            `${displayName} (${apk.packageName}): LOCAL NEWER: ${versionInfo}`;
           checkFailedLine = null;
           break;
         }
@@ -347,14 +346,14 @@ export function checkApks(apkInfoList, repoData) {
       // Collect repos where the package exists under a different cert
       const signerMismatch = repoData
         .filter(({ apps }) => apps.has(apk.packageName));
+      const displayName = apk.relPath ?? apk.fileName;
       if (signerMismatch.length > 0) {
         const logRepoLabel = signerMismatch
           .map(({ baseUrl }) => shortUrl(baseUrl))
           .join(', ');
         const tableRepoLabel = signerMismatch
-          .map(({ baseUrl }) => tableLabel(baseUrl))
+          .map(({ baseUrl }) => shortUrl(baseUrl).split('.')[0])
           .join(', ');
-        const displayName = apk.relPath ?? apk.fileName;
         results.push({
           logLine:
             `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${displayName}` +
@@ -372,7 +371,6 @@ export function checkApks(apkInfoList, repoData) {
           checkFailedLine: null,
         });
       } else {
-        const displayName = apk.relPath ?? apk.fileName;
         results.push({
           logLine:
             `${ICON.NOT_IN_REPO} [NOT IN REPO] ${displayName}` +
@@ -711,7 +709,7 @@ export default async function run(
   for (const { logLine, tableRow, noticeLine, noticeTitle, warningLine, checkFailedLine }
     of checkApks(apkInfoList, repoData)) {
     core.info(logLine);
-    if (noticeLine !== null) {
+    if (noticeTitle !== null) {
       core.notice(noticeLine, { title: noticeTitle });
     }
     if (warningLine !== null) {
