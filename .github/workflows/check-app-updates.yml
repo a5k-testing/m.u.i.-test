@@ -10,13 +10,36 @@ on:
       - ".github/workflows/check-app-updates.yml"
       - "includes/app-update-checker-lib.mjs"
       - "zip-content/origin/**"
-      - "tools/test-check-updates.mjs"
+      - "tests/test-app-update-checker.mjs"
+      - "tests/test-check-app-updates.bats"
+      - "tools/check-app-updates.sh"
   workflow_dispatch:
   schedule:
     # At 05:00 AM, every 7 days (UTC)
     - cron: "0 5 */7 * *"
 
 jobs:
+  test:
+    name: "Run tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read  # Needed to checkout the repository
+
+    steps:
+      - name: "Checkout sources"
+        uses: actions/checkout@v6
+      - name: "Set up Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: "Run JS tests"
+        run: node tests/test-app-update-checker.mjs
+      - name: "Install bats"
+        run: npm install -g bats
+      - name: "Run bats tests"
+        run: bats tests/test-check-app-updates.bats
+
   check-updates:
     name: "Check updates"
     runs-on: ubuntu-latest
@@ -39,6 +62,14 @@ jobs:
           key: "lfs-${{ hashFiles('conf-lfs.sh') }}"
           restore-keys: "lfs-"
           path: "cache/lfs"
+          enableCrossOsArchive: true
+      - name: "Use repo index cache"
+        uses: actions/cache@v5
+        timeout-minutes: 5
+        with:
+          key: "repos-${{ github.run_id }}"
+          restore-keys: "repos-"
+          path: "cache/repos"
           enableCrossOsArchive: true
       - name: "Check for updates in F-Droid and microG repos"
         uses: actions/github-script@v8

@@ -11,7 +11,7 @@ if (parseInt(process.versions.node.split('.')[0], 10) < 24) {
   );
 }
 
-import { readFileSync, existsSync, statSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, statSync, readdirSync, mkdirSync } from 'fs';
 import path from 'path';
 import https from 'https';
 import { execFile as execFileCb, spawnSync } from 'child_process';
@@ -49,6 +49,9 @@ export const repos = [
   'https://f-droid.org/repo',
   'https://apt.izzysoft.de/fdroid/repo',
 ];
+
+// How long a cached repo index is considered fresh (7 days in milliseconds)
+export const REPO_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Unicode icons for each result state
 export const ICON = {
@@ -159,6 +162,55 @@ export function shortUrl(url) {
   }
 }
 
+// Sanitize a repository base URL into a safe cache filename.
+// e.g. "https://repo.microg.org/fdroid/repo" → "repo.microg.org_fdroid_repo.json"
+function repoCacheFilename(baseUrl) {
+  return baseUrl
+    .replace(/^https?:\/\//, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+}
+
+// Load a repo index from repoCacheDir if fresh (< REPO_CACHE_TTL_MS old),
+// otherwise fetch from the network and write to cache.
+// Returns the parsed JSON data object.
+async function loadOrFetchRepoIndex(baseUrl, repoCacheDir, core) {
+  const indexUrl = `${baseUrl}/index-v2.json`;
+  if (repoCacheDir) {
+    const cacheFile = path.join(repoCacheDir, repoCacheFilename(baseUrl));
+    let cacheAgeMs = Infinity;
+    try {
+      cacheAgeMs = Date.now() - statSync(cacheFile).mtimeMs;
+    } catch { /* file does not exist or is not accessible */ }
+    if (cacheAgeMs < REPO_CACHE_TTL_MS) {
+      core?.info(
+        `Using cached index for ${shortUrl(baseUrl)}` +
+        ` (age: ${Math.round(cacheAgeMs / 3_600_000)}h)`
+      );
+      try {
+        return JSON.parse(readFileSync(cacheFile, 'utf-8'));
+      } catch {
+        core?.info(
+          `WARNING: cache read failed for ${shortUrl(baseUrl)}, fetching…`
+        );
+      }
+    } else {
+      core?.info(`Fetching ${indexUrl}…`);
+    }
+    const raw = await fetchUrl(indexUrl);
+    try {
+      mkdirSync(repoCacheDir, { recursive: true });
+      writeFileSync(cacheFile, raw, 'utf-8');
+    } catch (e) {
+      core?.info(
+        `WARNING: could not save index cache for ${shortUrl(baseUrl)}: ${e.message}`
+      );
+    }
+    return JSON.parse(raw);
+  }
+  core?.info(`Fetching ${indexUrl}…`);
+  return JSON.parse(await fetchUrl(indexUrl));
+}
+
 // Check apkInfoList against repoData; returns one result per APK:
 //   { logLine, tableRow, noticeLine, warningLine, checkFailedLine }
 // noticeLine/warningLine/checkFailedLine are null when not applicable.
@@ -195,47 +247,52 @@ export function checkApks(apkInfoList, repoData) {
       const label = shortUrl(baseUrl);
       const localVc = apk.versionCode ?? 0;
       const repoVc = ver.vc ?? 0;
-      const checkFailed = localVc < 1 || repoVc < 1;
       const apkUrl =
         ver.apkName ? `${baseUrl}${ver.apkName}` : '';
-      const hasVc = localVc > 0 && repoVc > 0;
-      const isUpdateAvail = hasVc && repoVc > localVc;
-      const isLocalNewer = hasVc && repoVc < localVc;
+      const updateStatus = (() => {
+        if (localVc < 1 || repoVc < 1) return 'check-failed';
+        if (repoVc === localVc) return 'up-to-date';
+        if (repoVc > localVc) return 'update-available';
+        return 'local-newer';
+      })();
       let statusText, versionInfo;
-      if (checkFailed) {
-        statusText =
-          `${ICON.CHECK_FAILED} CHECK FAILED` +
-          ` (localVc=${localVc}, repoVc=${repoVc})`;
-      } else if (isUpdateAvail) {
-        versionInfo =
-          `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
-        statusText =
-          `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
-      } else if (hasVc && repoVc === localVc) {
-        statusText =
-          `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
-      } else if (isLocalNewer) {
-        statusText =
-          `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
-          ` > repo (${repoVc})`;
-      } else {
-        statusText = `found, latest=${ver.vn}`;
+      switch (updateStatus) {
+        case 'check-failed':
+          statusText =
+            `${ICON.CHECK_FAILED} CHECK FAILED` +
+            ` (localVc=${localVc}, repoVc=${repoVc})`;
+          break;
+        case 'up-to-date':
+          statusText =
+            `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
+          break;
+        case 'update-available':
+          versionInfo =
+            `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
+          statusText =
+            `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
+          break;
+        case 'local-newer':
+          statusText =
+            `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
+            ` > repo (${repoVc})`;
+          break;
       }
       const logLine =
         `[${label}] ${apk.fileName}` +
         ` (${apk.packageName}): ${statusText}`;
-      const noticeLine = isUpdateAvail
+      const noticeLine = updateStatus === 'update-available'
         ? `[${label}] ${apk.fileName} (${apk.packageName}):` +
           ` ${statusText}` +
           (apkUrl ? `\n${apkUrl}` : '')
         : null;
-      const warningLine = isLocalNewer
+      const warningLine = updateStatus === 'local-newer'
         ? `${apk.fileName} (${apk.packageName}): ${statusText}`
         : null;
-      const checkFailedLine = checkFailed
+      const checkFailedLine = updateStatus === 'check-failed'
         ? `${apk.fileName} (${apk.packageName}): ${statusText}`
         : null;
-      const tableStatus = (isUpdateAvail && apkUrl)
+      const tableStatus = (updateStatus === 'update-available' && apkUrl)
         ? `${ICON.UPDATE_AVAILABLE}` +
           ` <a href="${apkUrl}">UPDATE AVAILABLE</a>:` +
           ` ${versionInfo}`
@@ -516,16 +573,21 @@ export async function extractApkInfo(
 // Run the full update check.
 //
 // Options:
-//   core        {object}      – @actions/core or compatible shim (required)
-//   baseDir     {string}      – APK root directory to scan; defaults to
-//                               GITHUB_WORKSPACE/zip-content/origin
-//   lfsCacheDir {string|null} – LFS cache dir; defaults to
-//                               GITHUB_WORKSPACE/cache/lfs (when GITHUB_WORKSPACE
-//                               is set), or null
-//   apkFiles    {string[]}    – explicit list of APK paths to check instead of
-//                               scanning baseDir; when provided, baseDir is
-//                               optional (used only for relPath computation)
-export default async function ({ core, baseDir, lfsCacheDir, apkFiles } = {}) {
+//   core         {object}      – @actions/core or compatible shim (required)
+//   baseDir      {string}      – APK root directory to scan; defaults to
+//                                GITHUB_WORKSPACE/zip-content/origin
+//   lfsCacheDir  {string|null} – LFS cache dir; defaults to
+//                                GITHUB_WORKSPACE/cache/lfs (when GITHUB_WORKSPACE
+//                                is set), or null
+//   repoCacheDir {string|null} – Directory to cache repo index JSON files; indexes
+//                                are re-downloaded when missing or older than
+//                                REPO_CACHE_TTL_MS (7 days). Defaults to
+//                                GITHUB_WORKSPACE/cache/repos (when GITHUB_WORKSPACE
+//                                is set), or null (no caching).
+//   apkFiles     {string[]}    – explicit list of APK paths to check instead of
+//                                scanning baseDir; when provided, baseDir is
+//                                optional (used only for relPath computation)
+export default async function ({ core, baseDir, lfsCacheDir, repoCacheDir, apkFiles } = {}) {
   const workspace = process.env.GITHUB_WORKSPACE ?? '';
   const apkBaseDir = baseDir ??
     (workspace ? path.join(workspace, 'zip-content/origin') : null);
@@ -537,6 +599,8 @@ export default async function ({ core, baseDir, lfsCacheDir, apkFiles } = {}) {
   }
   const lfsDir = lfsCacheDir ??
     (workspace ? path.join(workspace, 'cache/lfs') : null);
+  const reposCacheDir = repoCacheDir ??
+    (workspace ? path.join(workspace, 'cache/repos') : null);
 
   // Extract APK info from the filesystem
   const allApkInfo = await extractApkInfo(apkBaseDir, {
@@ -560,14 +624,12 @@ export default async function ({ core, baseDir, lfsCacheDir, apkFiles } = {}) {
       : '')
   );
 
-  // Fetch and parse every repo index
+  // Load or fetch (with TTL) every repo index
   const repoData = [];
   for (const baseUrl of repos) {
-    const indexUrl = `${baseUrl}/index-v2.json`;
-    core.info(`Fetching ${indexUrl}…`);
-    const data = JSON.parse(await fetchUrl(indexUrl));
+    const data = await loadOrFetchRepoIndex(baseUrl, reposCacheDir, core);
     const apps = parseRepoV2(data);
-    core.info(`  Parsed ${apps.size} app(s) from ${baseUrl}`);
+    core.info(`  Parsed ${apps.size} app(s) from ${shortUrl(baseUrl)}`);
     repoData.push({ baseUrl, apps });
   }
 

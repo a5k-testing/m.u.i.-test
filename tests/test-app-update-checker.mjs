@@ -10,6 +10,7 @@ import {
   SPECIAL_PKG_CERT,
   SKIP_LIST,
   repos,
+  REPO_CACHE_TTL_MS,
 } from '../includes/app-update-checker-lib.mjs';
 
 // ---------------------------------------------------------------------------
@@ -625,6 +626,17 @@ assertEqual(filtered[1].fileName, 'GmsCore.apk',
   'SKIP_LIST filter: GmsCore.apk (no suffix) kept');
 assertEqual(filtered[2].fileName, 'Something.apk',
   'SKIP_LIST filter: Something.apk kept');
+
+// ---------------------------------------------------------------------------
+// REPO_CACHE_TTL_MS tests
+// ---------------------------------------------------------------------------
+
+console.log('\n── REPO_CACHE_TTL_MS ──');
+
+assertEqual(REPO_CACHE_TTL_MS, 7 * 24 * 60 * 60 * 1000,
+  'REPO_CACHE_TTL_MS equals 7 days in milliseconds');
+assert(REPO_CACHE_TTL_MS > 0,
+  'REPO_CACHE_TTL_MS is positive');
 
 // ---------------------------------------------------------------------------
 // Summary

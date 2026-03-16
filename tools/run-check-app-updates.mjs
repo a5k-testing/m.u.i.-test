@@ -53,7 +53,8 @@ const apkFiles = process.env.APKS_FILES
 
 run({
   core,
-  baseDir:  process.env.APKS_BASE_DIR || undefined,
+  baseDir:      process.env.APKS_BASE_DIR      || undefined,
+  repoCacheDir: process.env.APKS_REPO_CACHE_DIR || undefined,
   apkFiles,
 }).catch(err => {
   console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
