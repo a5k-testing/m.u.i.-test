@@ -228,6 +228,26 @@ jobs:
               return apps;
             }
 
+            // Shorten a full repo URL to just its base domain
+            // e.g. "https://repo.microg.org/fdroid/repo" → "microg.org"
+            function shortUrl(url) {
+              try {
+                const parts = new URL(url).hostname.split('.');
+                return parts.slice(-2).join('.');
+              } catch (_) {
+                return url;
+              }
+            }
+
+            // Unicode icons for each result state
+            const ICON = {
+              UPDATE_AVAILABLE: '⬆️',
+              UP_TO_DATE:       '✅',
+              LOCAL_NEWER:      '⬇️',
+              DIFFERENT_SIGNER: '🔏',
+              NOT_IN_REPO:      '❓',
+            };
+
             // Ordered list of F-Droid-compatible repository base URLs.
             // "/index-v2.json" is appended automatically when fetching.
             const repos = [
@@ -245,6 +265,9 @@ jobs:
               core.info(`  Parsed ${apps.size} app(s) from ${baseUrl}`);
               repoData.push({ baseUrl, apps });
             }
+
+            // Collect rows for Job Summary table
+            const summaryRows = [];
 
             // Report results
             core.info('');
@@ -265,50 +288,88 @@ jobs:
               if (certMatch) {
                 // Package found with our signing certificate
                 const { baseUrl, ver } = certMatch;
+                const label = shortUrl(baseUrl);
                 const localVc = apk.versionCode;
                 const repoVc = ver.vc;
-                let status;
+                let statusText;
                 if (repoVc !== null && localVc) {
                   if (repoVc > localVc) {
-                    status =
-                      `UPDATE AVAILABLE:` +
+                    statusText =
+                      `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE:` +
                       ` repo=${ver.vn} (${repoVc})` +
                       ` > local (${localVc})`;
                   } else if (repoVc === localVc) {
-                    status =
-                      `UP TO DATE (versionCode=${localVc})`;
+                    statusText =
+                      `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
                   } else {
-                    status =
-                      `LOCAL NEWER: local (${localVc})` +
+                    statusText =
+                      `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
                       ` > repo (${repoVc})`;
                   }
                 } else {
-                  status = `found, latest=${ver.vn}`;
+                  statusText = `found, latest=${ver.vn}`;
                 }
                 core.info(
-                  `[${baseUrl}] ${apk.fileName}` +
-                  ` (${apk.packageName}): ${status}`
+                  `[${label}] ${apk.fileName}` +
+                  ` (${apk.packageName}): ${statusText}`
                 );
+                if (repoVc !== null && localVc && repoVc > localVc) {
+                  core.notice(
+                    `${apk.fileName} (${apk.packageName}): ${statusText}`,
+                    { title: 'Update Available' }
+                  );
+                }
+                summaryRows.push([
+                  apk.fileName,
+                  apk.packageName,
+                  label,
+                  statusText,
+                ]);
               } else {
                 // Collect repos where the package exists under a different cert
                 const signerMismatch = repoData
                   .filter(({ apps }) => apps.has(apk.packageName))
                   .map(({ baseUrl, apps }) => {
                     const p = apps.get(apk.packageName);
-                    return `${baseUrl} (latest=${p.latestVn} ${p.latestVc})`;
+                    return `${shortUrl(baseUrl)} (latest=${p.latestVn} ${p.latestVc})`;
                   });
+                let repoLabel, statusText;
                 if (signerMismatch.length > 0) {
+                  repoLabel = signerMismatch.join(', ');
+                  statusText = `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`;
                   core.info(
                     `[DIFFERENT SIGNER] ${apk.fileName}` +
                     ` (${apk.packageName}):` +
-                    ` ${signerMismatch.join(', ')}` +
+                    ` ${repoLabel}` +
                     ` but signed with a different certificate`
                   );
                 } else {
+                  repoLabel = '-';
+                  statusText = `${ICON.NOT_IN_REPO} NOT IN REPO`;
                   core.info(
                     `[NOT IN REPO] ${apk.fileName}` +
                     ` (${apk.packageName}): not found in any repo`
                   );
                 }
+                summaryRows.push([
+                  apk.fileName,
+                  apk.packageName,
+                  repoLabel,
+                  statusText,
+                ]);
               }
             }
+
+            // Write Job Summary table
+            await core.summary
+              .addHeading('Update Check Results')
+              .addTable([
+                [
+                  { data: 'APK', header: true },
+                  { data: 'Package', header: true },
+                  { data: 'Repo', header: true },
+                  { data: 'Status', header: true },
+                ],
+                ...summaryRows,
+              ])
+              .write();

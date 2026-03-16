@@ -38,6 +38,23 @@ function parseRepoV2(data) {
   return apps;
 }
 
+function shortUrl(url) {
+  try {
+    const parts = new URL(url).hostname.split('.');
+    return parts.slice(-2).join('.');
+  } catch (_) {
+    return url;
+  }
+}
+
+const ICON = {
+  UPDATE_AVAILABLE: '⬆️',
+  UP_TO_DATE:       '✅',
+  LOCAL_NEWER:      '⬇️',
+  DIFFERENT_SIGNER: '🔏',
+  NOT_IN_REPO:      '❓',
+};
+
 function checkApks(apkInfoList, repoData) {
   const results = [];
   for (const apk of apkInfoList) {
@@ -53,45 +70,69 @@ function checkApks(apkInfoList, repoData) {
 
     if (certMatch) {
       const { baseUrl, ver } = certMatch;
+      const label = shortUrl(baseUrl);
       const localVc = apk.versionCode;
       const repoVc = ver.vc;
-      let status;
+      let statusText;
       if (repoVc !== null && localVc) {
         if (repoVc > localVc) {
-          status =
-            `UPDATE AVAILABLE:` +
+          statusText =
+            `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE:` +
             ` repo=${ver.vn} (${repoVc})` +
             ` > local (${localVc})`;
         } else if (repoVc === localVc) {
-          status = `UP TO DATE (versionCode=${localVc})`;
+          statusText =
+            `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
         } else {
-          status =
-            `LOCAL NEWER: local (${localVc})` +
+          statusText =
+            `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
             ` > repo (${repoVc})`;
         }
       } else {
-        status = `found, latest=${ver.vn}`;
+        statusText = `found, latest=${ver.vn}`;
       }
-      results.push(`[${baseUrl}] ${apk.fileName} (${apk.packageName}): ${status}`);
+      const logLine =
+        `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
+      const noticeLine = (repoVc !== null && localVc && repoVc > localVc)
+        ? `${apk.fileName} (${apk.packageName}): ${statusText}`
+        : null;
+      results.push({
+        logLine,
+        tableRow: [apk.fileName, apk.packageName, label, statusText],
+        noticeLine,
+      });
     } else {
       const signerMismatch = repoData
         .filter(({ apps }) => apps.has(apk.packageName))
         .map(({ baseUrl, apps }) => {
           const p = apps.get(apk.packageName);
-          return `${baseUrl} (latest=${p.latestVn} ${p.latestVc})`;
+          return `${shortUrl(baseUrl)} (latest=${p.latestVn} ${p.latestVc})`;
         });
       if (signerMismatch.length > 0) {
-        results.push(
-          `[DIFFERENT SIGNER] ${apk.fileName}` +
-          ` (${apk.packageName}):` +
-          ` ${signerMismatch.join(', ')}` +
-          ` but signed with a different certificate`
-        );
+        const repoLabel = signerMismatch.join(', ');
+        results.push({
+          logLine:
+            `[DIFFERENT SIGNER] ${apk.fileName}` +
+            ` (${apk.packageName}):` +
+            ` ${repoLabel}` +
+            ` but signed with a different certificate`,
+          tableRow: [
+            apk.fileName, apk.packageName,
+            repoLabel, `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
+          ],
+          noticeLine: null,
+        });
       } else {
-        results.push(
-          `[NOT IN REPO] ${apk.fileName}` +
-          ` (${apk.packageName}): not found in any repo`
-        );
+        results.push({
+          logLine:
+            `[NOT IN REPO] ${apk.fileName}` +
+            ` (${apk.packageName}): not found in any repo`,
+          tableRow: [
+            apk.fileName, apk.packageName,
+            '-', `${ICON.NOT_IN_REPO} NOT IN REPO`,
+          ],
+          noticeLine: null,
+        });
       }
     }
   }
@@ -254,6 +295,21 @@ assert(fdroidApps.get('com.nonexistent.pkg') === undefined,
   'Non-existent package returns undefined');
 
 // ---------------------------------------------------------------------------
+// shortUrl unit tests
+// ---------------------------------------------------------------------------
+
+console.log('\n── shortUrl ──');
+
+assertEqual(
+  shortUrl('https://repo.microg.org/fdroid/repo'), 'microg.org',
+  'shortUrl: subdomain trimmed to base domain'
+);
+assertEqual(
+  shortUrl('https://f-droid.org/repo'), 'f-droid.org',
+  'shortUrl: two-part hostname unchanged'
+);
+
+// ---------------------------------------------------------------------------
 // checkApks integration tests
 // ---------------------------------------------------------------------------
 
@@ -306,44 +362,74 @@ const results = checkApks([
 
 // 1. Up to date
 assert(
-  results[0].includes('[https://f-droid.org/repo]') &&
-  results[0].includes('UP TO DATE'),
-  'FDroid priv: UP TO DATE in F-Droid'
+  results[0].logLine.includes('[f-droid.org]') &&
+  results[0].logLine.includes('UP TO DATE'),
+  'FDroid priv: UP TO DATE in F-Droid (short URL)'
 );
+assert(results[0].logLine.includes(ICON.UP_TO_DATE),
+  'FDroid priv: ✅ icon present');
+assertEqual(results[0].tableRow[2], 'f-droid.org',
+  'FDroid priv: tableRow repo = f-droid.org');
+assertEqual(results[0].noticeLine, null,
+  'FDroid priv: no notice for UP TO DATE');
 
 // 2. Local newer
 assert(
-  results[1].includes('[https://f-droid.org/repo]') &&
-  results[1].includes('LOCAL NEWER'),
-  'NewPipe: LOCAL NEWER in F-Droid'
+  results[1].logLine.includes('[f-droid.org]') &&
+  results[1].logLine.includes('LOCAL NEWER'),
+  'NewPipe: LOCAL NEWER in F-Droid (short URL)'
 );
+assert(results[1].logLine.includes(ICON.LOCAL_NEWER),
+  'NewPipe: ⬇️ icon present');
+assertEqual(results[1].noticeLine, null,
+  'NewPipe: no notice for LOCAL NEWER');
 
 // 3. microG-signed GmsCore: matched in microG repo, update available
 assert(
-  results[2].includes('[https://repo.microg.org/fdroid/repo]') &&
-  results[2].includes('UPDATE AVAILABLE'),
-  'GmsCore (microG cert): UPDATE AVAILABLE from microG repo'
+  results[2].logLine.includes('[microg.org]') &&
+  results[2].logLine.includes('UPDATE AVAILABLE'),
+  'GmsCore (microG cert): UPDATE AVAILABLE from microG repo (short URL)'
 );
+assert(results[2].logLine.includes(ICON.UPDATE_AVAILABLE),
+  'GmsCore (microG cert): ⬆️ icon present');
+assertEqual(results[2].tableRow[2], 'microg.org',
+  'GmsCore (microG cert): tableRow repo = microg.org');
+assert(results[2].noticeLine !== null,
+  'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
+assert(results[2].noticeLine.includes('UPDATE AVAILABLE'),
+  'GmsCore (microG cert): notice text contains UPDATE AVAILABLE');
 
 // 4. Google-cert GmsCore: matched in F-Droid (first repo)
 assert(
-  results[3].includes('[https://f-droid.org/repo]') &&
-  results[3].includes('UPDATE AVAILABLE'),
-  'GmsCore (Google cert): UPDATE AVAILABLE from F-Droid'
+  results[3].logLine.includes('[f-droid.org]') &&
+  results[3].logLine.includes('UPDATE AVAILABLE'),
+  'GmsCore (Google cert): UPDATE AVAILABLE from F-Droid (short URL)'
 );
+assert(results[3].noticeLine !== null,
+  'GmsCore (Google cert): notice emitted');
 
 // 5. Different signer
 assert(
-  results[4].includes('[DIFFERENT SIGNER]') &&
-  /\bf-droid\.org\/repo\b/.test(results[4]),
-  'NewPipeFork: DIFFERENT SIGNER listing F-Droid'
+  results[4].logLine.includes('[DIFFERENT SIGNER]') &&
+  results[4].logLine.includes('f-droid.org'),
+  'NewPipeFork: DIFFERENT SIGNER listing f-droid.org (short URL)'
 );
+assertEqual(results[4].tableRow[3], `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
+  'NewPipeFork: tableRow status has 🔏 DIFFERENT SIGNER');
+assertEqual(results[4].noticeLine, null,
+  'NewPipeFork: no notice for DIFFERENT SIGNER');
 
 // 6. Not in repo
 assert(
-  results[5].includes('[NOT IN REPO]'),
+  results[5].logLine.includes('[NOT IN REPO]'),
   'AuroraServices: NOT IN REPO'
 );
+assertEqual(results[5].tableRow[3], `${ICON.NOT_IN_REPO} NOT IN REPO`,
+  'AuroraServices: tableRow status has ❓ NOT IN REPO');
+assertEqual(results[5].tableRow[2], '-',
+  'AuroraServices: tableRow repo = -');
+assertEqual(results[5].noticeLine, null,
+  'AuroraServices: no notice for NOT IN REPO');
 
 // ---------------------------------------------------------------------------
 // /index-v2.json URL construction test
