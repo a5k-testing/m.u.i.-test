@@ -13,6 +13,8 @@ import {
   REPO_CACHE_TTL_MS,
 } from '../includes/app-update-checker-lib.mjs';
 
+import { default as run } from '../includes/app-update-checker-lib.mjs';
+
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
@@ -390,7 +392,12 @@ assertEqual(results[0].tableRow[0], 'priv-app/FDroidPrivilegedExtension.apk',
 assertEqual(results[0].tableRow[2], 'f-droid',
   'FDroid priv: tableRow repo = f-droid (compact label)');
 assert(!results[0].tableRow[3].includes('<a href='),
-  'FDroid priv: tableRow status is plain text (up to date, no link)');
+  'FDroid priv: tableRow status has no link (up to date)');
+assertEqual(
+  results[0].tableRow[3],
+  `${ICON.UP_TO_DATE} UP TO DATE<br>version=0.2.13 (2130)`,
+  'FDroid priv: tableRow UP TO DATE is 2-line format'
+);
 assertEqual(results[0].noticeLine, null,
   'FDroid priv: no notice for UP TO DATE');
 assertEqual(results[0].warningLine, null,
@@ -435,8 +442,8 @@ assert(results[2].noticeLine !== null,
   'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
 assertEqual(
   results[2].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a>: repo=23.9.13 (230913000) > local 22.0 (220000000)`,
-  'GmsCore (microG cert): tableRow links only "UPDATE AVAILABLE", version info includes local vn'
+  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a><br>repo=23.9.13 (230913000) > local 22.0 (220000000)`,
+  'GmsCore (microG cert): tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
 assert(results[2].noticeLine.includes('UPDATE AVAILABLE'),
   'GmsCore (microG cert): notice text contains UPDATE AVAILABLE');
@@ -463,8 +470,8 @@ assert(results[3].noticeLine !== null,
   'GmsCore (Google cert): notice emitted');
 assertEqual(
   results[3].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a>: repo=24.0 (240000000) > local 23.0 (230000000)`,
-  'GmsCore (Google cert): tableRow links only "UPDATE AVAILABLE", version info includes local vn'
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a><br>repo=24.0 (240000000) > local 23.0 (230000000)`,
+  'GmsCore (Google cert): tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
 assert(results[3].noticeLine.includes('[f-droid.org]'),
   'GmsCore (Google cert): notice contains short repo URL');
@@ -527,8 +534,8 @@ assert(results[6].noticeLine !== null,
   'FakeStore: notice emitted for special-cert UPDATE AVAILABLE');
 assertEqual(
   results[6].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a>: repo=33.0 (84022626) > local 30.0 (80000000)`,
-  'FakeStore: tableRow version info includes local vn'
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a><br>repo=33.0 (84022626) > local 30.0 (80000000)`,
+  'FakeStore: tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
 assert(results[6].noticeLine.includes('[f-droid.org]'),
   'FakeStore: notice contains short repo URL');
@@ -679,8 +686,69 @@ assertEqual(checkFailedResults[2].warningLine, null,
   'NullRepoVc: no warningLine when CHECK FAILED');
 
 // ---------------------------------------------------------------------------
-// Summary
+// run() input validation tests
 // ---------------------------------------------------------------------------
+
+console.log('\n── run() input validation ──');
+
+// Helper: call run() and capture the thrown error message, or return null
+async function runError(opts) {
+  try {
+    await run(opts);
+    return null;
+  } catch (e) {
+    return e.message;
+  }
+}
+
+// Minimal core stub sufficient to reach the validation checks
+const STUB_CORE = {
+  info:    () => {},
+  warning: () => {},
+  notice:  () => {},
+  error:   () => {},
+  summary: {
+    addHeading: function() { return this; },
+    addTable:   function() { return this; },
+    write:      async () => {},
+  },
+};
+
+// Both apkDirs and apkFiles are undefined → throw
+{
+  const msg = await runError({ core: {} });
+  assert(msg !== null, 'run(): throws when both apkDirs and apkFiles are undefined');
+  assert(msg.includes('apkDirs') || msg.includes('apkFiles'),
+    'run(): error message mentions apkDirs or apkFiles');
+}
+
+// apkFiles set but empty → throw
+{
+  const msg = await runError({ core: {}, apkFiles: [] });
+  assert(msg !== null, 'run(): throws when apkFiles is set but empty');
+  assert(msg.includes('apkFiles'),
+    'run(): error message mentions apkFiles');
+}
+
+// apkDirs set (even empty) → does NOT throw due to apkFiles absence
+// (empty apkDirs means "use default directory", which is valid)
+{
+  // We cannot actually run a full update check in tests (no network/aapt),
+  // so just verify no validation error is thrown — the error (if any) must be
+  // a runtime error about aapt/network, not the input-validation error.
+  const msg = await runError({ core: STUB_CORE, apkDirs: [] });
+  assert(msg === null || (!msg.includes('apkDirs') && !msg.includes('apkFiles')),
+    'run(): empty apkDirs passes validation (runtime errors are OK)');
+}
+
+// apkFiles provided with one entry → does NOT throw validation error
+{
+  const msg = await runError({ core: STUB_CORE, apkFiles: ['/nonexistent.apk'] });
+  assert(msg === null || (!msg.includes('apkFiles') && !msg.includes('apkDirs')),
+    'run(): non-empty apkFiles passes validation (runtime errors are OK)');
+}
+
+
 
 console.log(`\n${'─'.repeat(40)}`);
 console.log(`Passed: ${passed}  Failed: ${failed}`);

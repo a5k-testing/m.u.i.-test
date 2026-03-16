@@ -4,10 +4,10 @@
 // Library module: APK update checker for F-Droid and microG repositories.
 // When invoked directly by Node.js it also acts as a CLI entry point.
 
-// Node.js 24 or later is required
-if (parseInt(process.versions.node.split('.')[0], 10) < 24) {
+// Node.js 20 or later is required
+if (parseInt(process.versions.node.split('.')[0], 10) < 20) {
   throw new Error(
-    `Node.js 24 or later is required (current: ${process.versions.node})`
+    `Node.js 20 or later is required (current: ${process.versions.node})`
   );
 }
 
@@ -19,6 +19,10 @@ import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 
 const execFile = promisify(execFileCb);
+
+// Path to this library file; used for workspace default and CLI entry detection
+const _LIB_PATH = fileURLToPath(import.meta.url);
+const _LIB_DIR  = path.dirname(_LIB_PATH);
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -270,30 +274,38 @@ export function checkApks(apkInfoList, repoData) {
         if (repoVc > localVc) return 'update-available';
         return 'local-newer';
       })();
-      let statusText, versionInfo;
+      let statusText, tableStatus, versionInfo;
       switch (updateStatus) {
         case 'check-failed':
           statusText =
             `${ICON.CHECK_FAILED} CHECK FAILED` +
             ` (localVc=${localVc}, repoVc=${repoVc})`;
+          tableStatus = statusText;
           break;
         case 'up-to-date':
           statusText =
             `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
+          tableStatus =
+            `${ICON.UP_TO_DATE} UP TO DATE<br>version=${ver.vn} (${repoVc})`;
           break;
         case 'update-available': {
-          const localVn = apk.versionName ?? '';
+          const localVn = apk.versionName;
           versionInfo = localVn
             ? `repo=${ver.vn} (${repoVc}) > local ${localVn} (${localVc})`
             : `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
           statusText =
             `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
+          tableStatus = apkUrl
+            ? `${ICON.UPDATE_AVAILABLE}` +
+              ` <a href="${apkUrl}">UPDATE AVAILABLE</a><br>${versionInfo}`
+            : `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE<br>${versionInfo}`;
           break;
         }
         case 'local-newer':
           statusText =
             `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
             ` > repo (${repoVc})`;
+          tableStatus = statusText;
           break;
       }
       const displayName = apk.relPath ?? apk.fileName;
@@ -311,11 +323,6 @@ export function checkApks(apkInfoList, repoData) {
       const checkFailedLine = updateStatus === 'check-failed'
         ? `${apk.fileName} (${apk.packageName}): ${statusText}`
         : null;
-      const tableStatus = (updateStatus === 'update-available' && apkUrl)
-        ? `${ICON.UPDATE_AVAILABLE}` +
-          ` <a href="${apkUrl}">UPDATE AVAILABLE</a>:` +
-          ` ${versionInfo}`
-        : statusText;
       results.push({
         logLine,
         tableRow: [displayName, apk.packageName, tLabel, tableStatus],
@@ -602,46 +609,46 @@ export async function extractApkInfo(
 // Run the full update check.
 //
 // Options:
-//   core         {object}      – @actions/core or compatible shim (required)
-//   baseDir      {string}      – Single APK root directory to scan (legacy;
-//                                use baseDirs for multiple directories)
-//   baseDirs     {string[]}    – APK root directories to scan; takes precedence
-//                                over baseDir. Defaults to
-//                                [GITHUB_WORKSPACE/zip-content/origin].
-//   lfsCacheDir  {string|null} – LFS cache dir; defaults to
-//                                GITHUB_WORKSPACE/cache/lfs (when GITHUB_WORKSPACE
-//                                is set), or null
-//   repoCacheDir {string|null} – Directory to cache repo index JSON files; indexes
-//                                are re-downloaded when missing or older than
-//                                REPO_CACHE_TTL_MS (7 days). Defaults to
-//                                GITHUB_WORKSPACE/cache/repos (when GITHUB_WORKSPACE
-//                                is set), or null (no caching).
-//   apkFiles     {string[]}    – explicit list of APK paths to check in addition to
-//                                (or instead of) scanning directories
+//   core         {object}        – @actions/core or compatible shim (required)
+//   apkDirs      {string[]|undefined} – APK root directories to scan. Pass an
+//                                       empty array [] to use the default
+//                                       (workspace/zip-content/origin). Omit
+//                                       only when apkFiles is provided.
+//   apkFiles     {string[]|undefined} – Explicit list of APK paths to check
+//                                       instead of (or in addition to) scanning
+//                                       directories. Must not be empty when set.
+//   lfsCacheDir  {string|undefined}   – LFS cache dir; defaults to
+//                                       workspace/cache/lfs.
+//   repoCacheDir {string|undefined}   – Directory to cache repo index JSON files;
+//                                       defaults to workspace/cache/repos.
 export default async function run(
-  { core, baseDir, baseDirs, lfsCacheDir, repoCacheDir, apkFiles } = {}
+  { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir } = {}
 ) {
-  const workspace = process.env.GITHUB_WORKSPACE ?? '';
+  // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
+  const workspace = process.env.GITHUB_WORKSPACE
+    || path.resolve(_LIB_DIR, '..');
 
-  // Resolve effective APK scan directories
-  const effectiveDirs = baseDirs?.length
-    ? baseDirs
-    : baseDir
-      ? [baseDir]
-      : workspace
-        ? [path.join(workspace, 'zip-content/origin')]
-        : [];
-
-  if (!effectiveDirs.length && !apkFiles?.length) {
+  // Validate inputs
+  if (apkDirs === undefined && apkFiles === undefined) {
     throw new Error(
-      'APK base directory must be provided via the baseDir/baseDirs option ' +
-      'or the GITHUB_WORKSPACE environment variable.'
+      'Either apkDirs or apkFiles must be provided.'
     );
   }
-  const lfsDir = lfsCacheDir ??
-    (workspace ? path.join(workspace, 'cache/lfs') : null);
-  const reposCacheDir = repoCacheDir ??
-    (workspace ? path.join(workspace, 'cache/repos') : null);
+  if (apkFiles !== undefined && apkFiles.length === 0) {
+    throw new Error('apkFiles must not be empty when provided.');
+  }
+
+  // Resolve effective APK scan directories
+  // An empty apkDirs array signals "use the default directory".
+  const effectiveDirs = apkDirs !== undefined
+    ? (apkDirs.length === 0
+        ? [path.join(workspace, 'zip-content/origin')]
+        : apkDirs)
+    : [];
+
+  // Cache directories always have a valid path (never disabled)
+  const lfsDir  = lfsCacheDir  ?? path.join(workspace, 'cache/lfs');
+  const reposDir = repoCacheDir ?? path.join(workspace, 'cache/repos');
 
   // Extract APK info from all directories
   let allApkInfo = [];
@@ -678,7 +685,7 @@ export default async function run(
   // Load or fetch (with TTL) every repo index
   const repoData = [];
   for (const baseUrl of repos) {
-    const data = await loadOrFetchRepoIndex(baseUrl, reposCacheDir, core);
+    const data = await loadOrFetchRepoIndex(baseUrl, reposDir, core);
     const apps = parseRepoV2(data);
     core.info(`  Parsed ${apps.size} app(s) from ${shortUrl(baseUrl)}`);
     repoData.push({ baseUrl, apps });
@@ -724,7 +731,7 @@ export default async function run(
 // CLI entry point — runs only when invoked directly by Node.js
 // ---------------------------------------------------------------------------
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === _LIB_PATH) {
   const summary = {
     _items: [],
     addHeading(text) {
@@ -767,18 +774,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     summary,
   };
 
-  const apkDirs = process.env.APKS_DIRS
+  const apkDirsEnv = process.env.APKS_DIRS
     ? process.env.APKS_DIRS.split('\n').filter(Boolean)
     : undefined;
-  const apkFiles = process.env.APKS_FILES
+  const apkFilesEnv = process.env.APKS_FILES
     ? process.env.APKS_FILES.split('\n').filter(Boolean)
     : undefined;
 
   run({
     core,
-    baseDirs:    apkDirs?.length  ? apkDirs  : undefined,
+    apkDirs:     apkDirsEnv,
+    apkFiles:    apkFilesEnv,
     repoCacheDir: process.env.APKS_REPO_CACHE_DIR || undefined,
-    apkFiles:    apkFiles?.length ? apkFiles : undefined,
   }).catch(err => {
     console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
     process.exitCode = 1;

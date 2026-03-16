@@ -32,8 +32,9 @@ jobs:
       - name: "Run JS tests"
         run: node tests/test-app-update-checker.mjs
       - name: "Run bats tests"
-        uses: bats-core/bats-action@3.0.0
+        uses: bats-core/bats-action@4.0.0
         with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
           args: tests/test-check-app-updates.bats
 
   check-updates:
@@ -76,4 +77,4 @@ jobs:
             const { default: run } = await import(
               `${process.env.GITHUB_WORKSPACE}/includes/app-update-checker-lib.mjs`
             );
-            await run({ core });
+            await run({ core, apkDirs: [] });

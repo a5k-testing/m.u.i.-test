@@ -73,10 +73,10 @@ EOF
     test "${_dirs_ok}" = 'true' || return 1
   fi
 
-  # Node.js 24+ is required (the library checks at import time, but give a
+  # Node.js 20+ is required (the library checks at import time, but give a
   # clear error here too so the user sees it before Node even starts)
   command -v 'node' 1>/dev/null 2>&1 || {
-    show_error "'node' not found. Please install Node.js 24 or later."
+    show_error "'node' not found. Please install Node.js 20 or later."
     return 1
   }
 
