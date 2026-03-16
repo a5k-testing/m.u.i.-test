@@ -5,7 +5,7 @@
 'use strict';
 
 // ---------------------------------------------------------------------------
-// Extracted from .github/workflows/check-app-updates.yml — keep in sync.
+// Extracted from includes/check-app-updates.mjs — keep in sync.
 // ---------------------------------------------------------------------------
 
 function parseRepoV2(data) {
