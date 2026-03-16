@@ -19,6 +19,10 @@ import { promisify } from 'util';
 
 const execFile = promisify(execFileCb);
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
 // Files to skip the update check (relative to zip-content/origin/)
 export const SKIP_LIST = new Set([
   'priv-app/FakeStore-0.3.6.apk',
@@ -26,6 +30,39 @@ export const SKIP_LIST = new Set([
   'priv-app/GmsCoreVtm.apk',
   'priv-app/GmsCoreVtmLegacy.apk',
 ]);
+
+// Packages that get a special cert fallback when the local APK
+// is signed with the microG certificate
+export const MICROG_CERT =
+  '9bd06727e62796c0130eb6dab39b73157451582cbd138e86c468acc395d14165';
+export const SPECIAL_PKG_CERT =
+  'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
+export const SPECIAL_PKGS = new Set([
+  'com.google.android.gms',
+  'com.android.vending',
+]);
+
+// Ordered list of F-Droid-compatible repository base URLs.
+// "/index-v2.json" is appended automatically when fetching.
+export const repos = [
+  'https://repo.microg.org/fdroid/repo',
+  'https://f-droid.org/repo',
+  'https://apt.izzysoft.de/fdroid/repo',
+];
+
+// Unicode icons for each result state
+export const ICON = {
+  UP_TO_DATE:       '✅',
+  UPDATE_AVAILABLE: '✨',
+  LOCAL_NEWER:      '🚀',
+  CHECK_FAILED:     '⚠️',
+  DIFFERENT_SIGNER: '🔐',
+  NOT_IN_REPO:      '❓',
+};
+
+// ---------------------------------------------------------------------------
+// Functions
+// ---------------------------------------------------------------------------
 
 // Fetch a URL over HTTPS only, following up to maxRedirects redirects
 function fetchUrl(url, maxRedirects = 3) {
@@ -122,37 +159,9 @@ export function shortUrl(url) {
   }
 }
 
-// Unicode icons for each result state
-export const ICON = {
-  UPDATE_AVAILABLE: '✨',
-  UP_TO_DATE:       '✅',
-  LOCAL_NEWER:      '🚀',
-  DIFFERENT_SIGNER: '🔐',
-  NOT_IN_REPO:      '❓',
-};
-
-// Packages that get a special cert fallback when the local APK
-// is signed with the microG certificate
-export const MICROG_CERT =
-  '9bd06727e62796c0130eb6dab39b73157451582cbd138e86c468acc395d14165';
-export const SPECIAL_PKG_CERT =
-  'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
-export const SPECIAL_PKGS = new Set([
-  'com.google.android.gms',
-  'com.android.vending',
-]);
-
-// Ordered list of F-Droid-compatible repository base URLs.
-// "/index-v2.json" is appended automatically when fetching.
-export const repos = [
-  'https://repo.microg.org/fdroid/repo',
-  'https://f-droid.org/repo',
-  'https://apt.izzysoft.de/fdroid/repo',
-];
-
 // Check apkInfoList against repoData; returns one result per APK:
-//   { logLine, tableRow, noticeLine, warningLine }
-// noticeLine/warningLine are null when no notice/warning should be emitted.
+//   { logLine, tableRow, noticeLine, warningLine, checkFailedLine }
+// noticeLine/warningLine/checkFailedLine are null when not applicable.
 export function checkApks(apkInfoList, repoData) {
   const results = [];
   for (const apk of apkInfoList) {
@@ -184,15 +193,20 @@ export function checkApks(apkInfoList, repoData) {
       // Package found with our signing certificate
       const { baseUrl, ver } = certMatch;
       const label = shortUrl(baseUrl);
-      const localVc = apk.versionCode;
-      const repoVc = ver.vc;
+      const localVc = apk.versionCode ?? 0;
+      const repoVc = ver.vc ?? 0;
+      const checkFailed = localVc < 1 || repoVc < 1;
       const apkUrl =
         ver.apkName ? `${baseUrl}${ver.apkName}` : '';
-      const hasVc = repoVc !== null && localVc;
+      const hasVc = localVc > 0 && repoVc > 0;
       const isUpdateAvail = hasVc && repoVc > localVc;
       const isLocalNewer = hasVc && repoVc < localVc;
       let statusText, versionInfo;
-      if (isUpdateAvail) {
+      if (checkFailed) {
+        statusText =
+          `${ICON.CHECK_FAILED} CHECK FAILED` +
+          ` (localVc=${localVc}, repoVc=${repoVc})`;
+      } else if (isUpdateAvail) {
         versionInfo =
           `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
         statusText =
@@ -218,6 +232,9 @@ export function checkApks(apkInfoList, repoData) {
       const warningLine = isLocalNewer
         ? `${apk.fileName} (${apk.packageName}): ${statusText}`
         : null;
+      const checkFailedLine = checkFailed
+        ? `${apk.fileName} (${apk.packageName}): ${statusText}`
+        : null;
       const tableStatus = (isUpdateAvail && apkUrl)
         ? `${ICON.UPDATE_AVAILABLE}` +
           ` <a href="${apkUrl}">UPDATE AVAILABLE</a>:` +
@@ -228,6 +245,7 @@ export function checkApks(apkInfoList, repoData) {
         tableRow: [apk.fileName, apk.packageName, label, tableStatus],
         noticeLine,
         warningLine,
+        checkFailedLine,
       });
     } else {
       // Collect repos where the package exists under a different cert
@@ -253,6 +271,7 @@ export function checkApks(apkInfoList, repoData) {
           ],
           noticeLine: null,
           warningLine: null,
+          checkFailedLine: null,
         });
       } else {
         results.push({
@@ -267,16 +286,13 @@ export function checkApks(apkInfoList, repoData) {
           ],
           noticeLine: null,
           warningLine: null,
+          checkFailedLine: null,
         });
       }
     }
   }
   return results;
 }
-
-// ---------------------------------------------------------------------------
-// APK info extraction helpers (used by extractApkInfo)
-// ---------------------------------------------------------------------------
 
 // Find the aapt (or aapt2) binary.
 // Tries aapt and aapt2 in PATH first, then falls back to ANDROID_SDK_ROOT.
@@ -386,10 +402,6 @@ async function getCertSha256(apkPath) {
 
   return null;
 }
-
-// ---------------------------------------------------------------------------
-// extractApkInfo — exported library function
-// ---------------------------------------------------------------------------
 
 // Scan baseDir recursively for *.apk files (or use an explicit apkFiles list),
 // extract package name, version code, and signing-certificate SHA-256 for each
@@ -565,7 +577,7 @@ export default async function ({ core, baseDir, lfsCacheDir, apkFiles } = {}) {
   // Report results
   core.info('');
   core.info('=== Update check results ===');
-  for (const { logLine, tableRow, noticeLine, warningLine }
+  for (const { logLine, tableRow, noticeLine, warningLine, checkFailedLine }
     of checkApks(apkInfoList, repoData)) {
     core.info(logLine);
     if (noticeLine !== null) {
@@ -573,6 +585,9 @@ export default async function ({ core, baseDir, lfsCacheDir, apkFiles } = {}) {
     }
     if (warningLine !== null) {
       core.warning(warningLine, { title: 'Local Newer' });
+    }
+    if (checkFailedLine !== null) {
+      core.warning(checkFailedLine, { title: 'Version check failed' });
     }
     summaryRows.push(tableRow);
   }

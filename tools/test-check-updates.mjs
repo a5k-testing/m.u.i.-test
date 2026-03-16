@@ -10,7 +10,7 @@ import {
   SPECIAL_PKG_CERT,
   SKIP_LIST,
   repos,
-} from '../includes/lib-check-app-updates.mjs';
+} from '../includes/app-update-checker-lib.mjs';
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -280,6 +280,8 @@ assertEqual(results[0].noticeLine, null,
   'FDroid priv: no notice for UP TO DATE');
 assertEqual(results[0].warningLine, null,
   'FDroid priv: no warning for UP TO DATE');
+assertEqual(results[0].checkFailedLine, null,
+  'FDroid priv: no checkFailedLine for UP TO DATE');
 
 // 2. Local newer
 assert(
@@ -297,6 +299,8 @@ assert(results[1].warningLine !== null,
   'NewPipe: warning emitted for LOCAL NEWER');
 assert(results[1].warningLine.includes('LOCAL NEWER'),
   'NewPipe: warning text contains LOCAL NEWER');
+assertEqual(results[1].checkFailedLine, null,
+  'NewPipe: no checkFailedLine for LOCAL NEWER');
 
 // 3. microG-signed GmsCore: matched in microG repo, update available
 assert(
@@ -327,6 +331,8 @@ assert(
 );
 assertEqual(results[2].warningLine, null,
   'GmsCore (microG cert): no warning for UPDATE AVAILABLE');
+assertEqual(results[2].checkFailedLine, null,
+  'GmsCore (microG cert): no checkFailedLine for UPDATE AVAILABLE');
 
 // 4. Google-cert GmsCore: matched in F-Droid (first repo)
 assert(
@@ -364,6 +370,8 @@ assertEqual(results[4].noticeLine, null,
   'NewPipeFork: no notice for DIFFERENT SIGNER');
 assertEqual(results[4].warningLine, null,
   'NewPipeFork: no warning for DIFFERENT SIGNER');
+assertEqual(results[4].checkFailedLine, null,
+  'NewPipeFork: no checkFailedLine for DIFFERENT SIGNER');
 
 // 6. Not in repo
 assert(
@@ -380,6 +388,8 @@ assertEqual(results[5].noticeLine, null,
   'AuroraServices: no notice for NOT IN REPO');
 assertEqual(results[5].warningLine, null,
   'AuroraServices: no warning for NOT IN REPO');
+assertEqual(results[5].checkFailedLine, null,
+  'AuroraServices: no checkFailedLine for NOT IN REPO');
 
 // 7. Special cert fallback: FakeStore with MICROG_CERT → matched via
 //    SPECIAL_PKG_CERT in F-Droid
@@ -405,6 +415,8 @@ assert(
 );
 assertEqual(results[6].warningLine, null,
   'FakeStore: no warning for UPDATE AVAILABLE');
+assertEqual(results[6].checkFailedLine, null,
+  'FakeStore: no checkFailedLine for UPDATE AVAILABLE');
 
 // 8. GmsCore with non-microG cert → fallback NOT triggered → DIFFERENT SIGNER
 assert(
@@ -417,6 +429,123 @@ assertEqual(results[7].noticeLine, null,
   'GmsCoreOther: no notice for DIFFERENT SIGNER');
 assertEqual(results[7].warningLine, null,
   'GmsCoreOther: no warning for DIFFERENT SIGNER');
+assertEqual(results[7].checkFailedLine, null,
+  'GmsCoreOther: no checkFailedLine for DIFFERENT SIGNER');
+
+// ---------------------------------------------------------------------------
+// checkApks: CHECK_FAILED tests
+// ---------------------------------------------------------------------------
+
+console.log('\n── checkApks (CHECK_FAILED) ──');
+
+// Repo entry with null versionCode (no vc in index)
+const NULL_VC_INDEX = {
+  packages: {
+    'com.example.nullvc': {
+      versions: {
+        v1: {
+          file: { name: '/com.example.nullvc_1.apk' },
+          manifest: {
+            // versionCode deliberately absent → vc=null in parseRepoV2
+            versionName: '1.0',
+            signer: { sha256: ['cert_nullvc_aaaa'] },
+          },
+        },
+      },
+    },
+  },
+};
+
+const REPOS_WITH_NULLVC = [
+  ...REPOS,
+  { baseUrl: 'https://example.com/repo', apps: parseRepoV2(NULL_VC_INDEX) },
+];
+
+const checkFailedResults = checkApks([
+  // 1. local versionCode = 0 (could not be extracted)
+  {
+    fileName: 'ZeroLocalVc.apk',
+    packageName: 'org.fdroid.fdroid.privileged',
+    versionCode: 0,
+    certSha256: CERT_FDROID,
+  },
+  // 2. local versionCode = null (explicitly null)
+  {
+    fileName: 'NullLocalVc.apk',
+    packageName: 'org.fdroid.fdroid.privileged',
+    versionCode: null,
+    certSha256: CERT_FDROID,
+  },
+  // 3. repo versionCode = null (no vc in index entry)
+  {
+    fileName: 'NullRepoVc.apk',
+    packageName: 'com.example.nullvc',
+    versionCode: 100,
+    certSha256: 'cert_nullvc_aaaa',
+  },
+], REPOS_WITH_NULLVC);
+
+// 1. local versionCode = 0 → CHECK_FAILED
+assert(
+  checkFailedResults[0].logLine.includes('CHECK FAILED'),
+  'ZeroLocalVc: logLine contains CHECK FAILED'
+);
+assert(
+  checkFailedResults[0].logLine.includes(ICON.CHECK_FAILED),
+  'ZeroLocalVc: logLine contains CHECK_FAILED icon'
+);
+assert(
+  checkFailedResults[0].tableRow[3].includes('CHECK FAILED'),
+  'ZeroLocalVc: tableRow status contains CHECK FAILED'
+);
+assertEqual(checkFailedResults[0].noticeLine, null,
+  'ZeroLocalVc: no noticeLine when CHECK FAILED');
+assertEqual(checkFailedResults[0].warningLine, null,
+  'ZeroLocalVc: no warningLine when CHECK FAILED');
+assert(
+  checkFailedResults[0].checkFailedLine !== null,
+  'ZeroLocalVc: checkFailedLine is set'
+);
+assert(
+  checkFailedResults[0].checkFailedLine.includes('CHECK FAILED'),
+  'ZeroLocalVc: checkFailedLine contains CHECK FAILED'
+);
+assert(
+  checkFailedResults[0].checkFailedLine.includes('localVc=0'),
+  'ZeroLocalVc: checkFailedLine mentions localVc=0'
+);
+
+// 2. local versionCode = null (treated as 0) → CHECK_FAILED
+assert(
+  checkFailedResults[1].logLine.includes('CHECK FAILED'),
+  'NullLocalVc: logLine contains CHECK FAILED'
+);
+assert(
+  checkFailedResults[1].checkFailedLine !== null,
+  'NullLocalVc: checkFailedLine is set (null treated as 0)'
+);
+assert(
+  checkFailedResults[1].checkFailedLine.includes('localVc=0'),
+  'NullLocalVc: checkFailedLine shows localVc=0 (null coerced)'
+);
+
+// 3. repo versionCode = null (treated as 0) → CHECK_FAILED
+assert(
+  checkFailedResults[2].logLine.includes('CHECK FAILED'),
+  'NullRepoVc: logLine contains CHECK FAILED'
+);
+assert(
+  checkFailedResults[2].checkFailedLine !== null,
+  'NullRepoVc: checkFailedLine is set (null repo vc treated as 0)'
+);
+assert(
+  checkFailedResults[2].checkFailedLine.includes('repoVc=0'),
+  'NullRepoVc: checkFailedLine shows repoVc=0 (null coerced)'
+);
+assertEqual(checkFailedResults[2].noticeLine, null,
+  'NullRepoVc: no noticeLine when CHECK FAILED');
+assertEqual(checkFailedResults[2].warningLine, null,
+  'NullRepoVc: no warningLine when CHECK FAILED');
 
 // ---------------------------------------------------------------------------
 // /index-v2.json URL construction test

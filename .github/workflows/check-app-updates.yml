@@ -8,7 +8,7 @@ on:
   push:
     paths:
       - ".github/workflows/check-app-updates.yml"
-      - "includes/lib-check-app-updates.mjs"
+      - "includes/app-update-checker-lib.mjs"
       - "zip-content/origin/**"
       - "tools/test-check-updates.mjs"
   workflow_dispatch:
@@ -31,7 +31,7 @@ jobs:
           lfs: false
           sparse-checkout: |
             zip-content/origin
-            includes/lib-check-app-updates.mjs
+            includes/app-update-checker-lib.mjs
       - name: "Use LFS cache"
         uses: actions/cache/restore@v5
         timeout-minutes: 10
@@ -47,6 +47,6 @@ jobs:
           retries: 1
           script: |
             const { default: run } = await import(
-              `${process.env.GITHUB_WORKSPACE}/includes/lib-check-app-updates.mjs`
+              `${process.env.GITHUB_WORKSPACE}/includes/app-update-checker-lib.mjs`
             );
             await run({ core });

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: (c) 2026 ale5000
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import run from '../includes/lib-check-app-updates.mjs';
+import run from '../includes/app-update-checker-lib.mjs';
 
 // Minimal console-based shim for @actions/core — used when running outside
 // GitHub Actions (e.g. invoked by tools/check-app-updates.sh).
