@@ -10,7 +10,7 @@ on:
       - ".github/workflows/check-app-updates.yml"
       - "includes/check-app-updates.mjs"
       - "zip-content/origin/**"
-      - "tools/test-check-updates.js"
+      - "tools/test-check-updates.mjs"
   workflow_dispatch:
   schedule:
     # At 05:00 AM, every 7 days (UTC)
@@ -151,4 +151,8 @@ jobs:
         timeout-minutes: 25
         with:
           retries: 1
-          script-path: includes/check-app-updates.mjs
+          script: |
+            const { default: run } = await import(
+              `${process.env.GITHUB_WORKSPACE}/includes/check-app-updates.mjs`
+            );
+            await run({ core });
