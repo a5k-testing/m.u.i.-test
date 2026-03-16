@@ -23,10 +23,21 @@ setup() {
   MOCK_DIR="$(mktemp -d)"
   export MOCK_OUTPUT_FILE="${MOCK_DIR}/node_output"
 
-  # Mock node: records APKS_DIRS and APKS_FILES to MOCK_OUTPUT_FILE
-  # (inherited via export), then exits cleanly.
+  # Mock node: validates APKS_DIRS (mimics app-update-checker-lib.mjs run()),
+  # then records APKS_DIRS and APKS_FILES to MOCK_OUTPUT_FILE, then exits cleanly.
   cat > "${MOCK_DIR}/node" << 'MOCK'
 #!/bin/sh
+if [ -n "${APKS_DIRS:-}" ]; then
+  while IFS= read -r _dir || [ -n "${_dir}" ]; do
+    [ -z "${_dir}" ] && continue
+    if ! test -d "${_dir}"; then
+      printf 1>&2 'ERROR: APK directory not found: %s\n' "${_dir}"
+      exit 1
+    fi
+  done << __DIRS__
+${APKS_DIRS}
+__DIRS__
+fi
 printf 'DIRS=%s\n'  "${APKS_DIRS:-}"  >> "${MOCK_OUTPUT_FILE:-/dev/null}"
 printf 'FILES=%s\n' "${APKS_FILES:-}" >> "${MOCK_OUTPUT_FILE:-/dev/null}"
 exit 0
@@ -168,6 +179,29 @@ teardown() {
   run sh "${SCRIPT}" --file '/tmp/only.apk'
   [ "${status}" -eq 0 ]
   grep -qF '/tmp/only.apk' "${MOCK_OUTPUT_FILE}"
+  # APKS_DIRS must be empty (line is exactly "DIRS=")
+  grep -qxF 'DIRS=' "${MOCK_OUTPUT_FILE}"
+}
+
+# ---------------------------------------------------------------------------
+# Positional arguments
+# ---------------------------------------------------------------------------
+
+@test "positional directory argument is added to APKS_DIRS" {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  run sh "${SCRIPT}" "${tmp_dir}"
+  rmdir "${tmp_dir}"
+  [ "${status}" -eq 0 ]
+  grep -qF "${tmp_dir}" "${MOCK_OUTPUT_FILE}"
+  # APKS_FILES must be empty (line is exactly "FILES=")
+  grep -qxF 'FILES=' "${MOCK_OUTPUT_FILE}"
+}
+
+@test "positional non-directory argument is added to APKS_FILES" {
+  run sh "${SCRIPT}" '/tmp/some.apk'
+  [ "${status}" -eq 0 ]
+  grep -qF '/tmp/some.apk' "${MOCK_OUTPUT_FILE}"
   # APKS_DIRS must be empty (line is exactly "DIRS=")
   grep -qxF 'DIRS=' "${MOCK_OUTPUT_FILE}"
 }

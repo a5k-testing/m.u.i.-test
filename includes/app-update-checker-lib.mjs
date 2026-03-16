@@ -499,9 +499,9 @@ async function getCertSha256(apkPath) {
 //   apkFiles    {string[]|null} – explicit list of absolute APK paths to process
 //                                 instead of scanning baseDir; when provided,
 //                                 baseDir may be null
-//   workspace   {string|null}   – workspace root used to compute relPath for every
-//                                 APK (path relative to workspace); required so
-//                                 that apk.relPath is always a meaningful path
+//   workspace   {string|null}   – workspace root used to compute relPath for APKs
+//                                 found via apkFiles (path relative to workspace);
+//                                 for dir-scanned APKs, relPath is relative to baseDir
 //   lfsCacheDir {string|null}   – path to a Git-LFS cache directory
 //                                 (e.g. GITHUB_WORKSPACE/cache/lfs)
 //   core        {object}        – logger implementing .info(msg) (optional)
@@ -525,9 +525,9 @@ export async function extractApkInfo(
 
   for (const apkPath of apkPaths) {
     const fileName = path.basename(apkPath);
-    const relPath  = workspace
-      ? path.relative(workspace, apkPath)
-      : path.basename(apkPath);
+    const relPath = apkFiles != null
+      ? (workspace ? path.relative(workspace, apkPath) : path.basename(apkPath))
+      : path.relative(baseDir, apkPath);
 
     // Detect and resolve LFS pointer files
     let resolvedPath = apkPath;
@@ -641,6 +641,15 @@ export default async function run(
         ? [path.join(workspace, 'zip-content/origin')]
         : apkDirs)
     : [];
+
+  // Validate APK directories exist
+  for (const dir of effectiveDirs) {
+    let isDir = false;
+    try { isDir = statSync(dir).isDirectory(); } catch { /* ignore */ }
+    if (!isDir) {
+      throw new Error(`APK directory not found: ${dir}`);
+    }
+  }
 
   // Cache directories always have a valid path (never disabled)
   const lfsDir  = lfsCacheDir  ?? path.join(workspace, 'cache/lfs');

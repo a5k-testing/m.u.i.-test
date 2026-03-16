@@ -756,6 +756,13 @@ const STUB_CORE = {
     'run(): error message mentions apkFiles');
 }
 
+// apkDirs contains a nonexistent directory → throws "APK directory not found"
+{
+  const msg = await runError({ core: STUB_CORE, apkDirs: ['/nonexistent/path/to/apks'] });
+  assert(msg !== null && msg.includes('APK directory not found'),
+    'run(): nonexistent dir in apkDirs throws "APK directory not found"');
+}
+
 // apkDirs set (even empty) → does NOT throw due to apkFiles absence
 // (empty apkDirs means "use default directory", which is valid)
 {

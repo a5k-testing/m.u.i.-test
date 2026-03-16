@@ -46,7 +46,7 @@ show_error()
 main()
 {
   local apk_dirs="${1:-}" apk_files="${2:-}"
-  local script_dir repo_dir _dir _dirs_ok apk_file_count
+  local script_dir repo_dir _dir apk_file_count
 
   # Resolve the directory containing this script and the repo root
   script_dir="$(cd "$(dirname "${0}")" && pwd)"
@@ -55,22 +55,6 @@ main()
   # Default APK directory when neither --dir nor --file is given
   if test -z "${apk_dirs}" && test -z "${apk_files}"; then
     apk_dirs="${repo_dir}/zip-content/origin"
-  fi
-
-  # Validate each directory in the newline-separated list
-  if test -n "${apk_dirs}"; then
-    _dirs_ok='true'
-    while IFS= read -r _dir || test -n "${_dir}"; do
-      test -z "${_dir}" && continue
-      if ! test -d "${_dir}"; then
-        show_error "APK directory not found: ${_dir}"
-        _dirs_ok='false'
-        break
-      fi
-    done <<EOF
-${apk_dirs}
-EOF
-    test "${_dirs_ok}" = 'true' || return 1
   fi
 
   # Node.js 20+ is required (the library checks at import time, but give a
@@ -152,11 +136,17 @@ while test "${#}" -gt 0; do
   shift
 done
 
-# Accept a positional argument as an alternative to --dir
-if test "${#}" -gt 0 && test -z "${apk_dirs_arg}"; then
-  apk_dirs_arg="${1}"
+# Accept positional arguments: directories → apk_dirs_arg, other paths → apk_files_arg
+while test "${#}" -gt 0; do
+  if test -d "${1}"; then
+    apk_dirs_arg="${apk_dirs_arg:+${apk_dirs_arg}
+}${1}"
+  else
+    apk_files_arg="${apk_files_arg:+${apk_files_arg}
+}${1}"
+  fi
   shift
-fi
+done
 
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
