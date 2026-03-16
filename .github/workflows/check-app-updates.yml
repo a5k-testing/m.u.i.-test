@@ -42,11 +42,16 @@ jobs:
         shell: bash
         run: |
           # Extract package name, version code, and signing certificate SHA-256
-          # from APKs listed in file-list.dat.
+          # from all APKs found recursively under zip-content/origin/,
+          # processed in alphabetical order.
           # APKs stored in LFS appear as tiny pointer files when lfs: false;
-          # those are detected by size and skipped.
-          # file-list.dat fields: path|minSdk|maxSdk|apkName|subDir|pkg|sha256
-          # (sha256 there is the APK file hash, not the cert hash)
+          # those are resolved from the LFS cache when available.
+
+          # Base directory for the APK search
+          base_dir="${GITHUB_WORKSPACE}/zip-content/origin"
+
+          # Files to skip (relative to base_dir, newline-separated)
+          skip_list=$'priv-app/FakeStore-0.3.6.apk\npriv-app/GmsCore-0.3.6.apk\npriv-app/GmsCoreVtm.apk\npriv-app/GmsCoreVtmLegacy.apk\n'
 
           # Locate aapt: prefer PATH, fall back to Android SDK build-tools
           aapt_bin=''
@@ -63,28 +68,18 @@ jobs:
 
           apk_count='0'
           json_entries=''
-          while IFS='|' read -r \
-            path_field min_sdk max_sdk apk_name sub_dir pkg _file_sha256
-          do
-            # Only process priv-app/ and app/ entries
-            case "${path_field}" in
-              priv-app/* | app/*) ;;
-              *) continue ;;
-            esac
-            test -n "${pkg}" || continue
+          while IFS= read -r apk_path; do
+            test -n "${apk_path}" || continue
 
-            apk_path="${GITHUB_WORKSPACE}/zip-content/origin/${path_field}.apk"
-            test -f "${apk_path}" || {
-              printf 'WARNING: not found: %s\n' "${apk_path}" >&2
-              continue
-            }
+            file_name="$(basename "${apk_path}")"
+            rel_path="${apk_path#"${base_dir}/"}"
 
-            file_name="$(basename "${path_field}")"
-            # Ensure the filename ends with .apk (path entries in
-            # file-list.dat do not include the extension, but guard anyway)
-            case "${file_name}" in
-              *.apk) ;;
-              *) file_name="${file_name}.apk" ;;
+            # Check skip list
+            case "${skip_list}" in
+              *"${rel_path}"*)
+                printf 'INFO: skipping (skip list): %s\n' "${rel_path}"
+                continue
+                ;;
             esac
 
             # Detect LFS pointer files (mirrors is_lfs_pointers in includes/common.sh)
@@ -107,12 +102,21 @@ jobs:
               fi
             fi
 
-            # Version code from APK manifest
+            # Package name and version code from APK manifest
             pkg_line="$("${aapt_bin}" dump badging "${apk_path}" \
               2>/dev/null | grep '^package:' || true)"
+            pkg="$(printf '%s' "${pkg_line}" \
+              | grep -o " name='[^']*'" \
+              | head -1 | cut -d"'" -f2)"
             version_code="$(printf '%s' "${pkg_line}" \
               | grep -o "[[:space:]]versionCode='[^']*'" \
               | head -1 | cut -d"'" -f2)"
+
+            test -n "${pkg}" || {
+              printf 'WARNING: skipping %s (package name not found)\n' \
+                "${file_name}" >&2
+              continue
+            }
 
             # SHA-256 of the signing certificate via keytool
             cert_sha256="$(keytool -printcert -jarfile "${apk_path}" \
@@ -140,7 +144,11 @@ jobs:
             entry="${entry}"',"certSha256":"'"${cert_sha256}"'"}'
             json_entries="${json_entries:+${json_entries},}${entry}"
             apk_count="$((apk_count + 1))"
-          done < "${GITHUB_WORKSPACE}/zip-content/origin/file-list.dat"
+          done < <(
+            find "${base_dir}" \
+              -name '*.apk' -type f 2>/dev/null \
+            | sort
+          )
 
           printf '[%s]\n' "${json_entries}" \
             > "${RUNNER_TEMP}/apk_info.json"
@@ -305,7 +313,7 @@ jobs:
 
             // Report results
             core.info('');
-            core.info('=== Update Check Results ===');
+            core.info('=== Update check results ===');
             for (const apk of apkInfoList) {
               // Loop through repos in order; stop at the first one that has
               // both a matching package name and a matching signing certificate
@@ -347,40 +355,6 @@ jobs:
                       ` repo=${ver.vn} (${repoVc})` +
                       ` > local (${localVc})`;
                   } else if (repoVc === localVc) {
-                    statusText =
-                      `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
-                  } else {
-                    statusText =
-                      `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
-                      ` > repo (${repoVc})`;
-                  }
-                } else {
-                  statusText = `found, latest=${ver.vn}`;
-                }
-                core.info(
-                  `[${label}] ${apk.fileName}` +
-                  ` (${apk.packageName}): ${statusText}`
-                );
-                if (repoVc !== null && localVc && repoVc > localVc) {
-                  core.notice(
-                    `[${label}] ${apk.fileName} (${apk.packageName}):` +
-                    ` ${statusText}` +
-                    (apkUrl ? `\n${apkUrl}` : ''),
-                    { title: 'Update Available' }
-                  );
-                }
-                if (repoVc !== null && localVc && repoVc < localVc) {
-                  core.warning(
-                    `${apk.fileName} (${apk.packageName}): ${statusText}`,
-                    { title: 'Local Newer' }
-                  );
-                }
-                summaryRows.push([
-                  apk.fileName,
-                  apk.packageName,
-                  label,
-                  statusText,
-                ]);
               } else {
                 // Collect repos where the package exists under a different cert
                 const signerMismatch = repoData
