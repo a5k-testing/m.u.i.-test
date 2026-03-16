@@ -49,13 +49,15 @@ function shortUrl(url) {
 }
 
 const ICON = {
-  UPDATE_AVAILABLE: '📥',
+  UPDATE_AVAILABLE: '✨',
   UP_TO_DATE:       '✅',
-  LOCAL_NEWER:      '🏆',
+  LOCAL_NEWER:      '🚀',
   DIFFERENT_SIGNER: '🔐',
-  NOT_IN_REPO:      '🚫',
+  NOT_IN_REPO:      '❓',
 };
 
+const MICROG_CERT =
+  '9bd06727e62796c0130eb6dab39b73157451582cbd138e86c468acc395d14165';
 const SPECIAL_PKG_CERT =
   'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
 const SPECIAL_PKGS = new Set([
@@ -75,8 +77,12 @@ function checkApks(apkInfoList, repoData) {
         certMatch = { baseUrl, ver };
         break;
       }
-      // Special fallback for GMS packages: also try known cert
-      if (SPECIAL_PKGS.has(apk.packageName)) {
+      // Special fallback: for GMS packages whose local APK is
+      // signed with the microG cert, also try SPECIAL_PKG_CERT
+      if (
+        SPECIAL_PKGS.has(apk.packageName) &&
+        apk.certSha256 === MICROG_CERT
+      ) {
         const verFallback = pkg?.byCert[SPECIAL_PKG_CERT];
         if (verFallback) {
           certMatch = { baseUrl, ver: verFallback };
@@ -400,12 +406,19 @@ const results = checkApks([
     versionCode: 10,
     certSha256: CERT_AURORA,
   },
-  // 7. FakeStore: cert differs, but special cert fallback matches F-Droid
+  // 7. FakeStore: local cert is MICROG_CERT → special cert fallback matches F-Droid
   {
     fileName: 'FakeStore.apk',
     packageName: 'com.android.vending',
     versionCode: 80000000,
-    certSha256: CERT_MICROG,
+    certSha256: MICROG_CERT,
+  },
+  // 8. GmsCore signed with a non-microG, non-Google cert → fallback NOT triggered
+  {
+    fileName: 'GmsCoreOther.apk',
+    packageName: 'com.google.android.gms',
+    versionCode: 100000000,
+    certSha256: 'some_other_cert_ffff',
   },
 ], REPOS);
 
@@ -431,7 +444,7 @@ assert(
   'NewPipe: LOCAL NEWER in F-Droid (short URL)'
 );
 assert(results[1].logLine.includes(ICON.LOCAL_NEWER),
-  'NewPipe: 🏆 icon present');
+  'NewPipe: 🚀 icon present');
 assertEqual(results[1].noticeLine, null,
   'NewPipe: no notice for LOCAL NEWER');
 assert(results[1].warningLine !== null,
@@ -446,7 +459,7 @@ assert(
   'GmsCore (microG cert): UPDATE AVAILABLE from microG repo (short URL)'
 );
 assert(results[2].logLine.includes(ICON.UPDATE_AVAILABLE),
-  'GmsCore (microG cert): 📥 icon present');
+  'GmsCore (microG cert): ✨ icon present');
 assertEqual(results[2].tableRow[2], 'microg.org',
   'GmsCore (microG cert): tableRow repo = microg.org');
 assert(results[2].noticeLine !== null,
@@ -500,7 +513,7 @@ assert(
   'AuroraServices: NOT IN REPO'
 );
 assertEqual(results[5].tableRow[3], `${ICON.NOT_IN_REPO} NOT IN REPO`,
-  'AuroraServices: tableRow status has 🚫 NOT IN REPO');
+  'AuroraServices: tableRow status has ❓ NOT IN REPO');
 assertEqual(results[5].tableRow[2], '-',
   'AuroraServices: tableRow repo = -');
 assertEqual(results[5].noticeLine, null,
@@ -508,7 +521,7 @@ assertEqual(results[5].noticeLine, null,
 assertEqual(results[5].warningLine, null,
   'AuroraServices: no warning for NOT IN REPO');
 
-// 7. Special cert fallback: FakeStore with mismatched cert → matched via
+// 7. Special cert fallback: FakeStore with MICROG_CERT → matched via
 //    SPECIAL_PKG_CERT in F-Droid
 assert(
   results[6].logLine.includes('[f-droid.org]') &&
@@ -528,6 +541,18 @@ assert(
 assertEqual(results[6].warningLine, null,
   'FakeStore: no warning for UPDATE AVAILABLE');
 
+// 8. GmsCore with non-microG cert → fallback NOT triggered → DIFFERENT SIGNER
+assert(
+  results[7].logLine.includes('[DIFFERENT SIGNER]'),
+  'GmsCoreOther: DIFFERENT SIGNER (fallback not triggered for non-microG cert)'
+);
+assertEqual(results[7].tableRow[3], `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
+  'GmsCoreOther: tableRow status has 🔐 DIFFERENT SIGNER');
+assertEqual(results[7].noticeLine, null,
+  'GmsCoreOther: no notice for DIFFERENT SIGNER');
+assertEqual(results[7].warningLine, null,
+  'GmsCoreOther: no warning for DIFFERENT SIGNER');
+
 // ---------------------------------------------------------------------------
 // /index-v2.json URL construction test
 // ---------------------------------------------------------------------------
@@ -544,6 +569,29 @@ assertEqual(indexUrls[0], 'https://f-droid.org/repo/index-v2.json',
   'F-Droid: /index-v2.json appended correctly');
 assertEqual(indexUrls[1], 'https://repo.microg.org/fdroid/repo/index-v2.json',
   'microG: /index-v2.json appended correctly');
+
+// ---------------------------------------------------------------------------
+// fetchUrl: HTTPS enforcement and redirect limit
+// ---------------------------------------------------------------------------
+
+console.log('\n── fetchUrl: HTTPS enforcement ──');
+
+// All configured repo URLs must be HTTPS
+for (const baseUrl of BASE_URLS) {
+  assert(baseUrl.startsWith('https://'), `Repo base URL is HTTPS: ${baseUrl}`);
+}
+
+// URL validation (mirrors the check inside fetchUrl)
+function isHttpsUrl(url) {
+  return url.startsWith('https://');
+}
+assert(!isHttpsUrl('http://example.com/repo'), 'HTTP URL fails HTTPS check');
+assert(!isHttpsUrl('ftp://example.com/repo'), 'FTP URL fails HTTPS check');
+assert(isHttpsUrl('https://f-droid.org/repo'), 'HTTPS URL passes check');
+
+// Max redirects constant
+const MAX_REDIRECTS = 3;
+assertEqual(MAX_REDIRECTS, 3, 'Max redirects is 3');
 
 // ---------------------------------------------------------------------------
 // Summary

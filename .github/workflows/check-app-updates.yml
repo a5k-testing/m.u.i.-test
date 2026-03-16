@@ -30,6 +30,14 @@ jobs:
           lfs: false
           sparse-checkout: |
             zip-content/origin
+      - name: "Use LFS cache"
+        uses: actions/cache/restore@v5
+        timeout-minutes: 10
+        with:
+          key: "lfs-${{ hashFiles('conf-lfs.sh') }}"
+          restore-keys: "lfs-"
+          path: "cache/lfs"
+          enableCrossOsArchive: true
       - name: "Extract APK info"
         shell: bash
         run: |
@@ -79,13 +87,24 @@ jobs:
               *) file_name="${file_name}.apk" ;;
             esac
 
-            # Detect LFS pointer files: real APKs are always much larger than
-            # the ~130-byte stub written by git-lfs when lfs: false is used
+            # Detect LFS pointer files (mirrors is_lfs_pointers in includes/common.sh)
             file_size="$(wc -c < "${apk_path}")"
-            if [ "${file_size}" -lt 1000 ]; then
-              printf 'WARNING: skipping LFS pointer: %s\n' \
-                "${file_name}" >&2
-              continue
+            if [ "${file_size}" -lt 1024 ] && \
+               grep -m 1 -q -e '^version https://git-lfs.github.com/spec/v1$' \
+               -- "${apk_path}"; then
+              # Extract SHA-256 from the LFS pointer and look it up in the LFS cache
+              lfs_sha256="$(grep -m 1 -e '^oid sha256:' -- "${apk_path}" \
+                | cut -d ':' -f 2 -s)"
+              lfs_cached="${GITHUB_WORKSPACE}/cache/lfs/${lfs_sha256}"
+              if [ -n "${lfs_sha256}" ] && [ -f "${lfs_cached}" ]; then
+                apk_path="${lfs_cached}"
+                printf 'INFO: resolved LFS pointer for %s (sha256=%s)\n' \
+                  "${file_name}" "${lfs_sha256}"
+              else
+                printf 'WARNING: skipping LFS pointer (cache miss): %s\n' \
+                  "${file_name}" >&2
+                continue
+              fi
             fi
 
             # Version code from APK manifest
@@ -138,7 +157,6 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const https = require('https');
-            const http = require('http');
 
             // Load APK info produced by the shell step
             const apkInfoList = JSON.parse(
@@ -149,13 +167,17 @@ jobs:
             );
             core.info(`Loaded info for ${apkInfoList.length} APK(s)`);
 
-            // Fetch a URL, following up to maxRedirects redirects
-            function fetchUrl(url, maxRedirects = 5) {
+            // Fetch a URL over HTTPS only, following up to maxRedirects redirects
+            function fetchUrl(url, maxRedirects = 3) {
               return new Promise((resolve, reject) => {
                 const doGet = (targetUrl, remaining) => {
-                  const mod =
-                    targetUrl.startsWith('https') ? https : http;
-                  mod.get(targetUrl, (res) => {
+                  if (!targetUrl.startsWith('https://')) {
+                    reject(new Error(
+                      `Non-HTTPS URL rejected: ${targetUrl}`
+                    ));
+                    return;
+                  }
+                  https.get(targetUrl, (res) => {
                     if (
                       res.statusCode >= 300 &&
                       res.statusCode < 400 &&
@@ -242,14 +264,17 @@ jobs:
 
             // Unicode icons for each result state
             const ICON = {
-              UPDATE_AVAILABLE: '📥',
+              UPDATE_AVAILABLE: '✨',
               UP_TO_DATE:       '✅',
-              LOCAL_NEWER:      '🏆',
+              LOCAL_NEWER:      '🚀',
               DIFFERENT_SIGNER: '🔐',
-              NOT_IN_REPO:      '🚫',
+              NOT_IN_REPO:      '❓',
             };
 
-            // Packages that also get a fallback cert check
+            // Packages that get a special cert fallback when the local APK
+            // is signed with the microG certificate
+            const MICROG_CERT =
+              '9bd06727e62796c0130eb6dab39b73157451582cbd138e86c468acc395d14165';
             const SPECIAL_PKG_CERT =
               'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
             const SPECIAL_PKGS = new Set([
@@ -292,8 +317,12 @@ jobs:
                   certMatch = { baseUrl, ver };
                   break;
                 }
-                // Special fallback for GMS packages: also try known cert
-                if (SPECIAL_PKGS.has(apk.packageName)) {
+                // Special fallback: for GMS packages whose local APK is
+                // signed with the microG cert, also try SPECIAL_PKG_CERT
+                if (
+                  SPECIAL_PKGS.has(apk.packageName) &&
+                  apk.certSha256 === MICROG_CERT
+                ) {
                   const verFallback = pkg?.byCert[SPECIAL_PKG_CERT];
                   if (verFallback) {
                     certMatch = { baseUrl, ver: verFallback };
