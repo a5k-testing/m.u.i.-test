@@ -6,7 +6,7 @@ import path from 'path';
 import https from 'https';
 
 // Files to skip the update check (relative to zip-content/origin/)
-const SKIP_LIST = new Set([
+export const SKIP_LIST = new Set([
   'priv-app/FakeStore-0.3.6.apk',
   'priv-app/GmsCore-0.3.6.apk',
   'priv-app/GmsCoreVtm.apk',
@@ -59,7 +59,7 @@ function fetchUrl(url, maxRedirects = 3) {
 // signing certificate SHA-256 hashes). We index versions by cert
 // so that we can match our local APKs (identified via keytool) to
 // the exact signer family present in the repo.
-function parseRepoV2(data) {
+export function parseRepoV2(data) {
   const apps = new Map();
   for (const [pkgId, pkg] of
     Object.entries(data.packages || {})
@@ -99,7 +99,7 @@ function parseRepoV2(data) {
 
 // Shorten a full repo URL to just its base domain
 // e.g. "https://repo.microg.org/fdroid/repo" → "microg.org"
-function shortUrl(url) {
+export function shortUrl(url) {
   try {
     const parts = new URL(url).hostname.split('.');
     return parts.slice(-2).join('.');
@@ -109,7 +109,7 @@ function shortUrl(url) {
 }
 
 // Unicode icons for each result state
-const ICON = {
+export const ICON = {
   UPDATE_AVAILABLE: '✨',
   UP_TO_DATE:       '✅',
   LOCAL_NEWER:      '🚀',
@@ -119,61 +119,27 @@ const ICON = {
 
 // Packages that get a special cert fallback when the local APK
 // is signed with the microG certificate
-const MICROG_CERT =
+export const MICROG_CERT =
   '9bd06727e62796c0130eb6dab39b73157451582cbd138e86c468acc395d14165';
-const SPECIAL_PKG_CERT =
+export const SPECIAL_PKG_CERT =
   'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
-const SPECIAL_PKGS = new Set([
+export const SPECIAL_PKGS = new Set([
   'com.google.android.gms',
   'com.android.vending',
 ]);
 
 // Ordered list of F-Droid-compatible repository base URLs.
 // "/index-v2.json" is appended automatically when fetching.
-const repos = [
+export const repos = [
   'https://f-droid.org/repo',
   'https://repo.microg.org/fdroid/repo',
 ];
 
-export default async function ({ core }) {
-  // Load APK info produced by the shell step, filtering out skipped entries
-  const allApkInfo = JSON.parse(
-    fs.readFileSync(
-      path.join(process.env.RUNNER_TEMP, 'apk_info.json'),
-      'utf-8'
-    )
-  );
-  const apkInfoList = allApkInfo.filter(apk => {
-    if (SKIP_LIST.has(apk.relPath)) {
-      core.info(`Skipping (skip list): ${apk.relPath}`);
-      return false;
-    }
-    return true;
-  });
-  core.info(
-    `Loaded info for ${apkInfoList.length} APK(s)` +
-    (allApkInfo.length !== apkInfoList.length
-      ? ` (skipped ${allApkInfo.length - apkInfoList.length})`
-      : '')
-  );
-
-  // Fetch and parse every repo index
-  const repoData = [];
-  for (const baseUrl of repos) {
-    const indexUrl = `${baseUrl}/index-v2.json`;
-    core.info(`Fetching ${indexUrl}…`);
-    const data = JSON.parse(await fetchUrl(indexUrl));
-    const apps = parseRepoV2(data);
-    core.info(`  Parsed ${apps.size} app(s) from ${baseUrl}`);
-    repoData.push({ baseUrl, apps });
-  }
-
-  // Collect rows for Job Summary table
-  const summaryRows = [];
-
-  // Report results
-  core.info('');
-  core.info('=== Update check results ===');
+// Check apkInfoList against repoData; returns one result per APK:
+//   { logLine, tableRow, noticeLine, warningLine }
+// noticeLine/warningLine are null when no notice/warning should be emitted.
+export function checkApks(apkInfoList, repoData) {
+  const results = [];
   for (const apk of apkInfoList) {
     // Loop through repos in order; stop at the first one that has
     // both a matching package name and a matching signing certificate
@@ -226,35 +192,28 @@ export default async function ({ core }) {
       } else {
         statusText = `found, latest=${ver.vn}`;
       }
-      core.info(
+      const logLine =
         `[${label}] ${apk.fileName}` +
-        ` (${apk.packageName}): ${statusText}`
-      );
-      if (isUpdateAvail) {
-        core.notice(
-          `[${label}] ${apk.fileName} (${apk.packageName}):` +
+        ` (${apk.packageName}): ${statusText}`;
+      const noticeLine = isUpdateAvail
+        ? `[${label}] ${apk.fileName} (${apk.packageName}):` +
           ` ${statusText}` +
-          (apkUrl ? `\n${apkUrl}` : ''),
-          { title: 'Update available' }
-        );
-      }
-      if (isLocalNewer) {
-        core.warning(
-          `${apk.fileName} (${apk.packageName}): ${statusText}`,
-          { title: 'Local Newer' }
-        );
-      }
+          (apkUrl ? `\n${apkUrl}` : '')
+        : null;
+      const warningLine = isLocalNewer
+        ? `${apk.fileName} (${apk.packageName}): ${statusText}`
+        : null;
       const tableStatus = (isUpdateAvail && apkUrl)
         ? `${ICON.UPDATE_AVAILABLE}` +
           ` <a href="${apkUrl}">UPDATE AVAILABLE</a>:` +
           ` ${versionInfo}`
         : statusText;
-      summaryRows.push([
-        apk.fileName,
-        apk.packageName,
-        label,
-        tableStatus,
-      ]);
+      results.push({
+        logLine,
+        tableRow: [apk.fileName, apk.packageName, label, tableStatus],
+        noticeLine,
+        warningLine,
+      });
     } else {
       // Collect repos where the package exists under a different cert
       const signerMismatch = repoData
@@ -263,31 +222,92 @@ export default async function ({ core }) {
           const p = apps.get(apk.packageName);
           return `${shortUrl(baseUrl)} (latest=${p.latestVn} ${p.latestVc})`;
         });
-      let repoLabel, statusText;
       if (signerMismatch.length > 0) {
-        repoLabel = signerMismatch.join(', ');
-        statusText = `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`;
-        core.info(
-          `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${apk.fileName}` +
-          ` (${apk.packageName}):` +
-          ` ${repoLabel}` +
-          ` but signed with a different certificate`
-        );
+        const repoLabel = signerMismatch.join(', ');
+        results.push({
+          logLine:
+            `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${apk.fileName}` +
+            ` (${apk.packageName}):` +
+            ` ${repoLabel}` +
+            ` but signed with a different certificate`,
+          tableRow: [
+            apk.fileName,
+            apk.packageName,
+            repoLabel,
+            `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
+          ],
+          noticeLine: null,
+          warningLine: null,
+        });
       } else {
-        repoLabel = '-';
-        statusText = `${ICON.NOT_IN_REPO} NOT IN REPO`;
-        core.info(
-          `${ICON.NOT_IN_REPO} [NOT IN REPO] ${apk.fileName}` +
-          ` (${apk.packageName}): not found in any repo`
-        );
+        results.push({
+          logLine:
+            `${ICON.NOT_IN_REPO} [NOT IN REPO] ${apk.fileName}` +
+            ` (${apk.packageName}): not found in any repo`,
+          tableRow: [
+            apk.fileName,
+            apk.packageName,
+            '-',
+            `${ICON.NOT_IN_REPO} NOT IN REPO`,
+          ],
+          noticeLine: null,
+          warningLine: null,
+        });
       }
-      summaryRows.push([
-        apk.fileName,
-        apk.packageName,
-        repoLabel,
-        statusText,
-      ]);
     }
+  }
+  return results;
+}
+
+export default async function ({ core }) {
+  // Load APK info produced by the shell step, filtering out skipped entries
+  const allApkInfo = JSON.parse(
+    fs.readFileSync(
+      path.join(process.env.RUNNER_TEMP, 'apk_info.json'),
+      'utf-8'
+    )
+  );
+  const apkInfoList = allApkInfo.filter(apk => {
+    if (SKIP_LIST.has(apk.relPath)) {
+      core.info(`Skipping (skip list): ${apk.relPath}`);
+      return false;
+    }
+    return true;
+  });
+  core.info(
+    `Loaded info for ${apkInfoList.length} APK(s)` +
+    (allApkInfo.length !== apkInfoList.length
+      ? ` (skipped ${allApkInfo.length - apkInfoList.length})`
+      : '')
+  );
+
+  // Fetch and parse every repo index
+  const repoData = [];
+  for (const baseUrl of repos) {
+    const indexUrl = `${baseUrl}/index-v2.json`;
+    core.info(`Fetching ${indexUrl}…`);
+    const data = JSON.parse(await fetchUrl(indexUrl));
+    const apps = parseRepoV2(data);
+    core.info(`  Parsed ${apps.size} app(s) from ${baseUrl}`);
+    repoData.push({ baseUrl, apps });
+  }
+
+  // Collect rows for Job Summary table
+  const summaryRows = [];
+
+  // Report results
+  core.info('');
+  core.info('=== Update check results ===');
+  for (const { logLine, tableRow, noticeLine, warningLine }
+    of checkApks(apkInfoList, repoData)) {
+    core.info(logLine);
+    if (noticeLine !== null) {
+      core.notice(noticeLine, { title: 'Update available' });
+    }
+    if (warningLine !== null) {
+      core.warning(warningLine, { title: 'Local Newer' });
+    }
+    summaryRows.push(tableRow);
   }
 
   // Write Job Summary table

@@ -1,178 +1,16 @@
 // SPDX-FileCopyrightText: (c) 2026 ale5000
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-
-// ---------------------------------------------------------------------------
-// Extracted from includes/check-app-updates.mjs — keep in sync.
-// ---------------------------------------------------------------------------
-
-function parseRepoV2(data) {
-  const apps = new Map();
-  for (const [pkgId, pkg] of Object.entries(data.packages || {})) {
-    let latestVc = null;
-    let latestVn = '';
-    const byCert = {};
-    for (const [, ver] of Object.entries(pkg.versions || {})) {
-      const m = ver.manifest || {};
-      const vc = m.versionCode ?? null;
-      const vn = m.versionName || '';
-      const apkName = ver.file?.name || '';
-      const certs = m.signer?.sha256 ?? [];
-      for (const cert of certs) {
-        const c = cert.toLowerCase();
-        if (
-          !(c in byCert) ||
-          (vc !== null && (byCert[c].vc === null || vc > byCert[c].vc))
-        ) {
-          byCert[c] = { vc, vn, apkName };
-        }
-      }
-      if (vc !== null && (latestVc === null || vc > latestVc)) {
-        latestVc = vc;
-        latestVn = vn;
-      }
-    }
-    apps.set(pkgId, { byCert, latestVc, latestVn });
-  }
-  return apps;
-}
-
-function shortUrl(url) {
-  try {
-    const parts = new URL(url).hostname.split('.');
-    return parts.slice(-2).join('.');
-  } catch (_) {
-    return url;
-  }
-}
-
-const ICON = {
-  UPDATE_AVAILABLE: '✨',
-  UP_TO_DATE:       '✅',
-  LOCAL_NEWER:      '🚀',
-  DIFFERENT_SIGNER: '🔐',
-  NOT_IN_REPO:      '❓',
-};
-
-const MICROG_CERT =
-  '9bd06727e62796c0130eb6dab39b73157451582cbd138e86c468acc395d14165';
-const SPECIAL_PKG_CERT =
-  'f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83';
-const SPECIAL_PKGS = new Set([
-  'com.google.android.gms',
-  'com.android.vending',
-]);
-
-function checkApks(apkInfoList, repoData) {
-  const results = [];
-  for (const apk of apkInfoList) {
-    let certMatch = null;
-    for (const { baseUrl, apps } of repoData) {
-      const pkg = apps.get(apk.packageName);
-      // Normal cert match
-      const ver = pkg?.byCert[apk.certSha256];
-      if (ver) {
-        certMatch = { baseUrl, ver };
-        break;
-      }
-      // Special fallback: for GMS packages whose local APK is
-      // signed with the microG cert, also try SPECIAL_PKG_CERT
-      if (
-        SPECIAL_PKGS.has(apk.packageName) &&
-        apk.certSha256 === MICROG_CERT
-      ) {
-        const verFallback = pkg?.byCert[SPECIAL_PKG_CERT];
-        if (verFallback) {
-          certMatch = { baseUrl, ver: verFallback };
-          break;
-        }
-      }
-    }
-
-    if (certMatch) {
-      const { baseUrl, ver } = certMatch;
-      const label = shortUrl(baseUrl);
-      const localVc = apk.versionCode;
-      const repoVc = ver.vc;
-      const apkUrl = ver.apkName ? `${baseUrl}${ver.apkName}` : '';
-      const hasVc = repoVc !== null && localVc;
-      const isUpdateAvail = hasVc && repoVc > localVc;
-      const isLocalNewer = hasVc && repoVc < localVc;
-      let statusText, versionInfo;
-      if (isUpdateAvail) {
-        versionInfo =
-          `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
-        statusText =
-          `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
-      } else if (hasVc && repoVc === localVc) {
-        statusText =
-          `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
-      } else if (isLocalNewer) {
-        statusText =
-          `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
-          ` > repo (${repoVc})`;
-      } else {
-        statusText = `found, latest=${ver.vn}`;
-      }
-      const logLine =
-        `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
-      const noticeLine = isUpdateAvail
-        ? `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}` +
-          (apkUrl ? `\n${apkUrl}` : '')
-        : null;
-      const warningLine = isLocalNewer
-        ? `${apk.fileName} (${apk.packageName}): ${statusText}`
-        : null;
-      const tableStatus = (isUpdateAvail && apkUrl)
-        ? `${ICON.UPDATE_AVAILABLE}` +
-          ` <a href="${apkUrl}">UPDATE AVAILABLE</a>:` +
-          ` ${versionInfo}`
-        : statusText;
-      results.push({
-        logLine,
-        tableRow: [apk.fileName, apk.packageName, label, tableStatus],
-        noticeLine,
-        warningLine,
-      });
-    } else {
-      const signerMismatch = repoData
-        .filter(({ apps }) => apps.has(apk.packageName))
-        .map(({ baseUrl, apps }) => {
-          const p = apps.get(apk.packageName);
-          return `${shortUrl(baseUrl)} (latest=${p.latestVn} ${p.latestVc})`;
-        });
-      if (signerMismatch.length > 0) {
-        const repoLabel = signerMismatch.join(', ');
-        results.push({
-          logLine:
-            `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${apk.fileName}` +
-            ` (${apk.packageName}):` +
-            ` ${repoLabel}` +
-            ` but signed with a different certificate`,
-          tableRow: [
-            apk.fileName, apk.packageName,
-            repoLabel, `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
-          ],
-          noticeLine: null,
-          warningLine: null,
-        });
-      } else {
-        results.push({
-          logLine:
-            `${ICON.NOT_IN_REPO} [NOT IN REPO] ${apk.fileName}` +
-            ` (${apk.packageName}): not found in any repo`,
-          tableRow: [
-            apk.fileName, apk.packageName,
-            '-', `${ICON.NOT_IN_REPO} NOT IN REPO`,
-          ],
-          noticeLine: null,
-          warningLine: null,
-        });
-      }
-    }
-  }
-  return results;
-}
+import {
+  parseRepoV2,
+  shortUrl,
+  checkApks,
+  ICON,
+  MICROG_CERT,
+  SPECIAL_PKG_CERT,
+  SKIP_LIST,
+  repos,
+} from '../includes/check-app-updates.mjs';
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -586,11 +424,7 @@ assertEqual(results[7].warningLine, null,
 
 console.log('\n── index-v2.json URL construction ──');
 
-const BASE_URLS = [
-  'https://f-droid.org/repo',
-  'https://repo.microg.org/fdroid/repo',
-];
-const indexUrls = BASE_URLS.map(b => `${b}/index-v2.json`);
+const indexUrls = repos.map(b => `${b}/index-v2.json`);
 
 assertEqual(indexUrls[0], 'https://f-droid.org/repo/index-v2.json',
   'F-Droid: /index-v2.json appended correctly');
@@ -604,7 +438,7 @@ assertEqual(indexUrls[1], 'https://repo.microg.org/fdroid/repo/index-v2.json',
 console.log('\n── fetchUrl: HTTPS enforcement ──');
 
 // All configured repo URLs must be HTTPS
-for (const baseUrl of BASE_URLS) {
+for (const baseUrl of repos) {
   assert(baseUrl.startsWith('https://'), `Repo base URL is HTTPS: ${baseUrl}`);
 }
 
@@ -625,13 +459,6 @@ assertEqual(MAX_REDIRECTS, 3, 'Max redirects is 3');
 // ---------------------------------------------------------------------------
 
 console.log('\n── SKIP_LIST ──');
-
-const SKIP_LIST = new Set([
-  'priv-app/FakeStore-0.3.6.apk',
-  'priv-app/GmsCore-0.3.6.apk',
-  'priv-app/GmsCoreVtm.apk',
-  'priv-app/GmsCoreVtmLegacy.apk',
-]);
 
 assertEqual(SKIP_LIST.size, 4, 'SKIP_LIST has 4 entries');
 assert(SKIP_LIST.has('priv-app/FakeStore-0.3.6.apk'),
