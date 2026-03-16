@@ -8,7 +8,7 @@ on:
   push:
     paths:
       - ".github/workflows/check-app-updates.yml"
-      - "includes/check-app-updates.mjs"
+      - "includes/lib-check-app-updates.mjs"
       - "zip-content/origin/**"
       - "tools/test-check-updates.mjs"
   workflow_dispatch:
@@ -31,7 +31,7 @@ jobs:
           lfs: false
           sparse-checkout: |
             zip-content/origin
-            includes/check-app-updates.mjs
+            includes/lib-check-app-updates.mjs
       - name: "Use LFS cache"
         uses: actions/cache/restore@v5
         timeout-minutes: 10
@@ -40,112 +40,6 @@ jobs:
           restore-keys: "lfs-"
           path: "cache/lfs"
           enableCrossOsArchive: true
-      - name: "Extract APK info"
-        shell: bash
-        run: |
-          # Extract package name, version code, and signing certificate SHA-256
-          # from all APKs found recursively under zip-content/origin/,
-          # processed in alphabetical order.
-          # APKs stored in LFS appear as tiny pointer files when lfs: false;
-          # those are resolved from the LFS cache when available.
-
-          # Base directory for the APK search
-          base_dir="${GITHUB_WORKSPACE}/zip-content/origin"
-
-          # Locate aapt: prefer PATH, fall back to Android SDK build-tools
-          aapt_bin=''
-          if command -v 'aapt' 1>/dev/null; then
-            aapt_bin="$(command -v 'aapt')"
-          elif test -n "${ANDROID_SDK_ROOT:-}"; then
-            aapt_bin="$(find "${ANDROID_SDK_ROOT}/build-tools" \
-              -name 'aapt' -type f 2>/dev/null \
-              | sort -V | tail -1)"
-          fi
-          test -n "${aapt_bin}" \
-            || { printf 'ERROR: aapt not found\n' >&2; exit 1; }
-          printf 'Using aapt: %s\n' "${aapt_bin}"
-
-          apk_count='0'
-          json_entries=''
-          while IFS= read -r apk_path; do
-            test -n "${apk_path}" || continue
-
-            file_name="$(basename "${apk_path}")"
-            rel_path="${apk_path#"${base_dir}/"}"
-
-            # Detect LFS pointer files (mirrors is_lfs_pointers in includes/common.sh)
-            file_size="$(wc -c < "${apk_path}")"
-            if [ "${file_size}" -lt 1024 ] && \
-               grep -m 1 -q -e '^version https://git-lfs.github.com/spec/v1$' \
-               -- "${apk_path}"; then
-              # Extract SHA-256 from the LFS pointer and look it up in the LFS cache
-              lfs_sha256="$(grep -m 1 -e '^oid sha256:' -- "${apk_path}" \
-                | cut -d ':' -f 2 -s)"
-              lfs_cached="${GITHUB_WORKSPACE}/cache/lfs/${lfs_sha256}"
-              if [ -n "${lfs_sha256}" ] && [ -f "${lfs_cached}" ]; then
-                apk_path="${lfs_cached}"
-                printf 'INFO: resolved LFS pointer for %s (sha256=%s)\n' \
-                  "${file_name}" "${lfs_sha256}"
-              else
-                printf 'WARNING: skipping LFS pointer (cache miss): %s\n' \
-                  "${file_name}" >&2
-                continue
-              fi
-            fi
-
-            # Package name and version code from APK manifest
-            pkg_line="$("${aapt_bin}" dump badging "${apk_path}" \
-              2>/dev/null | grep '^package:' || true)"
-            pkg="$(printf '%s' "${pkg_line}" \
-              | grep -o " name='[^']*'" \
-              | head -1 | cut -d"'" -f2)"
-            version_code="$(printf '%s' "${pkg_line}" \
-              | grep -o "[[:space:]]versionCode='[^']*'" \
-              | head -1 | cut -d"'" -f2)"
-
-            test -n "${pkg}" || {
-              printf 'WARNING: skipping %s (package name not found)\n' \
-                "${file_name}" >&2
-              continue
-            }
-
-            # SHA-256 of the signing certificate via keytool
-            cert_sha256="$(keytool -printcert -jarfile "${apk_path}" \
-              2>/dev/null \
-              | grep 'SHA256:' | head -1 \
-              | sed 's/.*SHA256:[[:space:]]*//' \
-              | tr -d ':' \
-              | tr '[:upper:]' '[:lower:]' \
-              | tr -d '[:space:]')"
-
-            if test -z "${cert_sha256}"; then
-              printf 'WARNING: skipping %s (cert not found)\n' \
-                "${file_name}" >&2
-              continue
-            fi
-
-            printf 'INFO: %s: pkg=%s, vc=%s, cert=%s\n' \
-              "${file_name}" "${pkg}" \
-              "${version_code:-?}" "${cert_sha256}"
-
-            # Build JSON entry (pkg names and hex hashes need no escaping)
-            entry='{"fileName":"'"${file_name}"'"'
-            entry="${entry}"',"relPath":"'"${rel_path}"'"'
-            entry="${entry}"',"packageName":"'"${pkg}"'"'
-            entry="${entry}"',"versionCode":'"${version_code:-0}"
-            entry="${entry}"',"certSha256":"'"${cert_sha256}"'"}'
-            json_entries="${json_entries:+${json_entries},}${entry}"
-            apk_count="$((apk_count + 1))"
-          done < <(
-            find "${base_dir}" \
-              -name '*.apk' -type f 2>/dev/null \
-            | sort
-          )
-
-          printf '[%s]\n' "${json_entries}" \
-            > "${RUNNER_TEMP}/apk_info.json"
-          printf 'Written %s APK entries to %s/apk_info.json\n' \
-            "${apk_count}" "${RUNNER_TEMP}"
       - name: "Check for updates in F-Droid and microG repos"
         uses: actions/github-script@v8
         timeout-minutes: 25
@@ -153,6 +47,6 @@ jobs:
           retries: 1
           script: |
             const { default: run } = await import(
-              `${process.env.GITHUB_WORKSPACE}/includes/check-app-updates.mjs`
+              `${process.env.GITHUB_WORKSPACE}/includes/lib-check-app-updates.mjs`
             );
             await run({ core });

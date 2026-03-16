@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: (c) 2026 ale5000
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import run from '../includes/check-app-updates.mjs';
+import run from '../includes/lib-check-app-updates.mjs';
 
 // Minimal console-based shim for @actions/core — used when running outside
 // GitHub Actions (e.g. invoked by tools/check-app-updates.sh).
@@ -47,7 +47,7 @@ const core = {
   summary,
 };
 
-run({ core }).catch(err => {
+run({ core, baseDir: process.env.APKS_BASE_DIR || undefined }).catch(err => {
   console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
   process.exitCode = 1;
 });

@@ -10,7 +10,7 @@ import {
   SPECIAL_PKG_CERT,
   SKIP_LIST,
   repos,
-} from '../includes/check-app-updates.mjs';
+} from '../includes/lib-check-app-updates.mjs';
 
 // ---------------------------------------------------------------------------
 // Test helpers

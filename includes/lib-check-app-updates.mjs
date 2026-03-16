@@ -1,9 +1,23 @@
 // SPDX-FileCopyrightText: NONE
 // SPDX-License-Identifier: CC0-1.0
 
-import fs from 'fs';
+// Library module: APK update checker for F-Droid and microG repositories.
+// This file is intended to be imported as a library, not executed directly.
+
+// Node.js 24 or later is required
+if (parseInt(process.versions.node.split('.')[0], 10) < 24) {
+  throw new Error(
+    `Node.js 24 or later is required (current: ${process.versions.node})`
+  );
+}
+
+import { readFileSync, existsSync, statSync, readdirSync } from 'fs';
 import path from 'path';
 import https from 'https';
+import { execFile as execFileCb, spawnSync } from 'child_process';
+import { promisify } from 'util';
+
+const execFile = promisify(execFileCb);
 
 // Files to skip the update check (relative to zip-content/origin/)
 export const SKIP_LIST = new Set([
@@ -259,14 +273,255 @@ export function checkApks(apkInfoList, repoData) {
   return results;
 }
 
-export default async function ({ core }) {
-  // Load APK info produced by the shell step, filtering out skipped entries
-  const allApkInfo = JSON.parse(
-    fs.readFileSync(
-      path.join(process.env.RUNNER_TEMP, 'apk_info.json'),
-      'utf-8'
-    )
-  );
+// ---------------------------------------------------------------------------
+// APK info extraction helpers (used by extractApkInfo)
+// ---------------------------------------------------------------------------
+
+// Find the aapt (or aapt2) binary.
+// Tries aapt and aapt2 in PATH first, then falls back to ANDROID_SDK_ROOT.
+function findAaptBin() {
+  for (const bin of ['aapt', 'aapt2']) {
+    const r = spawnSync(bin, ['version'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    if (!r.error || r.error.code !== 'ENOENT') return bin;
+  }
+  const sdkRoot = process.env.ANDROID_SDK_ROOT ?? '';
+  if (sdkRoot) {
+    const btDir = path.join(sdkRoot, 'build-tools');
+    try {
+      const versions = readdirSync(btDir)
+        .filter(d => {
+          try { return statSync(path.join(btDir, d)).isDirectory(); }
+          catch { return false; }
+        })
+        .sort();
+      for (const ver of versions.reverse()) {
+        const candidate = path.join(btDir, ver, 'aapt');
+        const r = spawnSync(candidate, ['version'], {
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        if (!r.error || r.error.code !== 'ENOENT') return candidate;
+      }
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
+// Collect all *.apk file paths under baseDir, sorted lexicographically.
+function findApkFiles(baseDir) {
+  const results = [];
+  function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); }
+    catch { return; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile() && entry.name.endsWith('.apk'))
+        results.push(full);
+    }
+  }
+  walk(baseDir);
+  return results.sort();
+}
+
+// Extract package name and version code from an APK via aapt dump badging.
+// Returns { packageName, versionCode } or null on failure.
+async function getApkManifestInfo(aaptBin, apkPath) {
+  try {
+    const { stdout } = await execFile(
+      aaptBin, ['dump', 'badging', apkPath],
+      // 30 s is sufficient for typical APKs (< 100 MB); very large APKs
+      // on slow I/O may occasionally hit this limit but it avoids hanging.
+      { encoding: 'utf-8', timeout: 30_000 }
+    );
+    const pkgLine =
+      stdout.split('\n').find(l => l.startsWith('package:')) ?? '';
+    const nameMatch = pkgLine.match(/ name='([^']*)'/);
+    const vcMatch   = pkgLine.match(/ versionCode='([^']*)'/);
+    return {
+      packageName: nameMatch?.[1] ?? null,
+      versionCode: vcMatch ? parseInt(vcMatch[1], 10) : 0,
+    };
+  } catch { return null; }
+}
+
+// Extract the SHA-256 certificate fingerprint from an APK.
+// Tries apksigner first (APKSIGNER_PATH env var or PATH), then keytool.
+// Returns the hex digest (lower-case, no colons) or null.
+async function getCertSha256(apkPath) {
+  // Try apksigner (preferred: handles APK v2/v3 signatures correctly)
+  const apksignerBin =
+    process.env.APKSIGNER_PATH ?? 'apksigner';
+  const rCheck = spawnSync(apksignerBin, ['version'], {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  if (!rCheck.error || rCheck.error.code !== 'ENOENT') {
+    try {
+      const { stdout } = await execFile(
+        apksignerBin,
+        ['verify', '--min-sdk-version', '24', '--print-certs', '--', apkPath],
+        // 30 s is sufficient for typical APKs; same assumption as aapt above.
+        { encoding: 'utf-8', timeout: 30_000 }
+      );
+      const m = stdout.match(/certificate SHA-256 digest:\s*([0-9a-f]+)/i);
+      if (m) return m[1].toLowerCase();
+    } catch { /* fall through to keytool */ }
+  }
+
+  // Fall back to keytool
+  try {
+    const { stdout } = await execFile(
+      'keytool', ['-printcert', '-jarfile', apkPath],
+      { encoding: 'utf-8', timeout: 30_000 }
+    );
+    const m = stdout.match(/\bSHA256:\s*((?:[0-9A-Fa-f]{2}:)*[0-9A-Fa-f]{2})/);
+    if (m) return m[1].replace(/:/g, '').toLowerCase();
+  } catch { /* ignore */ }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// extractApkInfo — exported library function
+// ---------------------------------------------------------------------------
+
+// Scan baseDir recursively for *.apk files, extract package name, version
+// code, and signing-certificate SHA-256 for each one, and return the list.
+//
+// LFS pointer files (tiny text stubs) are resolved from lfsCacheDir when
+// provided; if not resolvable they are skipped with a log message.
+//
+// Options:
+//   lfsCacheDir {string|null} – path to a Git-LFS cache directory
+//                               (e.g. GITHUB_WORKSPACE/cache/lfs)
+//   core        {object}     – logger implementing .info(msg) (optional)
+//
+// Returns: Promise<Array<{fileName, relPath, packageName, versionCode, certSha256}>>
+export async function extractApkInfo(
+  baseDir,
+  { lfsCacheDir = null, core } = {}
+) {
+  const aaptBin = findAaptBin();
+  if (!aaptBin) {
+    throw new Error(
+      "'aapt' not found. " +
+      'Install Android build-tools or set ANDROID_SDK_ROOT.'
+    );
+  }
+  core?.info(`Using aapt: ${aaptBin}`);
+
+  const apkPaths = findApkFiles(baseDir);
+  const results = [];
+
+  for (const apkPath of apkPaths) {
+    const fileName  = path.basename(apkPath);
+    const relPath   = path.relative(baseDir, apkPath);
+
+    // Detect and resolve LFS pointer files
+    let resolvedPath = apkPath;
+    let fileSize;
+    try { fileSize = statSync(apkPath).size; }
+    catch { core?.info(`WARNING: cannot stat ${fileName}, skipping`); continue; }
+
+    if (fileSize < 1024) {
+      let content;
+      try { content = readFileSync(apkPath, 'utf-8'); }
+      catch { content = ''; }
+
+      if (content.startsWith('version https://git-lfs.github.com/spec/v1\n')) {
+        const oidMatch = content.match(/^oid sha256:([0-9a-f]+)$/m);
+        const sha256   = oidMatch?.[1] ?? '';
+        if (sha256 && lfsCacheDir) {
+          const cached = path.join(lfsCacheDir, sha256);
+          if (existsSync(cached)) {
+            resolvedPath = cached;
+            core?.info(
+              `INFO: resolved LFS pointer for ${fileName}` +
+              ` (sha256=${sha256})`
+            );
+          } else {
+            core?.info(
+              `WARNING: skipping LFS pointer (cache miss): ${fileName}`
+            );
+            continue;
+          }
+        } else {
+          core?.info(
+            `WARNING: skipping LFS pointer (not in cache): ${fileName}`
+          );
+          continue;
+        }
+      }
+    }
+
+    // Extract package name and version code
+    const manifest = await getApkManifestInfo(aaptBin, resolvedPath);
+    if (!manifest?.packageName) {
+      core?.info(`WARNING: skipping ${fileName} (package name not found)`);
+      continue;
+    }
+
+    // Extract signing certificate SHA-256
+    const certSha256 = await getCertSha256(resolvedPath);
+    if (!certSha256) {
+      core?.info(`WARNING: skipping ${fileName} (cert not found)`);
+      continue;
+    }
+
+    core?.info(
+      `INFO: ${fileName}: pkg=${manifest.packageName},` +
+      ` vc=${manifest.versionCode}, cert=${certSha256}`
+    );
+    results.push({
+      fileName,
+      relPath,
+      packageName: manifest.packageName,
+      versionCode: manifest.versionCode,
+      certSha256,
+    });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Default export — orchestrates extraction, repo fetching, and reporting
+// ---------------------------------------------------------------------------
+
+// Run the full update check.
+//
+// Options:
+//   core        {object}      – @actions/core or compatible shim (required)
+//   baseDir     {string}      – APK root directory; defaults to
+//                               GITHUB_WORKSPACE/zip-content/origin
+//   lfsCacheDir {string|null} – LFS cache dir; defaults to
+//                               GITHUB_WORKSPACE/cache/lfs (when GITHUB_WORKSPACE
+//                               is set), or null
+export default async function ({ core, baseDir, lfsCacheDir } = {}) {
+  const workspace = process.env.GITHUB_WORKSPACE ?? '';
+  const apkBaseDir = baseDir ??
+    (workspace ? path.join(workspace, 'zip-content/origin') : null);
+  if (!apkBaseDir) {
+    throw new Error(
+      'APK base directory must be provided via the baseDir option ' +
+      'or the GITHUB_WORKSPACE environment variable.'
+    );
+  }
+  const lfsDir = lfsCacheDir ??
+    (workspace ? path.join(workspace, 'cache/lfs') : null);
+
+  // Extract APK info from the filesystem
+  const allApkInfo = await extractApkInfo(apkBaseDir, {
+    lfsCacheDir: lfsDir,
+    core,
+  });
+
+  // Filter out skip-listed entries
   const apkInfoList = allApkInfo.filter(apk => {
     if (SKIP_LIST.has(apk.relPath)) {
       core.info(`Skipping (skip list): ${apk.relPath}`);
