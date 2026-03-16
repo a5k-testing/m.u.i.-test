@@ -813,9 +813,9 @@ if (process.argv[1] === _LIB_PATH) {
           const cols = headerRow.map(
             h => (h && typeof h === 'object' ? h.data : h) ?? ''
           );
-          // Replace <br> with ': ' then strip remaining HTML tags for terminal output
+          // Replace <br> with ' - ' then strip remaining HTML tags for terminal output
           const strip = s => String(s ?? '')
-            .replace(/<br\s*\/?>/gi, ': ')
+            .replace(/<br\s*\/?>/gi, ' - ')
             .replace(/<[^>]*>/g, '');
           const widths = cols.map((c, i) =>
             Math.max(c.length, ...dataRows.map(r => strip(r[i]).length))

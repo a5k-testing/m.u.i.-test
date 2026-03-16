@@ -34,6 +34,10 @@ jobs:
       - name: "Setup Bats and helpers"
         uses: bats-core/bats-action@4.0.0
         with:
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       - name: "Run Bats tests"
         shell: bash
