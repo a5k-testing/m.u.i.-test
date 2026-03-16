@@ -223,6 +223,8 @@ export function checkApks(apkInfoList, repoData) {
   const results = [];
   for (const apk of apkInfoList) {
     const displayName = apk.relPath;
+    const logEntry = (icon, status, desc) =>
+      `${icon} [${status}] ${displayName} (${apk.packageName}): ${desc}`;
     // Loop through repos in order; stop at the first one that has
     // both a matching package name and a matching signing certificate
     let certMatch = null;
@@ -262,9 +264,8 @@ export function checkApks(apkInfoList, repoData) {
         if (repoVc > localVc) return 'update-available';
         return 'local-newer';
       })();
-      const logEntry = (icon, status, desc) =>
-        `${icon} [${status}] ${displayName} (${apk.packageName}): ${desc}`;
-      let tableStatus, logLine, noticeTitle, noticeLine, warningLine, checkFailedLine;
+      let tableStatus, logLine, noticeTitle, noticeLine, warningLine, checkFailedLine,
+          updateInfo;
       switch (updateStatus) {
         case 'check-failed': {
           const info = `(localVc=${localVc}, repoVc=${repoVc})`;
@@ -275,6 +276,7 @@ export function checkApks(apkInfoList, repoData) {
           warningLine = null;
           checkFailedLine =
             `${displayName} (${apk.packageName}): CHECK FAILED ${info}`;
+          updateInfo = null;
           break;
         }
         case 'up-to-date': {
@@ -285,6 +287,7 @@ export function checkApks(apkInfoList, repoData) {
           noticeLine = null;
           warningLine = null;
           checkFailedLine = null;
+          updateInfo = null;
           break;
         }
         case 'update-available': {
@@ -303,6 +306,16 @@ export function checkApks(apkInfoList, repoData) {
           noticeLine = apkUrl;
           warningLine = null;
           checkFailedLine = null;
+          updateInfo = {
+            relPath:   displayName,
+            package:   apk.packageName,
+            repo:      label,
+            localVn,
+            localVc,
+            repoVn:    ver.vn,
+            repoVc,
+            url:       apkUrl,
+          };
           break;
         }
         case 'local-newer': {
@@ -317,6 +330,7 @@ export function checkApks(apkInfoList, repoData) {
           warningLine =
             `${displayName} (${apk.packageName}): LOCAL NEWER: ${versionInfo}`;
           checkFailedLine = null;
+          updateInfo = null;
           break;
         }
       }
@@ -327,6 +341,7 @@ export function checkApks(apkInfoList, repoData) {
         noticeTitle,
         warningLine,
         checkFailedLine,
+        updateInfo,
       });
     } else {
       // Collect repos where the package exists under a different cert
@@ -341,9 +356,8 @@ export function checkApks(apkInfoList, repoData) {
           .join(', ');
         results.push({
           logLine:
-            `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${displayName}` +
-            ` (${apk.packageName}):` +
-            ` [${logRepoLabel}] signed with a different certificate`,
+            logEntry(ICON.DIFFERENT_SIGNER, 'DIFFERENT SIGNER',
+              `[${logRepoLabel}] signed with a different certificate`),
           tableRow: [
             displayName,
             apk.packageName,
@@ -354,12 +368,12 @@ export function checkApks(apkInfoList, repoData) {
           noticeTitle: null,
           warningLine: null,
           checkFailedLine: null,
+          updateInfo: null,
         });
       } else {
         results.push({
           logLine:
-            `${ICON.NOT_IN_REPO} [NOT IN REPO] ${displayName}` +
-            ` (${apk.packageName}): not found in any repo`,
+            logEntry(ICON.NOT_IN_REPO, 'NOT IN REPO', 'not found in any repo'),
           tableRow: [
             displayName,
             apk.packageName,
@@ -370,6 +384,7 @@ export function checkApks(apkInfoList, repoData) {
           noticeTitle: null,
           warningLine: null,
           checkFailedLine: null,
+          updateInfo: null,
         });
       }
     }
@@ -617,8 +632,10 @@ export async function extractApkInfo(
 //                                       workspace/cache/lfs.
 //   repoCacheDir {string|undefined}   – Directory to cache repo index JSON files;
 //                                       defaults to workspace/cache/repos.
+//   dumpInfoFile {string|null}        – When set, write UPDATE AVAILABLE entries
+//                                       to this path in key=value format.
 export default async function run(
-  { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir } = {}
+  { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null } = {}
 ) {
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
   const workspace = process.env.GITHUB_WORKSPACE
@@ -717,11 +734,13 @@ export default async function run(
 
   // Collect rows for Job Summary table
   const summaryRows = [];
+  const updateInfoEntries = [];
 
   // Report results
   core.info('');
   core.info('=== Update check results ===');
-  for (const { logLine, tableRow, noticeLine, noticeTitle, warningLine, checkFailedLine }
+  for (const { logLine, tableRow, noticeLine, noticeTitle, warningLine, checkFailedLine,
+               updateInfo }
     of checkApks(apkInfoList, repoData)) {
     core.info(logLine);
     if (noticeTitle !== null) {
@@ -734,6 +753,25 @@ export default async function run(
       core.warning(checkFailedLine, { title: 'Version check failed' });
     }
     summaryRows.push(tableRow);
+    if (updateInfo !== null) {
+      updateInfoEntries.push(updateInfo);
+    }
+  }
+
+  // Write update-info.dat when requested
+  if (dumpInfoFile && updateInfoEntries.length > 0) {
+    const lines = [];
+    for (const info of updateInfoEntries) {
+      lines.push(`file=${info.relPath}`);
+      lines.push(`package=${info.package}`);
+      lines.push(`repo=${info.repo}`);
+      lines.push(`localVersion=${info.localVn} (${info.localVc})`);
+      lines.push(`repoVersion=${info.repoVn} (${info.repoVc})`);
+      if (info.url) lines.push(`url=${info.url}`);
+      lines.push('');
+    }
+    writeFileSync(dumpInfoFile, lines.join('\n'));
+    core.info(`Wrote update info for ${updateInfoEntries.length} APK(s) to ${dumpInfoFile}`);
   }
 
   // Write Job Summary table
@@ -775,8 +813,10 @@ if (process.argv[1] === _LIB_PATH) {
           const cols = headerRow.map(
             h => (h && typeof h === 'object' ? h.data : h) ?? ''
           );
-          // Strip HTML tags (e.g. <a href="...">…</a>) for terminal output
-          const strip = s => String(s ?? '').replace(/<[^>]*>/g, '');
+          // Replace <br> with ': ' then strip remaining HTML tags for terminal output
+          const strip = s => String(s ?? '')
+            .replace(/<br\s*\/?>/gi, ': ')
+            .replace(/<[^>]*>/g, '');
           const widths = cols.map((c, i) =>
             Math.max(c.length, ...dataRows.map(r => strip(r[i]).length))
           );
@@ -804,12 +844,16 @@ if (process.argv[1] === _LIB_PATH) {
   const apkFilesEnv = process.env.APKS_FILES
     ? process.env.APKS_FILES.split('\n').filter(Boolean)
     : undefined;
+  const dumpInfoFileEnv = process.env.APKS_DUMP_INFO
+    ? path.join(process.cwd(), 'update-info.dat')
+    : null;
 
   run({
     core,
-    apkDirs:     apkDirsEnv,
-    apkFiles:    apkFilesEnv,
+    apkDirs:      apkDirsEnv,
+    apkFiles:     apkFilesEnv,
     repoCacheDir: process.env.APKS_REPO_CACHE_DIR || undefined,
+    dumpInfoFile: dumpInfoFileEnv,
   }).catch(err => {
     console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
     process.exitCode = 1;

@@ -599,6 +599,92 @@ assertEqual(results[7].checkFailedLine, null,
   'GmsCoreOther: no checkFailedLine for DIFFERENT SIGNER');
 
 // ---------------------------------------------------------------------------
+// checkApks: logEntry format for DIFFERENT SIGNER and NOT IN REPO
+// ---------------------------------------------------------------------------
+
+console.log('\n── checkApks (logEntry for DIFFERENT SIGNER and NOT IN REPO) ──');
+
+// DIFFERENT SIGNER logLine uses logEntry format: "${icon} [STATUS] name (pkg): desc"
+assert(
+  results[4].logLine.startsWith(`${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] `),
+  'NewPipeFork: logLine uses logEntry format (icon + 1 space + [DIFFERENT SIGNER])'
+);
+assertEqual(
+  results[4].logLine,
+  `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] app/NewPipeFork.apk` +
+  ` (org.schabi.newpipe): [f-droid.org] signed with a different certificate`,
+  'NewPipeFork: logLine matches logEntry output exactly'
+);
+
+// NOT IN REPO logLine uses logEntry format
+assert(
+  results[5].logLine.startsWith(`${ICON.NOT_IN_REPO} [NOT IN REPO] `),
+  'AuroraServices: logLine uses logEntry format (icon + 1 space + [NOT IN REPO])'
+);
+assertEqual(
+  results[5].logLine,
+  `${ICON.NOT_IN_REPO} [NOT IN REPO] app/AuroraServices.apk` +
+  ` (com.aurora.services): not found in any repo`,
+  'AuroraServices: logLine matches logEntry output exactly'
+);
+
+// ---------------------------------------------------------------------------
+// checkApks: updateInfo field
+// ---------------------------------------------------------------------------
+
+console.log('\n── checkApks (updateInfo field) ──');
+
+// Non-UPDATE_AVAILABLE entries have updateInfo = null
+assertEqual(results[0].updateInfo, null, 'UP TO DATE: updateInfo is null');
+assertEqual(results[1].updateInfo, null, 'LOCAL NEWER: updateInfo is null');
+assertEqual(results[4].updateInfo, null, 'DIFFERENT SIGNER: updateInfo is null');
+assertEqual(results[5].updateInfo, null, 'NOT IN REPO: updateInfo is null');
+
+// UPDATE AVAILABLE entries have structured updateInfo
+assert(results[2].updateInfo !== null,
+  'GmsCore (microG cert): updateInfo is non-null for UPDATE AVAILABLE');
+assertEqual(results[2].updateInfo.relPath,   'priv-app/GmsCore.apk',
+  'GmsCore updateInfo: relPath');
+assertEqual(results[2].updateInfo.package,   'com.google.android.gms',
+  'GmsCore updateInfo: package');
+assertEqual(results[2].updateInfo.repo,      'microg.org',
+  'GmsCore updateInfo: repo');
+assertEqual(results[2].updateInfo.localVn,   '22.0',
+  'GmsCore updateInfo: localVn');
+assertEqual(results[2].updateInfo.localVc,   220000000,
+  'GmsCore updateInfo: localVc');
+assertEqual(results[2].updateInfo.repoVn,    '23.9.13',
+  'GmsCore updateInfo: repoVn');
+assertEqual(results[2].updateInfo.repoVc,    230913000,
+  'GmsCore updateInfo: repoVc');
+assertEqual(results[2].updateInfo.url,
+  'https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk',
+  'GmsCore updateInfo: url');
+
+// tableRow[3] for UPDATE_AVAILABLE still contains <br> (for GitHub summary)
+assert(results[2].tableRow[3].includes('<br>'),
+  'GmsCore: tableRow[3] keeps <br> for GitHub job summary (not replaced in source)');
+
+// ---------------------------------------------------------------------------
+// checkApks: tableRow <br> kept as-is (CLI rendering tested separately)
+// ---------------------------------------------------------------------------
+
+console.log('\n── checkApks (tableRow <br> preserved for workflow) ──');
+
+assert(results[0].tableRow[3].includes('<br>'),
+  'UP TO DATE tableRow[3] contains <br> for 2-line GitHub summary');
+assert(results[1].tableRow[3].includes('<br>'),
+  'LOCAL NEWER tableRow[3] contains <br> for 2-line GitHub summary');
+assert(results[2].tableRow[3].includes('<br>'),
+  'UPDATE AVAILABLE tableRow[3] contains <br> for 2-line GitHub summary');
+assert(results[3].tableRow[3].includes('<br>'),
+  'UPDATE AVAILABLE (Google cert) tableRow[3] contains <br>');
+assert(!results[4].tableRow[3].includes('<br>'),
+  'DIFFERENT SIGNER tableRow[3] has no <br> (single-line status)');
+assert(!results[5].tableRow[3].includes('<br>'),
+  'NOT IN REPO tableRow[3] has no <br> (single-line status)');
+
+// ---------------------------------------------------------------------------
 // checkApks: CHECK_FAILED tests
 // ---------------------------------------------------------------------------
 

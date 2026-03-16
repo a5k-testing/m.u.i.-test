@@ -45,7 +45,7 @@ show_error()
 
 main()
 {
-  local apk_dirs="${1:-}" apk_files="${2:-}"
+  local apk_dirs="${1:-}" apk_files="${2:-}" dump_info="${3:-}"
   local script_dir repo_dir _dir apk_file_count
 
   # Resolve the directory containing this script and the repo root
@@ -79,9 +79,10 @@ EOF
   printf '\n'
 
   # APK info extraction and update checking are both handled by the JS library.
-  # APKS_DIRS:  newline-separated list of APK directories to scan.
-  # APKS_FILES: newline-separated list of explicit APK paths (overrides/adds to scan).
-  APKS_DIRS="${apk_dirs}" APKS_FILES="${apk_files}" \
+  # APKS_DIRS:      newline-separated list of APK directories to scan.
+  # APKS_FILES:     newline-separated list of explicit APK paths (overrides/adds to scan).
+  # APKS_DUMP_INFO: when non-empty, write update-info.dat for UPDATE AVAILABLE entries.
+  APKS_DIRS="${apk_dirs}" APKS_FILES="${apk_files}" APKS_DUMP_INFO="${dump_info}" \
     node "${repo_dir}/includes/app-update-checker-lib.mjs"
 }
 
@@ -89,6 +90,7 @@ STATUS=0
 execute_script='true'
 apk_dirs_arg=''
 apk_files_arg=''
+dump_info_arg=''
 
 while test "${#}" -gt 0; do
   case "${1?}" in
@@ -109,6 +111,10 @@ while test "${#}" -gt 0; do
       shift
       apk_files_arg="${apk_files_arg:+${apk_files_arg}
 }${1?}"
+      ;;
+
+    --dump-info)
+      dump_info_arg='1'
       ;;
 
     --)
@@ -151,7 +157,7 @@ done
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
 
-  main "${apk_dirs_arg}" "${apk_files_arg}" || STATUS="${?}"
+  main "${apk_dirs_arg}" "${apk_files_arg}" "${dump_info_arg}" || STATUS="${?}"
 fi
 
 pause_if_needed "${STATUS:?}"

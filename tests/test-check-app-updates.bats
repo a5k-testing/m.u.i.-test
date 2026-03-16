@@ -41,8 +41,9 @@ if [ -n "${APKS_DIRS:-}" ]; then
 ${APKS_DIRS}
 __DIRS__
 fi
-printf 'DIRS=%s\n'  "${APKS_DIRS:-}"  >> "${MOCK_OUTPUT_FILE:-/dev/null}"
-printf 'FILES=%s\n' "${APKS_FILES:-}" >> "${MOCK_OUTPUT_FILE:-/dev/null}"
+printf 'DIRS=%s\n'      "${APKS_DIRS:-}"      >> "${MOCK_OUTPUT_FILE:-/dev/null}"
+printf 'FILES=%s\n'     "${APKS_FILES:-}"     >> "${MOCK_OUTPUT_FILE:-/dev/null}"
+printf 'DUMP_INFO=%s\n' "${APKS_DUMP_INFO:-}" >> "${MOCK_OUTPUT_FILE:-/dev/null}"
 exit 0
 MOCK
   chmod +x "${MOCK_DIR}/node"
@@ -236,4 +237,31 @@ teardown_file() {
   grep -qF '/tmp/some.apk' "${MOCK_OUTPUT_FILE}"
   # APKS_DIRS must be empty (line is exactly "DIRS=")
   grep -qxF 'DIRS=' "${MOCK_OUTPUT_FILE}"
+}
+
+# ---------------------------------------------------------------------------
+# --dump-info flag
+# ---------------------------------------------------------------------------
+
+@test "--dump-info sets APKS_DUMP_INFO=1" {
+  run sh "${SCRIPT}" --file '/tmp/app.apk' --dump-info
+  [ "${status}" -eq 0 ]
+  grep -qxF 'DUMP_INFO=1' "${MOCK_OUTPUT_FILE}"
+}
+
+@test "without --dump-info APKS_DUMP_INFO is empty" {
+  run sh "${SCRIPT}" --file '/tmp/app.apk'
+  [ "${status}" -eq 0 ]
+  grep -qxF 'DUMP_INFO=' "${MOCK_OUTPUT_FILE}"
+}
+
+@test "--dump-info can be combined with --dir and --file" {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  run sh "${SCRIPT}" --dir "${tmp_dir}" --file '/tmp/extra.apk' --dump-info
+  rmdir "${tmp_dir}"
+  [ "${status}" -eq 0 ]
+  grep -qF "${tmp_dir}"     "${MOCK_OUTPUT_FILE}"
+  grep -qF '/tmp/extra.apk' "${MOCK_OUTPUT_FILE}"
+  grep -qxF 'DUMP_INFO=1'   "${MOCK_OUTPUT_FILE}"
 }
