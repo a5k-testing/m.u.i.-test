@@ -464,7 +464,7 @@ assert(results[2].noticeLine !== null,
   'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
 assertEqual(
   results[2].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a><br>repo=23.9.13 (230913000) > local=22.0 (220000000)`,
+  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a><br>version=23.9.13 (230913000)`,
   'GmsCore (microG cert): tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
 assert(!results[2].noticeLine.includes(' '),
@@ -494,7 +494,7 @@ assert(results[3].noticeLine !== null,
   'GmsCore (Google cert): notice emitted');
 assertEqual(
   results[3].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a><br>repo=24.0 (240000000) > local=23.0 (230000000)`,
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a><br>version=24.0 (240000000)`,
   'GmsCore (Google cert): tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
 assertEqual(
@@ -566,8 +566,8 @@ assert(results[6].noticeLine !== null,
   'FakeStore: notice emitted for special-cert UPDATE AVAILABLE');
 assertEqual(
   results[6].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a><br>repo=33.0 (84022626) > local=30.0 (80000000)`,
-  'FakeStore: tableRow UPDATE AVAILABLE is 2-line format with <br> and local='
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a><br>version=33.0 (84022626)`,
+  'FakeStore: tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
 assertEqual(
   results[6].noticeLine,

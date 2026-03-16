@@ -85,7 +85,7 @@ teardown_file() {
     rm -f "${BATS_RESULTS_FILE}"
   fi
   printf '\n── Test Summary ──\nTotal: %d  Passed: %d  Failed: %d  Skipped: %d\n' \
-    "${_total}" "${_passed}" "${_failed}" "${_skipped}"
+    "${_total}" "${_passed}" "${_failed}" "${_skipped}" >&3
 }
 
 # ---------------------------------------------------------------------------

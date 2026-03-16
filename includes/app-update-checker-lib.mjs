@@ -293,10 +293,11 @@ export function checkApks(apkInfoList, repoData) {
         case 'update-available': {
           const versionInfo =
             `repo=${ver.vn} (${repoVc}) > local=${localVn} (${localVc})`;
+          const tableVersionInfo = `version=${ver.vn} (${repoVc})`;
           tableStatus = apkUrl
             ? `${ICON.UPDATE_AVAILABLE}` +
-              ` <a href="${apkUrl}">UPDATE AVAILABLE</a><br>${versionInfo}`
-            : `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE<br>${versionInfo}`;
+              ` <a href="${apkUrl}">UPDATE AVAILABLE</a><br>${tableVersionInfo}`
+            : `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE<br>${tableVersionInfo}`;
           logLine = logEntry(
             ICON.UPDATE_AVAILABLE, 'UPDATE AVAILABLE', `[${label}] ${versionInfo}`
           );
@@ -775,8 +776,9 @@ export default async function run(
   }
 
   // Write Job Summary table
+  core.info('Update check results');
   await core.summary
-    .addHeading('Update check results')
+    .addHeading('Summary')
     .addTable([
       [
         { data: 'APK', header: true },
