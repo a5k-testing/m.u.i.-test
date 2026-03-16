@@ -382,11 +382,15 @@ const results = checkApks([
 // 1. Up to date
 assert(
   results[0].logLine.includes('[f-droid.org]') &&
-  results[0].logLine.includes('UP TO DATE'),
-  'FDroid priv: UP TO DATE in F-Droid (short URL)'
+  results[0].logLine.includes('[UP TO DATE]'),
+  'FDroid priv: UP TO DATE logLine contains [f-droid.org] and [UP TO DATE]'
 );
 assert(results[0].logLine.includes(ICON.UP_TO_DATE),
   'FDroid priv: ✅ icon present');
+assert(results[0].logLine.includes('priv-app/FDroidPrivilegedExtension.apk'),
+  'FDroid priv: logLine uses relPath');
+assert(results[0].logLine.includes('version=0.2.13 (2130)'),
+  'FDroid priv: logLine contains repo version info');
 assertEqual(results[0].tableRow[0], 'priv-app/FDroidPrivilegedExtension.apk',
   'FDroid priv: tableRow[0] shows relPath');
 assertEqual(results[0].tableRow[2], 'f-droid',
@@ -442,11 +446,11 @@ assert(results[2].noticeLine !== null,
   'GmsCore (microG cert): notice emitted for UPDATE AVAILABLE');
 assertEqual(
   results[2].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a><br>repo=23.9.13 (230913000) > local 22.0 (220000000)`,
+  `${ICON.UPDATE_AVAILABLE} <a href="https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk">UPDATE AVAILABLE</a><br>repo=23.9.13 (230913000) > local=22.0 (220000000)`,
   'GmsCore (microG cert): tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
-assert(results[2].noticeLine.includes('UPDATE AVAILABLE'),
-  'GmsCore (microG cert): notice text contains UPDATE AVAILABLE');
+assert(!results[2].noticeLine.includes('UPDATE AVAILABLE'),
+  'GmsCore (microG cert): notice content is version info only (no UPDATE AVAILABLE text)');
 assert(results[2].noticeLine.includes('[microg.org]'),
   'GmsCore (microG cert): notice text contains short repo URL');
 assert(
@@ -454,6 +458,11 @@ assert(
     'https://repo.microg.org/fdroid/repo/com.google.android.gms_230913000.apk'
   ),
   'GmsCore (microG cert): notice text contains full APK URL'
+);
+assertEqual(
+  results[2].noticeTitle,
+  `${ICON.UPDATE_AVAILABLE} Update available for priv-app/GmsCore.apk (com.google.android.gms)`,
+  'GmsCore (microG cert): noticeTitle uses icon, relPath and package name'
 );
 assertEqual(results[2].warningLine, null,
   'GmsCore (microG cert): no warning for UPDATE AVAILABLE');
@@ -470,7 +479,7 @@ assert(results[3].noticeLine !== null,
   'GmsCore (Google cert): notice emitted');
 assertEqual(
   results[3].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a><br>repo=24.0 (240000000) > local 23.0 (230000000)`,
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.google.android.gms_240000000.apk">UPDATE AVAILABLE</a><br>repo=24.0 (240000000) > local=23.0 (230000000)`,
   'GmsCore (Google cert): tableRow UPDATE AVAILABLE is 2-line format with <br>'
 );
 assert(results[3].noticeLine.includes('[f-droid.org]'),
@@ -481,15 +490,24 @@ assert(
   ),
   'GmsCore (Google cert): notice contains full APK URL'
 );
+assertEqual(
+  results[3].noticeTitle,
+  `${ICON.UPDATE_AVAILABLE} Update available for priv-app/GoogleGms.apk (com.google.android.gms)`,
+  'GmsCore (Google cert): noticeTitle uses icon, relPath and package name'
+);
 
 // 5. Different signer
 assert(
   results[4].logLine.includes('[DIFFERENT SIGNER]') &&
-  /\bf-droid\.org\s/.test(results[4].logLine),
-  'NewPipeFork: DIFFERENT SIGNER listing f-droid.org (short URL)'
+  results[4].logLine.includes('[f-droid.org]'),
+  'NewPipeFork: DIFFERENT SIGNER listing [f-droid.org] in brackets'
 );
 assert(results[4].logLine.includes(ICON.DIFFERENT_SIGNER),
   'NewPipeFork: 🔐 icon present in log line');
+assert(results[4].logLine.includes('app/NewPipeFork.apk'),
+  'NewPipeFork: logLine uses relPath');
+assert(results[4].logLine.includes('signed with a different certificate'),
+  'NewPipeFork: logLine contains "signed with a different certificate"');
 assertEqual(results[4].tableRow[0], 'app/NewPipeFork.apk',
   'NewPipeFork: tableRow[0] shows relPath');
 assertEqual(results[4].tableRow[2], 'f-droid',
@@ -510,6 +528,8 @@ assert(
 );
 assert(results[5].logLine.includes(ICON.NOT_IN_REPO),
   'AuroraServices: ❓ icon present in log line');
+assert(results[5].logLine.includes('app/AuroraServices.apk'),
+  'AuroraServices: logLine uses relPath');
 assertEqual(results[5].tableRow[0], 'app/AuroraServices.apk',
   'AuroraServices: tableRow[0] shows relPath');
 assertEqual(results[5].tableRow[3], `${ICON.NOT_IN_REPO} NOT IN REPO`,
@@ -534,8 +554,8 @@ assert(results[6].noticeLine !== null,
   'FakeStore: notice emitted for special-cert UPDATE AVAILABLE');
 assertEqual(
   results[6].tableRow[3],
-  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a><br>repo=33.0 (84022626) > local 30.0 (80000000)`,
-  'FakeStore: tableRow UPDATE AVAILABLE is 2-line format with <br>'
+  `${ICON.UPDATE_AVAILABLE} <a href="https://f-droid.org/repo/com.android.vending_84022626.apk">UPDATE AVAILABLE</a><br>repo=33.0 (84022626) > local=30.0 (80000000)`,
+  'FakeStore: tableRow UPDATE AVAILABLE is 2-line format with <br> and local='
 );
 assert(results[6].noticeLine.includes('[f-droid.org]'),
   'FakeStore: notice contains short repo URL');
@@ -544,6 +564,11 @@ assert(
     'https://f-droid.org/repo/com.android.vending_84022626.apk'
   ),
   'FakeStore: notice contains full APK URL from special cert match'
+);
+assertEqual(
+  results[6].noticeTitle,
+  `${ICON.UPDATE_AVAILABLE} Update available for priv-app/FakeStore.apk (com.android.vending)`,
+  'FakeStore: noticeTitle uses icon, relPath and package name'
 );
 assertEqual(results[6].warningLine, null,
   'FakeStore: no warning for UPDATE AVAILABLE');

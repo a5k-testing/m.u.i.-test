@@ -31,11 +31,12 @@ jobs:
         uses: actions/checkout@v6
       - name: "Run JS tests"
         run: node tests/test-app-update-checker.mjs
-      - name: "Run bats tests"
+      - name: "Install bats and helpers"
         uses: bats-core/bats-action@4.0.0
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-          args: tests/test-check-app-updates.bats
+      - name: "Run bats tests"
+        run: bats tests/test-check-app-updates.bats
 
   check-updates:
     name: "Check updates"

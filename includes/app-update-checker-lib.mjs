@@ -274,59 +274,72 @@ export function checkApks(apkInfoList, repoData) {
         if (repoVc > localVc) return 'update-available';
         return 'local-newer';
       })();
-      let statusText, tableStatus, versionInfo;
+      let tableStatus, versionInfo, logLine, noticeTitle, noticeLine, warningLine, checkFailedLine;
+      const displayName = apk.relPath ?? apk.fileName;
       switch (updateStatus) {
-        case 'check-failed':
-          statusText =
+        case 'check-failed': {
+          const statusText =
             `${ICON.CHECK_FAILED} CHECK FAILED` +
             ` (localVc=${localVc}, repoVc=${repoVc})`;
           tableStatus = statusText;
+          logLine = `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
+          noticeTitle = null;
+          noticeLine = null;
+          warningLine = null;
+          checkFailedLine = `${apk.fileName} (${apk.packageName}): ${statusText}`;
           break;
+        }
         case 'up-to-date':
-          statusText =
-            `${ICON.UP_TO_DATE} UP TO DATE (versionCode=${localVc})`;
           tableStatus =
             `${ICON.UP_TO_DATE} UP TO DATE<br>version=${ver.vn} (${repoVc})`;
+          logLine =
+            `${ICON.UP_TO_DATE} [UP TO DATE] ${displayName}` +
+            ` (${apk.packageName}): [${label}] version=${ver.vn} (${repoVc})`;
+          noticeTitle = null;
+          noticeLine = null;
+          warningLine = null;
+          checkFailedLine = null;
           break;
         case 'update-available': {
           const localVn = apk.versionName;
           versionInfo = localVn
-            ? `repo=${ver.vn} (${repoVc}) > local ${localVn} (${localVc})`
-            : `repo=${ver.vn} (${repoVc}) > local (${localVc})`;
-          statusText =
-            `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE: ${versionInfo}`;
+            ? `repo=${ver.vn} (${repoVc}) > local=${localVn} (${localVc})`
+            : `repo=${ver.vn} (${repoVc}) > local=(${localVc})`;
           tableStatus = apkUrl
             ? `${ICON.UPDATE_AVAILABLE}` +
               ` <a href="${apkUrl}">UPDATE AVAILABLE</a><br>${versionInfo}`
             : `${ICON.UPDATE_AVAILABLE} UPDATE AVAILABLE<br>${versionInfo}`;
+          logLine =
+            `${ICON.UPDATE_AVAILABLE} [UPDATE AVAILABLE] ${displayName}` +
+            ` (${apk.packageName}): [${label}] ${versionInfo}`;
+          noticeTitle =
+            `${ICON.UPDATE_AVAILABLE} Update available for ${displayName}` +
+            ` (${apk.packageName})`;
+          noticeLine =
+            `[${label}] ${versionInfo}` +
+            (apkUrl ? `\n${apkUrl}` : '');
+          warningLine = null;
+          checkFailedLine = null;
           break;
         }
-        case 'local-newer':
-          statusText =
+        case 'local-newer': {
+          const statusText =
             `${ICON.LOCAL_NEWER} LOCAL NEWER: local (${localVc})` +
             ` > repo (${repoVc})`;
           tableStatus = statusText;
+          logLine = `[${label}] ${apk.fileName} (${apk.packageName}): ${statusText}`;
+          noticeTitle = null;
+          noticeLine = null;
+          warningLine = `${apk.fileName} (${apk.packageName}): ${statusText}`;
+          checkFailedLine = null;
           break;
+        }
       }
-      const displayName = apk.relPath ?? apk.fileName;
-      const logLine =
-        `[${label}] ${apk.fileName}` +
-        ` (${apk.packageName}): ${statusText}`;
-      const noticeLine = updateStatus === 'update-available'
-        ? `[${label}] ${apk.fileName} (${apk.packageName}):` +
-          ` ${statusText}` +
-          (apkUrl ? `\n${apkUrl}` : '')
-        : null;
-      const warningLine = updateStatus === 'local-newer'
-        ? `${apk.fileName} (${apk.packageName}): ${statusText}`
-        : null;
-      const checkFailedLine = updateStatus === 'check-failed'
-        ? `${apk.fileName} (${apk.packageName}): ${statusText}`
-        : null;
       results.push({
         logLine,
         tableRow: [displayName, apk.packageName, tLabel, tableStatus],
         noticeLine,
+        noticeTitle,
         warningLine,
         checkFailedLine,
       });
@@ -336,10 +349,7 @@ export function checkApks(apkInfoList, repoData) {
         .filter(({ apps }) => apps.has(apk.packageName));
       if (signerMismatch.length > 0) {
         const logRepoLabel = signerMismatch
-          .map(({ baseUrl, apps }) => {
-            const p = apps.get(apk.packageName);
-            return `${shortUrl(baseUrl)} (latest=${p.latestVn} ${p.latestVc})`;
-          })
+          .map(({ baseUrl }) => shortUrl(baseUrl))
           .join(', ');
         const tableRepoLabel = signerMismatch
           .map(({ baseUrl }) => tableLabel(baseUrl))
@@ -347,10 +357,9 @@ export function checkApks(apkInfoList, repoData) {
         const displayName = apk.relPath ?? apk.fileName;
         results.push({
           logLine:
-            `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${apk.fileName}` +
+            `${ICON.DIFFERENT_SIGNER} [DIFFERENT SIGNER] ${displayName}` +
             ` (${apk.packageName}):` +
-            ` ${logRepoLabel}` +
-            ` but signed with a different certificate`,
+            ` [${logRepoLabel}] signed with a different certificate`,
           tableRow: [
             displayName,
             apk.packageName,
@@ -358,6 +367,7 @@ export function checkApks(apkInfoList, repoData) {
             `${ICON.DIFFERENT_SIGNER} DIFFERENT SIGNER`,
           ],
           noticeLine: null,
+          noticeTitle: null,
           warningLine: null,
           checkFailedLine: null,
         });
@@ -365,7 +375,7 @@ export function checkApks(apkInfoList, repoData) {
         const displayName = apk.relPath ?? apk.fileName;
         results.push({
           logLine:
-            `${ICON.NOT_IN_REPO} [NOT IN REPO] ${apk.fileName}` +
+            `${ICON.NOT_IN_REPO} [NOT IN REPO] ${displayName}` +
             ` (${apk.packageName}): not found in any repo`,
           tableRow: [
             displayName,
@@ -374,6 +384,7 @@ export function checkApks(apkInfoList, repoData) {
             `${ICON.NOT_IN_REPO} NOT IN REPO`,
           ],
           noticeLine: null,
+          noticeTitle: null,
           warningLine: null,
           checkFailedLine: null,
         });
@@ -697,11 +708,11 @@ export default async function run(
   // Report results
   core.info('');
   core.info('=== Update check results ===');
-  for (const { logLine, tableRow, noticeLine, warningLine, checkFailedLine }
+  for (const { logLine, tableRow, noticeLine, noticeTitle, warningLine, checkFailedLine }
     of checkApks(apkInfoList, repoData)) {
     core.info(logLine);
     if (noticeLine !== null) {
-      core.notice(noticeLine, { title: 'Update available' });
+      core.notice(noticeLine, { title: noticeTitle });
     }
     if (warningLine !== null) {
       core.warning(warningLine, { title: 'Local Newer' });
