@@ -426,10 +426,12 @@ console.log('\n── index-v2.json URL construction ──');
 
 const indexUrls = repos.map(b => `${b}/index-v2.json`);
 
-assertEqual(indexUrls[0], 'https://f-droid.org/repo/index-v2.json',
-  'F-Droid: /index-v2.json appended correctly');
-assertEqual(indexUrls[1], 'https://repo.microg.org/fdroid/repo/index-v2.json',
+assertEqual(indexUrls[0], 'https://repo.microg.org/fdroid/repo/index-v2.json',
   'microG: /index-v2.json appended correctly');
+assertEqual(indexUrls[1], 'https://f-droid.org/repo/index-v2.json',
+  'F-Droid: /index-v2.json appended correctly');
+assertEqual(indexUrls[2], 'https://apt.izzysoft.de/fdroid/repo/index-v2.json',
+  'IzzyOnDroid: /index-v2.json appended correctly');
 
 // ---------------------------------------------------------------------------
 // fetchUrl: HTTPS enforcement and redirect limit

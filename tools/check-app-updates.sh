@@ -10,7 +10,7 @@
 
 readonly SCRIPT_NAME='Check app updates'
 readonly SCRIPT_SHORTNAME='CheckAppUpdates'
-readonly SCRIPT_VERSION='0.2.0'
+readonly SCRIPT_VERSION='0.3.0'
 readonly SCRIPT_AUTHOR='ale5000'
 
 set -u
@@ -45,19 +45,19 @@ show_error()
 
 main()
 {
-  local apk_dir="${1:-}"
-  local script_dir repo_dir
+  local apk_dir="${1:-}" apk_files="${2:-}"
+  local script_dir repo_dir apk_file_count
 
   # Resolve the directory containing this script and the repo root
   script_dir="$(cd "$(dirname "${0}")" && pwd)"
   repo_dir="$(cd "${script_dir}/.." && pwd)"
 
-  # Default APK directory: zip-content/origin/ relative to the repo root
-  if test -z "${apk_dir}"; then
+  # Default APK directory when neither --dir nor --file is given
+  if test -z "${apk_dir}" && test -z "${apk_files}"; then
     apk_dir="${repo_dir}/zip-content/origin"
   fi
 
-  test -d "${apk_dir}" || {
+  test -z "${apk_dir}" || test -d "${apk_dir}" || {
     show_error "APK directory not found: ${apk_dir}"
     return 1
   }
@@ -69,16 +69,26 @@ main()
     return 1
   }
 
-  printf 'APK directory: %s\n\n' "${apk_dir}"
+  if test -n "${apk_dir}"; then
+    printf 'APK directory: %s\n' "${apk_dir}"
+  fi
+  if test -n "${apk_files}"; then
+    apk_file_count="$(printf '%s' "${apk_files}" | grep -c . || true)"
+    printf 'APK file(s): %s\n' "${apk_file_count}"
+  fi
+  printf '\n'
 
   # APK info extraction and update checking are both handled by the JS library.
-  # Pass the APK directory via APKS_BASE_DIR; Node discovers aapt/keytool itself.
-  APKS_BASE_DIR="${apk_dir}" node "${script_dir}/run-check-app-updates.mjs"
+  # APKS_BASE_DIR: directory used for scanning and relPath computation.
+  # APKS_FILES: newline-separated list of explicit APK paths (overrides scan).
+  APKS_BASE_DIR="${apk_dir}" APKS_FILES="${apk_files}" \
+    node "${script_dir}/run-check-app-updates.mjs"
 }
 
 STATUS=0
 execute_script='true'
 apk_dir_arg=''
+apk_files_arg=''
 
 while test "${#}" -gt 0; do
   case "${1?}" in
@@ -92,6 +102,12 @@ while test "${#}" -gt 0; do
     --dir)
       shift
       apk_dir_arg="${1?}"
+      ;;
+
+    --file)
+      shift
+      apk_files_arg="${apk_files_arg:+${apk_files_arg}
+}${1?}"
       ;;
 
     --)
@@ -128,7 +144,7 @@ fi
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
 
-  main "${apk_dir_arg}" || STATUS="${?}"
+  main "${apk_dir_arg}" "${apk_files_arg}" || STATUS="${?}"
 fi
 
 pause_if_needed "${STATUS:?}"

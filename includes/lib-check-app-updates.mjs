@@ -145,8 +145,9 @@ export const SPECIAL_PKGS = new Set([
 // Ordered list of F-Droid-compatible repository base URLs.
 // "/index-v2.json" is appended automatically when fetching.
 export const repos = [
-  'https://f-droid.org/repo',
   'https://repo.microg.org/fdroid/repo',
+  'https://f-droid.org/repo',
+  'https://apt.izzysoft.de/fdroid/repo',
 ];
 
 // Check apkInfoList against repoData; returns one result per APK:
@@ -390,21 +391,26 @@ async function getCertSha256(apkPath) {
 // extractApkInfo — exported library function
 // ---------------------------------------------------------------------------
 
-// Scan baseDir recursively for *.apk files, extract package name, version
-// code, and signing-certificate SHA-256 for each one, and return the list.
+// Scan baseDir recursively for *.apk files (or use an explicit apkFiles list),
+// extract package name, version code, and signing-certificate SHA-256 for each
+// one, and return the list.
 //
 // LFS pointer files (tiny text stubs) are resolved from lfsCacheDir when
 // provided; if not resolvable they are skipped with a log message.
 //
 // Options:
-//   lfsCacheDir {string|null} – path to a Git-LFS cache directory
-//                               (e.g. GITHUB_WORKSPACE/cache/lfs)
-//   core        {object}     – logger implementing .info(msg) (optional)
+//   apkFiles    {string[]|null} – explicit list of absolute APK paths to process
+//                                 instead of scanning baseDir; when provided,
+//                                 baseDir may be null (relPath falls back to
+//                                 the filename in that case)
+//   lfsCacheDir {string|null}   – path to a Git-LFS cache directory
+//                                 (e.g. GITHUB_WORKSPACE/cache/lfs)
+//   core        {object}        – logger implementing .info(msg) (optional)
 //
 // Returns: Promise<Array<{fileName, relPath, packageName, versionCode, certSha256}>>
 export async function extractApkInfo(
   baseDir,
-  { lfsCacheDir = null, core } = {}
+  { apkFiles = null, lfsCacheDir = null, core } = {}
 ) {
   const aaptBin = findAaptBin();
   if (!aaptBin) {
@@ -415,12 +421,14 @@ export async function extractApkInfo(
   }
   core?.info(`Using aapt: ${aaptBin}`);
 
-  const apkPaths = findApkFiles(baseDir);
+  const apkPaths = apkFiles ?? findApkFiles(baseDir);
   const results = [];
 
   for (const apkPath of apkPaths) {
     const fileName  = path.basename(apkPath);
-    const relPath   = path.relative(baseDir, apkPath);
+    const relPath   = baseDir
+      ? path.relative(baseDir, apkPath)
+      : fileName;
 
     // Detect and resolve LFS pointer files
     let resolvedPath = apkPath;
@@ -497,16 +505,19 @@ export async function extractApkInfo(
 //
 // Options:
 //   core        {object}      – @actions/core or compatible shim (required)
-//   baseDir     {string}      – APK root directory; defaults to
+//   baseDir     {string}      – APK root directory to scan; defaults to
 //                               GITHUB_WORKSPACE/zip-content/origin
 //   lfsCacheDir {string|null} – LFS cache dir; defaults to
 //                               GITHUB_WORKSPACE/cache/lfs (when GITHUB_WORKSPACE
 //                               is set), or null
-export default async function ({ core, baseDir, lfsCacheDir } = {}) {
+//   apkFiles    {string[]}    – explicit list of APK paths to check instead of
+//                               scanning baseDir; when provided, baseDir is
+//                               optional (used only for relPath computation)
+export default async function ({ core, baseDir, lfsCacheDir, apkFiles } = {}) {
   const workspace = process.env.GITHUB_WORKSPACE ?? '';
   const apkBaseDir = baseDir ??
     (workspace ? path.join(workspace, 'zip-content/origin') : null);
-  if (!apkBaseDir) {
+  if (!apkBaseDir && !apkFiles?.length) {
     throw new Error(
       'APK base directory must be provided via the baseDir option ' +
       'or the GITHUB_WORKSPACE environment variable.'
@@ -517,6 +528,7 @@ export default async function ({ core, baseDir, lfsCacheDir } = {}) {
 
   // Extract APK info from the filesystem
   const allApkInfo = await extractApkInfo(apkBaseDir, {
+    apkFiles: apkFiles?.length ? apkFiles : null,
     lfsCacheDir: lfsDir,
     core,
   });

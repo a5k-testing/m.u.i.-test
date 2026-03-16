@@ -47,7 +47,15 @@ const core = {
   summary,
 };
 
-run({ core, baseDir: process.env.APKS_BASE_DIR || undefined }).catch(err => {
+const apkFiles = process.env.APKS_FILES
+  ? process.env.APKS_FILES.split('\n').filter(Boolean)
+  : undefined;
+
+run({
+  core,
+  baseDir:  process.env.APKS_BASE_DIR || undefined,
+  apkFiles,
+}).catch(err => {
   console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
   process.exitCode = 1;
 });
