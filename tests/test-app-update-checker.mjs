@@ -15,7 +15,8 @@ import {
 
 import { default as run } from '../includes/app-update-checker-lib.mjs';
 
-import path from 'path';
+import path from 'node:path';
+import { mock } from 'node:test';
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -1098,26 +1099,50 @@ console.log('\n── relPath computation ──');
 }
 
 // ---------------------------------------------------------------------------
-// toPosix: Windows path separator simulation (mock path.sep = '\\')
+// toPosix: Windows path separator simulation (using node:test mock API)
 // ---------------------------------------------------------------------------
 
 console.log('\n── toPosix Windows path simulation ──');
 
 {
-  // Simulate Windows by temporarily setting path.sep to backslash.
-  // String.prototype.toPosix reads path.sep at call time, so this accurately
-  // exercises the code path that runs on Windows without requiring a real
-  // Windows environment.
+  // On POSIX hosts, path.sep is a plain writable data property, but
+  // mock.getter() requires the property to already have a getter (accessor
+  // descriptor).  Convert it to an accessor first so the mock API works
+  // identically on Linux and on real Windows (where path.sep is already a
+  // read-only getter).
   const origSep = path.sep;
-  path.sep = '\\';
+  Object.defineProperty(path, 'sep', {
+    get: () => origSep,
+    configurable: true,
+    enumerable: true,
+  });
+
+  /**
+   * Mocks the Node.js path module to behave like Windows.
+   * Works natively in Node 20+ without external libraries.
+   */
+  const mockWindows = () => {
+    // 1. Mock all path methods (join, resolve, basename, etc.) using win32 equivalents
+    Object.keys(path.win32).forEach(key => {
+      if (typeof path.win32[key] === 'function') {
+        mock.method(path, key, path.win32[key]);
+      }
+    });
+
+    // 2. Mock read-only path constants
+    mock.getter(path, 'sep', () => '\\');
+  };
+
   try {
-    // Single backslash
+    mockWindows();
+
+    // Single-level Windows path
     assertEqual(
       'C:\\foo\\bar'.toPosix(),
       'C:/foo/bar',
       'toPosix (win): single-level Windows path converted'
     );
-    // Multiple backslashes
+    // Deep Windows path
     assertEqual(
       'C:\\workspace\\zip-content\\origin\\app.apk'.toPosix(),
       'C:/workspace/zip-content/origin/app.apk',
@@ -1130,7 +1155,8 @@ console.log('\n── toPosix Windows path simulation ──');
       'toPosix (win): posix path unchanged when sep is backslash'
     );
 
-    // Verify that toPosix (standalone function) converts Windows-style dirs
+    // Verify that toPosix converts Windows-style dirs and files when used
+    // as the map() callback (mirrors the map(toPosix) call in the library)
     const winDirs = [
       'C:\\workspace\\zip-content',
       'D:\\apks\\release',
@@ -1139,7 +1165,6 @@ console.log('\n── toPosix Windows path simulation ──');
       'C:\\workspace\\app.apk',
       'D:\\other\\test.apk',
     ];
-    // toPosix is the standalone function used inside map()
     const normDirs  = winDirs.map(d => d.toPosix());
     const normFiles = winFiles.map(f => f.toPosix());
 
@@ -1148,7 +1173,7 @@ console.log('\n── toPosix Windows path simulation ──');
     assertEqual(normFiles[0], 'C:/workspace/app.apk',     'toPosix (win): file path 1 normalized');
     assertEqual(normFiles[1], 'D:/other/test.apk',        'toPosix (win): file path 2 normalized');
   } finally {
-    path.sep = origSep;
+    mock.restoreAll();
   }
 }
 
