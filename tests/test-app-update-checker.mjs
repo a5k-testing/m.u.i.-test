@@ -1099,43 +1099,72 @@ console.log('\n── relPath computation ──');
 }
 
 // ---------------------------------------------------------------------------
-// toPosix: Windows path separator simulation (using node:test mock API)
+// toPosix: Windows path separator simulation (using Object.defineProperty mock)
 // ---------------------------------------------------------------------------
 
 console.log('\n── toPosix Windows path simulation ──');
 
 {
-  // On POSIX hosts, path.sep is a plain writable data property, but
-  // mock.getter() requires the property to already have a getter (accessor
-  // descriptor).  Convert it to an accessor first so the mock API works
-  // identically on Linux and on real Windows (where path.sep is already a
-  // read-only getter).
-  const origSep = path.sep;
-  Object.defineProperty(path, 'sep', {
-    get: () => origSep,
-    configurable: true,
-    enumerable: true,
-  });
+  const originalPathPosix = path.posix;
+  // Clone path.posix into a new detached object so that changes to path
+  // (which on POSIX is the same object as path.posix) do not affect path.posix.sep
+  const detachedPathPosix = Object.assign({}, originalPathPosix);
+
+  const originalPathSep       = path.sep;
+  const originalPathDelimiter = path.delimiter;
+  const originalPlatform      = process.platform;
+
+  // Override path.posix with the detached clone so path.posix !== path
+  const detachPathPosix = () => {
+    Object.defineProperty(path, 'posix', { value: detachedPathPosix, configurable: true, enumerable: true, writable: true });
+  };
+
+  // Restore path.posix to the original object
+  const restorePathPosix = () => {
+    Object.defineProperty(path, 'posix', { value: originalPathPosix, configurable: true, enumerable: true, writable: true });
+  };
 
   /**
-   * Mocks the Node.js path module to behave like Windows.
+   * Mocks the Node.js environment to behave like Windows.
    * Works natively in Node 20+ without external libraries.
    */
   const mockWindows = () => {
+    detachPathPosix();
+
     // 1. Mock all path methods (join, resolve, basename, etc.) using win32 equivalents
     Object.keys(path.win32).forEach(key => {
-      if (typeof path.win32[key] === 'function') {
+      if (typeof path.win32[key] === 'function' && typeof path[key] === 'function') {
         mock.method(path, key, path.win32[key]);
       }
     });
 
-    // 2. Mock read-only path constants
-    mock.getter(path, 'sep', () => '\\');
+    // 2. Force overwrite of read-only properties using defineProperty
+    Object.defineProperty(path, 'sep',        { value: '\\',   configurable: true, enumerable: true, writable: true });
+    Object.defineProperty(path, 'delimiter',  { value: ';',    configurable: true, enumerable: true, writable: true });
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true, enumerable: true, writable: true });
+  };
+
+  const unmockWindows = () => {
+    Object.defineProperty(path, 'sep',        { value: originalPathSep,       configurable: true, enumerable: true, writable: true });
+    Object.defineProperty(path, 'delimiter',  { value: originalPathDelimiter, configurable: true, enumerable: true, writable: true });
+    Object.defineProperty(process, 'platform', { value: originalPlatform,      configurable: true, enumerable: true, writable: true });
+    restorePathPosix();
+    mock.restoreAll();
   };
 
   try {
     mockWindows();
 
+    // Verify mock state
+    assertEqual(process.platform, 'win32', 'toPosix (win): process.platform mocked to win32');
+    assertEqual(path.sep,        '\\',     'toPosix (win): path.sep mocked to backslash');
+    assertEqual(path.win32.sep,  '\\',     'toPosix (win): path.win32.sep unchanged');
+    assertEqual(path.posix.sep,  '/',      'toPosix (win): path.posix.sep unaffected by mock');
+    assertEqual(path.join('C:', 'Users'),               'C:\\Users',   'toPosix (win): path.join uses win32');
+    assertEqual(path.dirname('C:\\Windows\\System32'), 'C:\\Windows', 'toPosix (win): path.dirname uses win32');
+    assert(path.isAbsolute('C:\\Windows\\System32'),                   'toPosix (win): path.isAbsolute recognises Windows path');
+
+    // toPosix conversion: path.sep is now '\\' so toPosix replaces backslashes
     // Single-level Windows path
     assertEqual(
       'C:\\foo\\bar'.toPosix(),
@@ -1173,7 +1202,7 @@ console.log('\n── toPosix Windows path simulation ──');
     assertEqual(normFiles[0], 'C:/workspace/app.apk',     'toPosix (win): file path 1 normalized');
     assertEqual(normFiles[1], 'D:/other/test.apk',        'toPosix (win): file path 2 normalized');
   } finally {
-    mock.restoreAll();
+    unmockWindows();
   }
 }
 

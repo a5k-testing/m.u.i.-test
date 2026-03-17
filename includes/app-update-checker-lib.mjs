@@ -22,15 +22,19 @@ const execFile = promisify(execFileCb);
 
 // All paths inside this library are kept in posix form
 
+// OS path separator (e.g. '\\' on Windows, '/' on POSIX); cached for performance
+const SEP = path.sep;
+// POSIX path separator; all paths inside this library are normalised to this
+const POSIX_SEP = '/';
+
 // Standardize path separators to POSIX style
 if (!String.prototype.toPosix) {
   Object.defineProperty(String.prototype, 'toPosix', {
-    // Use the literal POSIX separator ('/') as destination so that mocking
-    // path.sep in tests does not inadvertently change the target separator
-    // (on POSIX hosts path === path.posix, so path.posix.sep and path.sep
-    // are the same property on the same object).
+    // path.sep is read at call time (not via the SEP constant) so that tests can
+    // mock it via Object.defineProperty and have toPosix pick up the new value.
+    // The target separator is the POSIX_SEP constant (always '/').
     value: function() {
-      return this.replaceAll(path.sep, '/');
+      return this.replaceAll(path.sep, POSIX_SEP);
     },
     enumerable: false,
     configurable: true,
