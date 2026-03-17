@@ -22,10 +22,12 @@ const execFile = promisify(execFileCb);
 
 // Normalize any OS path to forward-slash (posix) separators.
 // All paths inside this library are kept in posix form.
-const toPosix = p => p.replace(/\\/g, '/');
+String.prototype.toPosix = function() {
+  return this.replaceAll(path.sep, path.posix.sep);
+};
 
 // Path to this library file; used for workspace default and CLI entry detection
-const _LIB_PATH = toPosix(fileURLToPath(import.meta.url));
+const _LIB_PATH = fileURLToPath(import.meta.url).toPosix();
 const _LIB_DIR  = path.posix.dirname(_LIB_PATH);
 
 // ---------------------------------------------------------------------------
@@ -408,7 +410,7 @@ function findAaptBin() {
     });
     if (!r.error || r.error.code !== 'ENOENT') return bin;
   }
-  const sdkRoot = toPosix(process.env.ANDROID_SDK_ROOT ?? '');
+  const sdkRoot = (process.env.ANDROID_SDK_ROOT ?? '').toPosix();
   if (sdkRoot) {
     const btDir = path.posix.join(sdkRoot, 'build-tools');
     try {
@@ -645,15 +647,15 @@ export default async function run(
 ) {
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
   // Normalize to posix separators so all internal path operations are consistent.
-  const workspace = toPosix(process.env.GITHUB_WORKSPACE || '')
+  const workspace = (process.env.GITHUB_WORKSPACE || '').toPosix()
     || path.posix.dirname(_LIB_DIR);
 
   // Normalize all incoming paths to posix
-  const normDirs  = apkDirs?.map(toPosix);
-  const normFiles = apkFiles?.map(toPosix);
-  const normLfsDir  = lfsCacheDir  ? toPosix(lfsCacheDir)  : undefined;
-  const normRepoDir = repoCacheDir ? toPosix(repoCacheDir) : undefined;
-  const normDump    = dumpInfoFile ? toPosix(dumpInfoFile) : null;
+  const normDirs  = apkDirs?.map(d => d.toPosix());
+  const normFiles = apkFiles?.map(f => f.toPosix());
+  const normLfsDir  = lfsCacheDir  ? lfsCacheDir.toPosix()  : undefined;
+  const normRepoDir = repoCacheDir ? repoCacheDir.toPosix() : undefined;
+  const normDump    = dumpInfoFile ? dumpInfoFile.toPosix() : null;
 
   // Validate inputs
   if (normDirs === undefined && normFiles === undefined) {
@@ -855,13 +857,13 @@ if (process.argv[1] === _LIB_PATH) {
   };
 
   const apkDirsEnv = process.env.APKS_DIRS !== undefined
-    ? process.env.APKS_DIRS.split('\n').filter(Boolean).map(toPosix)
+    ? process.env.APKS_DIRS.split('\n').filter(Boolean).map(d => d.toPosix())
     : undefined;
   const apkFilesEnv = process.env.APKS_FILES
-    ? process.env.APKS_FILES.split('\n').filter(Boolean).map(toPosix)
+    ? process.env.APKS_FILES.split('\n').filter(Boolean).map(f => f.toPosix())
     : undefined;
   const dumpInfoFileEnv = process.env.APKS_DUMP_INFO
-    ? path.posix.join(toPosix(process.cwd()), 'update-info.dat')
+    ? path.posix.join(process.cwd().toPosix(), 'update-info.dat')
     : null;
 
   run({
