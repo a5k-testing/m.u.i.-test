@@ -95,9 +95,11 @@ dump_info_arg=''
 while test "${#}" -gt 0; do
   case "${1?}" in
     -V | --version)
+      # REUSE-IgnoreStart
       printf '%s\n' "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?}"
-      printf '%s\n' "Copy""right (c) 2026 ${SCRIPT_AUTHOR:?}"
+      printf '%s\n' "Copyright (c) 2026 ${SCRIPT_AUTHOR:?}"
       printf '%s\n' 'License GPLv3+'
+      # REUSE-IgnoreEnd
       execute_script='false'
       ;;
 
