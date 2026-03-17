@@ -52,11 +52,6 @@ main()
   script_dir="$(cd "$(dirname "${0}")" && pwd)"
   repo_dir="$(cd "${script_dir}/.." && pwd)"
 
-  # Default APK directory when neither --dir nor --file is given
-  if test -z "${apk_dirs}" && test -z "${apk_files}"; then
-    apk_dirs="${repo_dir}/zip-content/origin"
-  fi
-
   # Node.js 20+ is required (the library checks at import time, but give a
   # clear error here too so the user sees it before Node even starts)
   command -v 'node' 1>/dev/null 2>&1 || {

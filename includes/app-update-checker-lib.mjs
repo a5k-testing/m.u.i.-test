@@ -20,9 +20,13 @@ import { fileURLToPath } from 'url';
 
 const execFile = promisify(execFileCb);
 
+// Normalize any OS path to forward-slash (posix) separators.
+// All paths inside this library are kept in posix form.
+const toPosix = p => p.replace(/\\/g, '/');
+
 // Path to this library file; used for workspace default and CLI entry detection
-const _LIB_PATH = fileURLToPath(import.meta.url);
-const _LIB_DIR  = path.dirname(_LIB_PATH);
+const _LIB_PATH = toPosix(fileURLToPath(import.meta.url));
+const _LIB_DIR  = path.posix.dirname(_LIB_PATH);
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -181,7 +185,7 @@ function repoCacheFilename(baseUrl) {
 async function loadOrFetchRepoIndex(baseUrl, repoCacheDir, core) {
   const indexUrl = `${baseUrl}/index-v2.json`;
   if (repoCacheDir) {
-    const cacheFile = path.join(repoCacheDir, repoCacheFilename(baseUrl));
+    const cacheFile = path.posix.join(repoCacheDir, repoCacheFilename(baseUrl));
     let cacheAgeMs = Infinity;
     try {
       cacheAgeMs = Date.now() - statSync(cacheFile).mtimeMs;
@@ -404,18 +408,18 @@ function findAaptBin() {
     });
     if (!r.error || r.error.code !== 'ENOENT') return bin;
   }
-  const sdkRoot = process.env.ANDROID_SDK_ROOT ?? '';
+  const sdkRoot = toPosix(process.env.ANDROID_SDK_ROOT ?? '');
   if (sdkRoot) {
-    const btDir = path.join(sdkRoot, 'build-tools');
+    const btDir = path.posix.join(sdkRoot, 'build-tools');
     try {
       const versions = readdirSync(btDir)
         .filter(d => {
-          try { return statSync(path.join(btDir, d)).isDirectory(); }
+          try { return statSync(path.posix.join(btDir, d)).isDirectory(); }
           catch { return false; }
         })
         .sort();
       for (const ver of versions.reverse()) {
-        const candidate = path.join(btDir, ver, 'aapt');
+        const candidate = path.posix.join(btDir, ver, 'aapt');
         const r = spawnSync(candidate, ['version'], {
           encoding: 'utf-8',
           stdio: ['ignore', 'pipe', 'ignore'],
@@ -435,7 +439,7 @@ function findApkFiles(baseDir) {
     try { entries = readdirSync(dir, { withFileTypes: true }); }
     catch { return; }
     for (const entry of entries) {
-      const full = path.join(dir, entry.name);
+      const full = path.posix.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
       else if (entry.isFile() && entry.name.endsWith('.apk'))
         results.push(full);
@@ -541,9 +545,9 @@ export async function extractApkInfo(
   const results = [];
 
   for (const apkPath of apkPaths) {
-    const fileName = path.basename(apkPath);
+    const fileName = path.posix.basename(apkPath);
     const relPath = apkFiles != null
-      ? (workspace ? path.posix.relative(workspace, apkPath) : path.basename(apkPath))
+      ? (workspace ? path.posix.relative(workspace, apkPath) : path.posix.basename(apkPath))
       : path.posix.relative(baseDir, apkPath);
 
     // Detect and resolve LFS pointer files
@@ -561,7 +565,7 @@ export async function extractApkInfo(
         const oidMatch = content.match(/^oid sha256:([0-9a-f]+)$/m);
         const sha256   = oidMatch?.[1] ?? '';
         if (sha256 && lfsCacheDir) {
-          const cached = path.join(lfsCacheDir, sha256);
+          const cached = path.posix.join(lfsCacheDir, sha256);
           if (existsSync(cached)) {
             resolvedPath = cached;
             core?.info(
@@ -640,25 +644,33 @@ export default async function run(
   { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null } = {}
 ) {
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
-  const workspace = process.env.GITHUB_WORKSPACE
-    || path.resolve(_LIB_DIR, '..');
+  // Normalize to posix separators so all internal path operations are consistent.
+  const workspace = toPosix(process.env.GITHUB_WORKSPACE || '')
+    || path.posix.dirname(_LIB_DIR);
+
+  // Normalize all incoming paths to posix
+  const normDirs  = apkDirs?.map(toPosix);
+  const normFiles = apkFiles?.map(toPosix);
+  const normLfsDir  = lfsCacheDir  ? toPosix(lfsCacheDir)  : undefined;
+  const normRepoDir = repoCacheDir ? toPosix(repoCacheDir) : undefined;
+  const normDump    = dumpInfoFile ? toPosix(dumpInfoFile) : null;
 
   // Validate inputs
-  if (apkDirs === undefined && apkFiles === undefined) {
+  if (normDirs === undefined && normFiles === undefined) {
     throw new Error(
       'Either apkDirs or apkFiles must be provided.'
     );
   }
-  if (apkFiles !== undefined && apkFiles.length === 0) {
+  if (normFiles !== undefined && normFiles.length === 0) {
     throw new Error('apkFiles must not be empty when provided.');
   }
 
   // Resolve effective APK scan directories
   // An empty apkDirs array signals "use the default directory".
-  const effectiveDirs = apkDirs !== undefined
-    ? (apkDirs.length === 0
-        ? [path.join(workspace, 'zip-content/origin')]
-        : apkDirs)
+  const effectiveDirs = normDirs !== undefined
+    ? (normDirs.length === 0
+        ? [path.posix.join(workspace, 'zip-content/origin')]
+        : normDirs)
     : [];
 
   // Validate apkDirs elements: skip entries that are not directories
@@ -674,8 +686,8 @@ export default async function run(
   }
 
   // Cache directories always have a valid path (never disabled)
-  const lfsDir  = lfsCacheDir  ?? path.join(workspace, 'cache/lfs');
-  const reposDir = repoCacheDir ?? path.join(workspace, 'cache/repos');
+  const lfsDir  = normLfsDir  ?? path.posix.join(workspace, 'cache/lfs');
+  const reposDir = normRepoDir ?? path.posix.join(workspace, 'cache/repos');
 
   // Extract APK info from all valid directories
   let allApkInfo = [];
@@ -686,9 +698,9 @@ export default async function run(
 
   // Validate apkFiles elements: skip entries that are not files
   let validApkFiles = null;
-  if (apkFiles?.length) {
+  if (normFiles?.length) {
     validApkFiles = [];
-    for (const f of apkFiles) {
+    for (const f of normFiles) {
       let isFile = false;
       try { isFile = statSync(f).isFile(); } catch { /* ignore */ }
       if (isFile) {
@@ -761,7 +773,7 @@ export default async function run(
   }
 
   // Write update-info.dat when requested
-  if (dumpInfoFile && updateInfoEntries.length > 0) {
+  if (normDump && updateInfoEntries.length > 0) {
     const lines = updateInfoEntries.map(info => {
       const fields = [info.relPath, info.url, info.repoVn, String(info.repoVc), info.repoFileSha256];
       for (const field of fields) {
@@ -773,8 +785,8 @@ export default async function run(
       }
       return fields.join('|');
     });
-    writeFileSync(dumpInfoFile, lines.join('\n'));
-    core.info(`Wrote update info for ${updateInfoEntries.length} APK(s) to ${dumpInfoFile}`);
+    writeFileSync(normDump, lines.join('\n'));
+    core.info(`Wrote update info for ${updateInfoEntries.length} APK(s) to ${normDump}`);
   }
 
   // Write Job Summary table
@@ -842,14 +854,14 @@ if (process.argv[1] === _LIB_PATH) {
     summary,
   };
 
-  const apkDirsEnv = process.env.APKS_DIRS
-    ? process.env.APKS_DIRS.split('\n').filter(Boolean)
+  const apkDirsEnv = process.env.APKS_DIRS !== undefined
+    ? process.env.APKS_DIRS.split('\n').filter(Boolean).map(toPosix)
     : undefined;
   const apkFilesEnv = process.env.APKS_FILES
-    ? process.env.APKS_FILES.split('\n').filter(Boolean)
+    ? process.env.APKS_FILES.split('\n').filter(Boolean).map(toPosix)
     : undefined;
   const dumpInfoFileEnv = process.env.APKS_DUMP_INFO
-    ? path.join(process.cwd(), 'update-info.dat')
+    ? path.posix.join(toPosix(process.cwd()), 'update-info.dat')
     : null;
 
   run({
