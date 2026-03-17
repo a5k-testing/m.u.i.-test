@@ -1097,6 +1097,61 @@ console.log('\n── relPath computation ──');
   );
 }
 
+// ---------------------------------------------------------------------------
+// toPosix: Windows path separator simulation (mock path.sep = '\\')
+// ---------------------------------------------------------------------------
+
+console.log('\n── toPosix Windows path simulation ──');
+
+{
+  // Simulate Windows by temporarily setting path.sep to backslash.
+  // String.prototype.toPosix reads path.sep at call time, so this accurately
+  // exercises the code path that runs on Windows without requiring a real
+  // Windows environment.
+  const origSep = path.sep;
+  path.sep = '\\';
+  try {
+    // Single backslash
+    assertEqual(
+      'C:\\foo\\bar'.toPosix(),
+      'C:/foo/bar',
+      'toPosix (win): single-level Windows path converted'
+    );
+    // Multiple backslashes
+    assertEqual(
+      'C:\\workspace\\zip-content\\origin\\app.apk'.toPosix(),
+      'C:/workspace/zip-content/origin/app.apk',
+      'toPosix (win): deep Windows path fully converted'
+    );
+    // Forward-slash path is unchanged (no backslashes to replace)
+    assertEqual(
+      '/already/posix/path'.toPosix(),
+      '/already/posix/path',
+      'toPosix (win): posix path unchanged when sep is backslash'
+    );
+
+    // Verify that toPosix (standalone function) converts Windows-style dirs
+    const winDirs = [
+      'C:\\workspace\\zip-content',
+      'D:\\apks\\release',
+    ];
+    const winFiles = [
+      'C:\\workspace\\app.apk',
+      'D:\\other\\test.apk',
+    ];
+    // toPosix is the standalone function used inside map()
+    const normDirs  = winDirs.map(d => d.toPosix());
+    const normFiles = winFiles.map(f => f.toPosix());
+
+    assertEqual(normDirs[0],  'C:/workspace/zip-content', 'toPosix (win): dir path 1 normalized');
+    assertEqual(normDirs[1],  'D:/apks/release',          'toPosix (win): dir path 2 normalized');
+    assertEqual(normFiles[0], 'C:/workspace/app.apk',     'toPosix (win): file path 1 normalized');
+    assertEqual(normFiles[1], 'D:/other/test.apk',        'toPosix (win): file path 2 normalized');
+  } finally {
+    path.sep = origSep;
+  }
+}
+
 
 
 console.log(`\n${'─'.repeat(40)}`);

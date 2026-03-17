@@ -22,18 +22,18 @@ const execFile = promisify(execFileCb);
 
 // All paths inside this library are kept in posix form
 
-const SEP = path.sep;
-const POSIX_SEP = path.posix.sep;
-
 // Standardize path separators to POSIX style
 if (!String.prototype.toPosix) {
   Object.defineProperty(String.prototype, 'toPosix', {
+    // Use the literal POSIX separator ('/') as destination so that mocking
+    // path.sep in tests does not inadvertently change the target separator
+    // (on POSIX hosts path === path.posix, so path.posix.sep and path.sep
+    // are the same property on the same object).
     value: function() {
-      // Replace OS-specific separator with POSIX
-      return this.replaceAll(SEP, POSIX_SEP);
+      return this.replaceAll(path.sep, '/');
     },
     enumerable: false,
-    configurable: false
+    configurable: true,
   });
 }
 
@@ -666,8 +666,8 @@ export default async function run(
   const workspace = (process.env.GITHUB_WORKSPACE || '').toPosix() || path.posix.dirname(_LIB_DIR);
 
   // Normalize all incoming paths to posix
-  const normDirs  = apkDirs?.map(d => d.toPosix());
-  const normFiles = apkFiles?.map(f => f.toPosix());
+  const normDirs  = apkDirs?.map(toPosix);
+  const normFiles = apkFiles?.map(toPosix);
   const normLfsDir  = lfsCacheDir  ? lfsCacheDir.toPosix()  : undefined;
   const normRepoDir = repoCacheDir ? repoCacheDir.toPosix() : undefined;
   const normDump    = dumpInfoFile ? dumpInfoFile.toPosix() : null;
@@ -872,10 +872,10 @@ if (process.argv[1] === _LIB_PATH) {
   };
 
   const apkDirsEnv = process.env.APKS_DIRS !== undefined
-    ? process.env.APKS_DIRS.split('\n').filter(Boolean).map(d => d.toPosix())
+    ? process.env.APKS_DIRS.split('\n').filter(Boolean).map(toPosix)
     : undefined;
   const apkFilesEnv = process.env.APKS_FILES
-    ? process.env.APKS_FILES.split('\n').filter(Boolean).map(f => f.toPosix())
+    ? process.env.APKS_FILES.split('\n').filter(Boolean).map(toPosix)
     : undefined;
   const dumpInfoFileEnv = process.env.APKS_DUMP_INFO
     ? path.posix.join(process.cwd().toPosix(), 'update-info.dat')

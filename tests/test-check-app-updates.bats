@@ -265,3 +265,28 @@ teardown_file() {
   grep -qF '/tmp/extra.apk' "${MOCK_OUTPUT_FILE}"
   grep -qxF 'DUMP_INFO=1'   "${MOCK_OUTPUT_FILE}"
 }
+
+# ---------------------------------------------------------------------------
+# Edge cases: number-like, null-string, and empty entries in dirs/files lists
+# ---------------------------------------------------------------------------
+
+@test "dirs and files lists with number-like and null-string entries are accepted" {
+  # Values like '42' (number-like) and 'null' (null-like string) are valid
+  # path strings from the shell's point of view; the JS library is responsible
+  # for deciding whether they exist on disk.  The script must pass them through
+  # unchanged so Node can validate them.
+  run sh "${SCRIPT}" --dir '42' --dir 'null' --file '42' --file 'null'
+  [ "${status}" -eq 0 ]
+  grep -qF '42'   "${MOCK_OUTPUT_FILE}"
+  grep -qF 'null' "${MOCK_OUTPUT_FILE}"
+}
+
+@test "empty-string entries in dirs and files are handled gracefully" {
+  # Passing empty strings for both --dir and --file should not crash the
+  # script; the resulting APKS_DIRS and APKS_FILES env vars will be empty,
+  # which is an accepted (no-op) state for the JS library.
+  run sh "${SCRIPT}" --dir '' --file ''
+  [ "${status}" -eq 0 ]
+  grep -qxF 'DIRS='  "${MOCK_OUTPUT_FILE}"
+  grep -qxF 'FILES=' "${MOCK_OUTPUT_FILE}"
+}
