@@ -27,14 +27,13 @@ const SEP = path.sep;
 // POSIX path separator; all paths inside this library are normalised to this
 const POSIX_SEP = '/';
 
-// Standardize path separators to POSIX style
+// Standardize path separators to POSIX style.
+// Uses SEP (captured at module-load time) so that forcing a module reload after
+// mocking path.sep causes toPosix to pick up the mocked separator.
 if (!String.prototype.toPosix) {
   Object.defineProperty(String.prototype, 'toPosix', {
-    // path.sep is read at call time (not via the SEP constant) so that tests can
-    // mock it via Object.defineProperty and have toPosix pick up the new value.
-    // The target separator is the POSIX_SEP constant (always '/').
     value: function() {
-      return this.replaceAll(path.sep, POSIX_SEP);
+      return this.replaceAll(SEP, POSIX_SEP);
     },
     enumerable: false,
     configurable: true,

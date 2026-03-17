@@ -1104,7 +1104,25 @@ console.log('\n── relPath computation ──');
 
 console.log('\n── toPosix Windows path simulation ──');
 
-{
+await (async () => {
+  // URL of the library module, used for cache-busting reloads
+  const libUrl = new URL('../includes/app-update-checker-lib.mjs', import.meta.url);
+
+  /**
+   * Deletes String.prototype.toPosix then reimports the library with a
+   * cache-busting query string so the module re-runs and re-captures
+   * SEP = path.sep with whatever value path.sep currently has.
+   * The intended side-effect is that String.prototype.toPosix is reinstalled
+   * with the new SEP value.
+   *
+   * IMPORTANT: must be called while path functions are NOT mocked, because
+   * the Node.js ESM loader uses the shared path module internally.
+   */
+  const forceReloadLib = async () => {
+    delete String.prototype.toPosix;
+    await import(`${libUrl.href}?t=${Date.now()}`);
+  };
+
   const originalPathPosix = path.posix;
   // Clone path.posix into a new detached object so that changes to path
   // (which on POSIX is the same object as path.posix) do not affect path.posix.sep
@@ -1127,33 +1145,45 @@ console.log('\n── toPosix Windows path simulation ──');
   /**
    * Mocks the Node.js environment to behave like Windows.
    * Works natively in Node 20+ without external libraries.
+   *
+   * The module reload (forceReloadLib) is performed after setting path.sep but
+   * before mocking path functions, so that the ESM loader still has correct
+   * path semantics during the reload.
    */
-  const mockWindows = () => {
+  const mockWindows = async () => {
     detachPathPosix();
 
-    // 1. Mock all path methods (join, resolve, basename, etc.) using win32 equivalents
+    // 1. Force overwrite of read-only properties using defineProperty
+    Object.defineProperty(path, 'sep',        { value: '\\',   configurable: true, enumerable: true, writable: true });
+    Object.defineProperty(path, 'delimiter',  { value: ';',    configurable: true, enumerable: true, writable: true });
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true, enumerable: true, writable: true });
+
+    // 2. Force module reload so the library re-captures SEP = path.sep = '\\'
+    //    Must happen before mocking path functions (step 3) to avoid breaking
+    //    the ESM loader which uses the shared path module internally.
+    await forceReloadLib();
+
+    // 3. Mock all path methods (join, resolve, basename, etc.) using win32 equivalents
     Object.keys(path.win32).forEach(key => {
       if (typeof path.win32[key] === 'function' && typeof path[key] === 'function') {
         mock.method(path, key, path.win32[key]);
       }
     });
-
-    // 2. Force overwrite of read-only properties using defineProperty
-    Object.defineProperty(path, 'sep',        { value: '\\',   configurable: true, enumerable: true, writable: true });
-    Object.defineProperty(path, 'delimiter',  { value: ';',    configurable: true, enumerable: true, writable: true });
-    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true, enumerable: true, writable: true });
   };
 
-  const unmockWindows = () => {
+  const unmockWindows = async () => {
+    // Restore path functions first so the ESM loader works correctly during reload
+    mock.restoreAll();
     Object.defineProperty(path, 'sep',        { value: originalPathSep,       configurable: true, enumerable: true, writable: true });
     Object.defineProperty(path, 'delimiter',  { value: originalPathDelimiter, configurable: true, enumerable: true, writable: true });
     Object.defineProperty(process, 'platform', { value: originalPlatform,      configurable: true, enumerable: true, writable: true });
     restorePathPosix();
-    mock.restoreAll();
+    // Force module reload so the library re-captures SEP = path.sep = originalPathSep
+    await forceReloadLib();
   };
 
   try {
-    mockWindows();
+    await mockWindows();
 
     // Verify mock state
     assertEqual(process.platform, 'win32', 'toPosix (win): process.platform mocked to win32');
@@ -1164,7 +1194,7 @@ console.log('\n── toPosix Windows path simulation ──');
     assertEqual(path.dirname('C:\\Windows\\System32'), 'C:\\Windows', 'toPosix (win): path.dirname uses win32');
     assert(path.isAbsolute('C:\\Windows\\System32'),                   'toPosix (win): path.isAbsolute recognises Windows path');
 
-    // toPosix conversion: path.sep is now '\\' so toPosix replaces backslashes
+    // toPosix conversion: after reload, library SEP = '\\' so toPosix replaces backslashes
     // Single-level Windows path
     assertEqual(
       'C:\\foo\\bar'.toPosix(),
@@ -1202,9 +1232,9 @@ console.log('\n── toPosix Windows path simulation ──');
     assertEqual(normFiles[0], 'C:/workspace/app.apk',     'toPosix (win): file path 1 normalized');
     assertEqual(normFiles[1], 'D:/other/test.apk',        'toPosix (win): file path 2 normalized');
   } finally {
-    unmockWindows();
+    await unmockWindows();
   }
-}
+})();
 
 
 
