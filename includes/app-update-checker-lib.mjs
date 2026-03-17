@@ -20,11 +20,27 @@ import { fileURLToPath } from 'url';
 
 const execFile = promisify(execFileCb);
 
-// Normalize any OS path to forward-slash (posix) separators.
-// All paths inside this library are kept in posix form.
-String.prototype.toPosix = function() {
-  return this.replaceAll(path.sep, path.posix.sep);
-};
+// All paths inside this library are kept in posix form
+
+const SEP = path.sep;
+const POSIX_SEP = path.posix.sep;
+
+// Standardize path separators to POSIX style
+if (!String.prototype.toPosix) {
+  Object.defineProperty(String.prototype, 'toPosix', {
+    value: function() {
+      // Replace OS-specific separator with POSIX
+      return this.replaceAll(SEP, POSIX_SEP);
+    },
+    enumerable: false,
+    configurable: false
+  });
+}
+
+// Unbind prototype method for functional use
+const toPosixMethod = Function.prototype.call.bind(String.prototype.toPosix);
+// Safe converter: processes strings, ignores other types to prevent runtime errors
+const toPosix = (val) => (typeof val === 'string' ? toPosixMethod(val) : val);
 
 // Path to this library file; used for workspace default and CLI entry detection
 const _LIB_PATH = fileURLToPath(import.meta.url).toPosix();
@@ -647,8 +663,7 @@ export default async function run(
 ) {
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
   // Normalize to posix separators so all internal path operations are consistent.
-  const workspace = (process.env.GITHUB_WORKSPACE || '').toPosix()
-    || path.posix.dirname(_LIB_DIR);
+  const workspace = (process.env.GITHUB_WORKSPACE || '').toPosix() || path.posix.dirname(_LIB_DIR);
 
   // Normalize all incoming paths to posix
   const normDirs  = apkDirs?.map(d => d.toPosix());
