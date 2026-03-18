@@ -290,3 +290,26 @@ teardown_file() {
   grep -qxF 'DIRS='  "${MOCK_OUTPUT_FILE}"
   grep -qxF 'FILES=' "${MOCK_OUTPUT_FILE}"
 }
+
+# ---------------------------------------------------------------------------
+# Default directory: zip-content/origin
+# ---------------------------------------------------------------------------
+
+@test "no args: JS library uses zip-content/origin as default directory" {
+  # Remove the mock node from PATH so the real Node.js handles the library.
+  local real_path="${PATH#${MOCK_DIR}:}"
+
+  # Use a workspace directory that has no zip-content/origin subdirectory so
+  # the library emits a warning containing the path and exits with EX_NOINPUT.
+  local tmp_workspace
+  tmp_workspace="$(mktemp -d)"
+
+  run sh -c "GITHUB_WORKSPACE='${tmp_workspace}' PATH='${real_path}' sh '${SCRIPT}' 2>&1"
+
+  rm -rf "${tmp_workspace}"
+
+  # EX_NOINPUT (66): no APKs could be processed because the default dir is absent
+  [ "${status}" -eq 66 ]
+  # The warning or error output must mention the default directory path
+  echo "${output}" | grep -qF 'zip-content/origin'
+}

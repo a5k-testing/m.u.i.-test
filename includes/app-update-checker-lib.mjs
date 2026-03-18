@@ -4,11 +4,19 @@
 // Library module: APK update checker for F-Droid and microG repositories.
 // When invoked directly by Node.js it also acts as a CLI entry point.
 
+// Exit codes following sysexits.h conventions
+export const EXIT_CODES = Object.freeze({
+  EX_USAGE:       64, // command-line usage error
+  EX_DATAERR:     65, // data format error
+  EX_NOINPUT:     66, // cannot open input
+  EX_UNAVAILABLE: 69, // service unavailable
+  EX_SOFTWARE:    70, // internal software error
+});
+
 // Node.js 20 or later is required
 if (parseInt(process.versions.node.split('.')[0], 10) < 20) {
-  throw new Error(
-    `Node.js 20 or later is required (current: ${process.versions.node})`
-  );
+  console.error(`\x1b[31mERROR: Node.js 20 or later is required (current: ${process.versions.node})\x1b[0m`);
+  process.exit(EXIT_CODES.EX_SOFTWARE);
 }
 
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync, mkdirSync } from 'fs';
@@ -73,24 +81,24 @@ export const SPECIAL_PKGS = new Set([
 
 // Ordered list of F-Droid-compatible repository base URLs.
 // "/index-v2.json" is appended automatically when fetching.
-export const repos = [
+export const repos = Object.freeze([
   'https://repo.microg.org/fdroid/repo',
   'https://f-droid.org/repo',
   'https://apt.izzysoft.de/fdroid/repo',
-];
+]);
 
 // How long a cached repo index is considered fresh (7 days in milliseconds)
 export const REPO_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Unicode icons for each result state
-export const ICON = {
+export const ICON = Object.freeze({
   UP_TO_DATE:       '✅',
   UPDATE_AVAILABLE: '✨',
   LOCAL_NEWER:      '🚀',
   CHECK_FAILED:     '⚠️',
   DIFFERENT_SIGNER: '🔐',
   NOT_IN_REPO:      '❓',
-};
+});
 
 // ---------------------------------------------------------------------------
 // Functions
@@ -554,10 +562,9 @@ export async function extractApkInfo(
 ) {
   const aaptBin = findAaptBin();
   if (!aaptBin) {
-    throw new Error(
-      "'aapt' not found. " +
-      'Install Android build-tools or set ANDROID_SDK_ROOT.'
-    );
+    core?.error?.("'aapt' not found. Install Android build-tools or set ANDROID_SDK_ROOT.");
+    process.exitCode = EXIT_CODES.EX_UNAVAILABLE;
+    return [];
   }
   core?.info(`Using aapt: ${aaptBin}`);
 
@@ -665,9 +672,9 @@ export default async function run(
 ) {
   // Validate inputs
   if (apkDirs === undefined && apkFiles === undefined) {
-    throw new Error(
-      'Either apkDirs or apkFiles must be provided.'
-    );
+    core?.error?.('Either apkDirs or apkFiles must be provided.');
+    process.exitCode = EXIT_CODES.EX_USAGE;
+    return;
   }
 
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
@@ -749,13 +756,11 @@ export default async function run(
       : '')
   );
 
-  // Abort with a distinct exit code when no APKs remain after filtering.
-  // We deliberately do NOT throw here so that callers can still observe the
-  // process.exitCode (e.g. for scripted workflows that inspect $?).
-  // Exit code 66 = EX_NOINPUT (sysexits.h): "cannot open input".
+  // Abort when no APKs remain after filtering; use a more specific code if one
+  // was already set by a dependency failure (e.g. EX_UNAVAILABLE for aapt).
   if (apkInfoList.length < 1) {
     core.error('No APK files were processed. Verify the provided paths contain valid APK files.');
-    process.exitCode = 66; // EX_NOINPUT
+    process.exitCode ||= EXIT_CODES.EX_NOINPUT;
     return;
   }
 
@@ -894,6 +899,6 @@ if (process.argv[1] === _LIB_PATH) {
     dumpInfoFile: dumpInfoFileEnv,
   }).catch(err => {
     console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
-    process.exitCode = 1;
+    process.exitCode ||= EXIT_CODES.EX_DATAERR;
   });
 }
