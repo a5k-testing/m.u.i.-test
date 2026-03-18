@@ -663,34 +663,31 @@ export async function extractApkInfo(
 export default async function run(
   { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null } = {}
 ) {
+  // Validate inputs
+  if (apkDirs === undefined && apkFiles === undefined) {
+    throw new Error(
+      'Either apkDirs or apkFiles must be provided.'
+    );
+  }
+
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
   // Normalize to posix separators so all internal path operations are consistent.
   const workspace = (process.env.GITHUB_WORKSPACE || '').toPosix() || path.posix.dirname(_LIB_DIR);
 
   // Normalize all incoming paths to posix
-  const normDirs  = apkDirs?.map(toPosix);
-  const normFiles = apkFiles?.map(toPosix);
+  const normDirs  = apkDirs?.map(toPosix) ?? [];
+  const normFiles = apkFiles?.map(toPosix) ?? [];;
   const normLfsDir  = lfsCacheDir  ? lfsCacheDir.toPosix()  : undefined;
   const normRepoDir = repoCacheDir ? repoCacheDir.toPosix() : undefined;
   const normDump    = dumpInfoFile ? dumpInfoFile.toPosix() : null;
 
-  // Validate inputs
-  if (normDirs === undefined && normFiles === undefined) {
-    throw new Error(
-      'Either apkDirs or apkFiles must be provided.'
-    );
-  }
   if (normFiles !== undefined && normFiles.length === 0) {
     throw new Error('apkFiles must not be empty when provided.');
   }
 
   // Resolve effective APK scan directories
-  // An empty apkDirs array signals "use the default directory".
-  const effectiveDirs = normDirs !== undefined
-    ? (normDirs.length === 0
-        ? [path.posix.join(workspace, 'zip-content/origin')]
-        : normDirs)
-    : [];
+  // If apkDirs and apkFiles are empty, the default directory is used
+  const effectiveDirs = (normDirs.length === 0 || normFiles.length === 0) ? [path.posix.join(workspace, 'zip-content/origin')] : normDirs;
 
   // Validate apkDirs elements: skip entries that are not directories
   const validDirs = [];
