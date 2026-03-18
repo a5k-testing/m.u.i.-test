@@ -10,6 +10,7 @@ on:
       - ".github/workflows/check-app-updates.yml"
       - "includes/app-update-checker-lib.mjs"
       - "zip-content/origin/**"
+      - "includes/reporters/clean-tap-reporter.mjs"
       - "tests/test-app-update-checker.mjs"
       - "tests/test-check-app-updates.bats"
       - "tools/check-app-updates.sh"
