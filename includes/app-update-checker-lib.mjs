@@ -650,6 +650,16 @@ export async function extractApkInfo(
 // Default export — orchestrates extraction, repo fetching, and reporting
 // ---------------------------------------------------------------------------
 
+// Print each effective APK scan directory to stdout (one per line) and exit 0.
+// Used by --dump-effective-dirs to let the shell verify which directories the
+// library would actually scan without performing a full update check.
+export function dumpEffectiveDirs(effectiveDirs) {
+  for (const dir of effectiveDirs) {
+    console.log(dir);
+  }
+  process.exit(0);
+}
+
 // Run the full update check.
 //
 // Options:
@@ -691,6 +701,9 @@ export default async function run(
   // Resolve effective APK scan directories
   // If apkDirs and apkFiles are empty, the default directory is used
   const effectiveDirs = (normDirs.length === 0 || normFiles.length === 0) ? [path.posix.join(workspace, 'zip-content/origin')] : normDirs;
+
+  // When requested, print effectiveDirs and exit without running the full check
+  if (process.env.APKS_DUMP_EFFECTIVE_DIRS) { dumpEffectiveDirs(effectiveDirs); }
 
   // Validate apkDirs elements: skip entries that are not directories
   const validDirs = [];

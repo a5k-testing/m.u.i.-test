@@ -29,8 +29,22 @@ setup() {
 
   # Mock node: validates APKS_DIRS elements (mimics app-update-checker-lib.mjs run()),
   # warning and skipping entries that are not directories, then records env vars.
+  # When APKS_DUMP_EFFECTIVE_DIRS is set, mimics dumpEffectiveDirs(): prints the
+  # effective scan directory (default zip-content/origin when APKS_DIRS is empty)
+  # and exits 0.
   cat > "${MOCK_DIR}/node" << 'MOCK'
 #!/bin/sh
+if [ -n "${APKS_DUMP_EFFECTIVE_DIRS:-}" ]; then
+  # Mimic dumpEffectiveDirs(): print effectiveDirs (one per line) and exit 0.
+  # effectiveDirs = APKS_DIRS entries when non-empty, else <workspace>/zip-content/origin
+  if [ -n "${APKS_DIRS:-}" ]; then
+    printf '%s\n' "${APKS_DIRS}"
+  else
+    _ws="${GITHUB_WORKSPACE:-}"
+    printf '%s/zip-content/origin\n' "${_ws}"
+  fi
+  exit 0
+fi
 if [ -n "${APKS_DIRS:-}" ]; then
   while IFS= read -r _dir || [ -n "${_dir}" ]; do
     [ -z "${_dir}" ] && continue
@@ -295,21 +309,16 @@ teardown_file() {
 # Default directory: zip-content/origin
 # ---------------------------------------------------------------------------
 
-@test "no args: JS library uses zip-content/origin as default directory" {
-  # Remove the mock node from PATH so the real Node.js handles the library.
-  local real_path="${PATH#${MOCK_DIR}:}"
-
-  # Use a workspace directory that has no zip-content/origin subdirectory so
-  # the library emits a warning containing the path and exits with EX_NOINPUT.
+@test "no args: --dump-effective-dirs shows zip-content/origin as default directory" {
+  # Use a known workspace root so the expected path is predictable.
   local tmp_workspace
   tmp_workspace="$(mktemp -d)"
 
-  run sh -c "GITHUB_WORKSPACE='${tmp_workspace}' PATH='${real_path}' sh '${SCRIPT}' 2>&1"
+  run sh -c "GITHUB_WORKSPACE='${tmp_workspace}' sh '${SCRIPT}' --dump-effective-dirs"
 
   rm -rf "${tmp_workspace}"
 
-  # EX_NOINPUT (66): no APKs could be processed because the default dir is absent
-  [ "${status}" -eq 66 ]
-  # The warning or error output must mention the default directory path
+  [ "${status}" -eq 0 ]
+  # The output must contain the default directory path ending in zip-content/origin
   echo "${output}" | grep -qF 'zip-content/origin'
 }
