@@ -10,7 +10,7 @@ export default async function* cleanTap(source) {
   let failed = 0;
   let skipped = 0;
 
-  // 1. Create a generator that filters/modifies events from the source
+  // Create a generator that filters/modifies events from the source
   async function* transformSource() {
     for await (const event of source) {
       // Increment counters based on event type
@@ -18,9 +18,13 @@ export default async function* cleanTap(source) {
       if (event.type === 'test:fail') failed++;
       if (event.data?.skip) skipped++;
 
-      // Remove duration_ms from the event data details (YAML block)
-      if (event.data?.details?.duration_ms !== undefined) {
+      if (event.data?.details) {
+        // Remove duration_ms from the event data details (YAML block)
         delete event.data.details.duration_ms;
+        // If 'details' is now empty, delete it entirely to prevent empty YAML blocks
+        if (Object.keys(event.data.details).length === 0) {
+          delete event.data.details;
+        }
       }
 
       // Yield the modified event to the next step
@@ -28,13 +32,12 @@ export default async function* cleanTap(source) {
     }
   }
 
-  // 2. Pass the entire transformed stream to the built-in tap reporter once.
-  // This ensures the reporter maintains correct internal state (test numbers, indentation).
+  // Use the built-in tap reporter with the cleaned stream
   for await (const line of tap(transformSource())) {
     yield line;
   }
 
-  // 3. Append the final summary output
+  // Final summary output
   yield `\n# --- TEST SUMMARY ---\n`;
   yield `# Passed:  ${passed}\n`;
   yield `# Failed:  ${failed}\n`;
