@@ -1078,7 +1078,7 @@ test('run() input validation', async (t) => {
   }
 
   // apkDirs contains a nonexistent directory → warns and skips (no throw)
-  // After the library change, this also triggers core.error + process.exitCode = 3
+  // This also triggers core.error + process.exitCode = 66 (EX_NOINPUT)
   // because no APKs survive filtering.  Save/restore process.exitCode so the
   // test runner is not affected.
   {
@@ -1171,8 +1171,7 @@ test('run() no processed APKs', async (t) => {
     }
     await t.test('run(): no processed APKs calls core.error', () => { assert.ok(errors.length > 0); });
     await t.test('run(): no processed APKs error message mentions APK', () => { assert.ok(errors[0].toLowerCase().includes('apk')); });
-    await t.test('run(): no processed APKs exit code is set', () => { assert.ok(capturedExitCode !== undefined); });
-    await t.test('run(): no processed APKs exit code is not 1 or 2', () => { assert.ok(capturedExitCode !== 1 && capturedExitCode !== 2); });
+    await t.test('run(): no processed APKs exit code is EX_NOINPUT (66)', () => { assert.strictEqual(capturedExitCode, 66); });
   }
 });
 

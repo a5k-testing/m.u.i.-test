@@ -759,9 +759,10 @@ export default async function run(
   // Abort with a distinct exit code when no APKs remain after filtering.
   // We deliberately do NOT throw here so that callers can still observe the
   // process.exitCode (e.g. for scripted workflows that inspect $?).
+  // Exit code 66 = EX_NOINPUT (sysexits.h): "cannot open input".
   if (apkInfoList.length < 1) {
     core.error('No APK files were processed. Verify the provided paths contain valid APK files.');
-    process.exitCode = 3;
+    process.exitCode = 66; // EX_NOINPUT
     return;
   }
 
