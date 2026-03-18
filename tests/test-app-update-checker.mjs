@@ -1078,10 +1078,19 @@ test('run() input validation', async (t) => {
   }
 
   // apkDirs contains a nonexistent directory → warns and skips (no throw)
+  // After the library change, this also triggers core.error + process.exitCode = 3
+  // because no APKs survive filtering.  Save/restore process.exitCode so the
+  // test runner is not affected.
   {
     const warnings = [];
     const coreCapture = { ...STUB_CORE, warning: (msg) => warnings.push(msg) };
-    const msg = await runError({ core: coreCapture, apkDirs: ['/nonexistent/path/to/apks'] });
+    const prevExitCode = process.exitCode;
+    let msg;
+    try {
+      msg = await runError({ core: coreCapture, apkDirs: ['/nonexistent/path/to/apks'] });
+    } finally {
+      process.exitCode = prevExitCode;
+    }
     await t.test('run(): nonexistent dir in apkDirs does not throw "APK directory not found"', () => { assert.ok(msg === null || !msg.includes('APK directory not found')); });
     await t.test('run(): nonexistent dir in apkDirs emits a warning with the path', () => { assert.ok(warnings.some(w => w.includes('/nonexistent/path/to/apks'))); });
   }
@@ -1090,7 +1099,13 @@ test('run() input validation', async (t) => {
   {
     const warnings = [];
     const coreCapture = { ...STUB_CORE, warning: (msg) => warnings.push(msg) };
-    const msg = await runError({ core: coreCapture, apkFiles: ['/nonexistent/file.apk'] });
+    const prevExitCode = process.exitCode;
+    let msg;
+    try {
+      msg = await runError({ core: coreCapture, apkFiles: ['/nonexistent/file.apk'] });
+    } finally {
+      process.exitCode = prevExitCode;
+    }
     await t.test('run(): nonexistent file in apkFiles does not throw', () => { assert.ok(msg === null || !msg.includes('not found')); });
     await t.test('run(): nonexistent file in apkFiles emits a warning with the path', () => { assert.ok(warnings.some(w => w.includes('/nonexistent/file.apk'))); });
   }
@@ -1101,19 +1116,64 @@ test('run() input validation', async (t) => {
     // We cannot actually run a full update check in tests (no network/aapt),
     // so just verify no validation error is thrown — the error (if any) must be
     // a runtime error about aapt/network, not the input-validation error.
-    const msg = await runError({ core: STUB_CORE, apkDirs: [] });
+    const prevExitCode = process.exitCode;
+    let msg;
+    try {
+      msg = await runError({ core: STUB_CORE, apkDirs: [] });
+    } finally {
+      process.exitCode = prevExitCode;
+    }
     await t.test('run(): empty apkDirs passes validation (runtime errors are OK)', () => { assert.ok(msg === null || (!msg.includes('apkDirs') && !msg.includes('apkFiles'))); });
   }
 
   // apkFiles provided with one entry → does NOT throw validation error
   {
-    const msg = await runError({ core: STUB_CORE, apkFiles: ['/nonexistent.apk'] });
+    const prevExitCode = process.exitCode;
+    let msg;
+    try {
+      msg = await runError({ core: STUB_CORE, apkFiles: ['/nonexistent.apk'] });
+    } finally {
+      process.exitCode = prevExitCode;
+    }
     await t.test('run(): non-empty apkFiles passes validation (runtime errors are OK)', () => { assert.ok(msg === null || (!msg.includes('apkFiles') && !msg.includes('apkDirs'))); });
   }
 
   // ---------------------------------------------------------------------------
   // relPath computation: apkDirs vs apkFiles
   // ---------------------------------------------------------------------------
+});
+
+test('run() no processed APKs', async (t) => {
+  const STUB_CORE = {
+    info:    () => {},
+    warning: () => {},
+    notice:  () => {},
+    error:   () => {},
+    summary: {
+      addHeading: function() { return this; },
+      addTable:   function() { return this; },
+      write:      async () => {},
+    },
+  };
+
+  // All APKs are in a nonexistent directory → validDirs is empty →
+  // apkInfoList is empty → core.error is called and process.exitCode is set.
+  {
+    const errors = [];
+    const coreCapture = { ...STUB_CORE, error: (msg) => errors.push(msg) };
+    const prevExitCode = process.exitCode;
+    let capturedExitCode;
+    try {
+      await run({ core: coreCapture, apkDirs: ['/nonexistent/path/to/apks'] });
+      capturedExitCode = process.exitCode;
+    } finally {
+      process.exitCode = prevExitCode;
+    }
+    await t.test('run(): no processed APKs calls core.error', () => { assert.ok(errors.length > 0); });
+    await t.test('run(): no processed APKs error message mentions APK', () => { assert.ok(errors[0].toLowerCase().includes('apk')); });
+    await t.test('run(): no processed APKs exit code is set', () => { assert.ok(capturedExitCode !== undefined); });
+    await t.test('run(): no processed APKs exit code is not 1 or 2', () => { assert.ok(capturedExitCode !== 1 && capturedExitCode !== 2); });
+  }
 });
 
 test('relPath computation', async (t) => {
