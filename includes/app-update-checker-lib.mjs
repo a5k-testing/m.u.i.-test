@@ -22,10 +22,9 @@ const execFile = promisify(execFileCb);
 
 // All paths inside this library are kept in posix form
 
-// OS path separator (e.g. '\\' on Windows, '/' on POSIX); cached for performance
+// Cached for performance
 const SEP = path.sep;
-// POSIX path separator; all paths inside this library are normalised to this
-const POSIX_SEP = '/';
+const POSIX_SEP = path.posix.sep;
 
 // Standardize path separators to POSIX style.
 // Uses SEP (captured at module-load time) so that forcing a module reload after
