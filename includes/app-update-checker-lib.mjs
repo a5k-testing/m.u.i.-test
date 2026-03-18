@@ -226,8 +226,8 @@ async function loadOrFetchRepoIndex(baseUrl, repoCacheDir, core) {
       try {
         return JSON.parse(readFileSync(cacheFile, 'utf-8'));
       } catch {
-        core?.info(
-          `WARNING: cache read failed for ${shortUrl(baseUrl)}, fetching…`
+        core?.warning(
+          `cache read failed for ${shortUrl(baseUrl)}, fetching…`
         );
       }
     } else {
@@ -238,8 +238,8 @@ async function loadOrFetchRepoIndex(baseUrl, repoCacheDir, core) {
       mkdirSync(repoCacheDir, { recursive: true });
       writeFileSync(cacheFile, raw, 'utf-8');
     } catch (e) {
-      core?.info(
-        `WARNING: could not save index cache for ${shortUrl(baseUrl)}: ${e.message}`
+      core?.warning(
+        `could not save index cache for ${shortUrl(baseUrl)}: ${e.message}`
       );
     }
     return JSON.parse(raw);
@@ -581,7 +581,7 @@ export async function extractApkInfo(
     let resolvedPath = apkPath;
     let fileSize;
     try { fileSize = statSync(apkPath).size; }
-    catch { core?.info(`WARNING: cannot stat ${fileName}, skipping`); continue; }
+    catch { core?.warning(`cannot stat ${fileName}, skipping`); continue; }
 
     if (fileSize < 1024) {
       let content;
@@ -600,14 +600,14 @@ export async function extractApkInfo(
               ` (sha256=${sha256})`
             );
           } else {
-            core?.info(
-              `WARNING: skipping LFS pointer (cache miss): ${fileName}`
+            core?.warning(
+              `skipping LFS pointer (cache miss): ${fileName}`
             );
             continue;
           }
         } else {
-          core?.info(
-            `WARNING: skipping LFS pointer (not in cache): ${fileName}`
+          core?.warning(
+            `skipping LFS pointer (not in cache): ${fileName}`
           );
           continue;
         }
@@ -617,14 +617,14 @@ export async function extractApkInfo(
     // Extract package name, version code, and version name
     const manifest = await getApkManifestInfo(aaptBin, resolvedPath);
     if (!manifest?.packageName) {
-      core?.info(`WARNING: skipping ${fileName} (package name not found)`);
+      core?.warning(`skipping ${fileName} (package name not found)`);
       continue;
     }
 
     // Extract signing certificate SHA-256
     const certSha256 = await getCertSha256(resolvedPath);
     if (!certSha256) {
-      core?.info(`WARNING: skipping ${fileName} (cert not found)`);
+      core?.warning(`skipping ${fileName} (cert not found)`);
       continue;
     }
 
@@ -911,7 +911,7 @@ if (process.argv[1].toPosix() === _LIB_PATH) {
     repoCacheDir: process.env.APKS_REPO_CACHE_DIR || undefined,
     dumpInfoFile: dumpInfoFileEnv,
   }).catch(err => {
-    console.error(`\x1b[31mERROR: ${err.message}\x1b[0m`);
+    core.error(err.message);
     process.exitCode ||= EXIT_CODES.EX_DATAERR;
   });
 }
