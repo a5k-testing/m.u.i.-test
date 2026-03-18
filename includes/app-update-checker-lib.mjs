@@ -849,7 +849,7 @@ export default async function run(
 // CLI entry point — runs only when invoked directly by Node.js
 // ---------------------------------------------------------------------------
 
-if (process.argv[1] === _LIB_PATH) {
+if (process.argv[1].toPosix() === _LIB_PATH) {
   const summary = {
     _items: [],
     addHeading(text) {
