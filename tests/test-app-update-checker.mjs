@@ -1252,6 +1252,7 @@ test('toPosix Windows path simulation', async (t) => {
      * path semantics during the reload.
      */
     const mockWindows = async () => {
+      if (originalPlatform === 'win32') return;
       detachPathPosix();
 
       // 1. Force overwrite of read-only properties using defineProperty
@@ -1273,6 +1274,8 @@ test('toPosix Windows path simulation', async (t) => {
     };
 
     const unmockWindows = async () => {
+      if (originalPlatform === 'win32') return;
+
       // Restore path functions first so the ESM loader works correctly during reload
       mock.restoreAll();
       Object.defineProperty(path, 'sep',        { value: originalPathSep,       configurable: true, enumerable: true, writable: true });
