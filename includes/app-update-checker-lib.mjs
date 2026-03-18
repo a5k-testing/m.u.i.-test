@@ -681,10 +681,6 @@ export default async function run(
   const normRepoDir = repoCacheDir ? repoCacheDir.toPosix() : undefined;
   const normDump    = dumpInfoFile ? dumpInfoFile.toPosix() : null;
 
-  if (normFiles !== undefined && normFiles.length === 0) {
-    throw new Error('apkFiles must not be empty when provided.');
-  }
-
   // Resolve effective APK scan directories
   // If apkDirs and apkFiles are empty, the default directory is used
   const effectiveDirs = (normDirs.length === 0 || normFiles.length === 0) ? [path.posix.join(workspace, 'zip-content/origin')] : normDirs;
