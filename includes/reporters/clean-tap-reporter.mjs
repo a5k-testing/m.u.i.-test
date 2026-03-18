@@ -24,7 +24,6 @@ export default async function* cleanTap(source) {
         // If 'details' is now empty, delete it entirely to prevent empty YAML blocks
         if (Object.keys(event.data.details).length === 0) {
           delete event.data.details;
-          delete event.data;
         }
       }
 
