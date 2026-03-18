@@ -35,7 +35,7 @@ jobs:
       - name: "Checkout sources"
         uses: actions/checkout@v6
       - name: "Run JS tests"
-        run: node --test --test-reporter='./includes/reporters/clean-tap-reporter.mjs' -- './tests/test-app-update-checker.mjs'
+        run: node --test --test-reporter='./includes/reporters/clean-tap-reporter.mjs' -- './tests/test-app-update-checker.mjs' | sed '/^[[:space:]]*---$/,/^[[:space:]]*\.\.\.$/ { /^[[:space:]]*---$/ { N; /^[[:space:]]*\.\.\.$/d; } }'
       - name: "Setup Bats and helpers"
         uses: bats-core/bats-action@4.0.0
         with:
