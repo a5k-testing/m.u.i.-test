@@ -693,7 +693,7 @@ export default async function run(
 
   // Normalize all incoming paths to posix
   const normDirs  = apkDirs?.map(toPosix) ?? [];
-  const normFiles = apkFiles?.map(toPosix) ?? [];;
+  const normFiles = apkFiles?.map(toPosix) ?? [];
   const normLfsDir  = lfsCacheDir  ? lfsCacheDir.toPosix()  : undefined;
   const normRepoDir = repoCacheDir ? repoCacheDir.toPosix() : undefined;
   const normDump    = dumpInfoFile ? dumpInfoFile.toPosix() : null;
