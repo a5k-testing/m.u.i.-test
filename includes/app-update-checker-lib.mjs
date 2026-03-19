@@ -13,29 +13,6 @@ export const EXIT_CODES = Object.freeze({
   EX_SOFTWARE:    70, // internal software error
 });
 
-let errCode = null;
-
-export function setErrCode(code) {
-  if (errCode === null) {
-    errCode = code;
-  } else {
-    throw new Error(`setErrCode: exit code already set to ${errCode}; cannot override with ${code}`);
-  }
-}
-
-export function getErrCode() {
-  return errCode;
-}
-
-export function resetErrCode() {
-  errCode = null;
-}
-
-process.on('beforeExit', () => {
-  if (errCode !== null)
-    process.exitCode = errCode;
-});
-
 // Node.js 20 or later is required
 if (parseInt(process.versions.node.split('.')[0], 10) < 20) {
   console.error(`\x1b[31mERROR: Node.js 20 or later is required (current: ${process.versions.node})\x1b[0m`);
@@ -587,7 +564,7 @@ export async function extractApkInfo(
   const aaptBin = findAaptBin();
   if (!aaptBin) {
     core.error("'aapt' not found. Install Android build-tools or set ANDROID_SDK_ROOT.");
-    setErrCode(EXIT_CODES.EX_UNAVAILABLE);
+    process.exitCode = EXIT_CODES.EX_UNAVAILABLE;
     return [];
   }
   core.info(`Using aapt: ${aaptBin}`);
@@ -712,7 +689,7 @@ export default async function run(
   // Validate inputs
   if (apkDirs === undefined && apkFiles === undefined) {
     core.error('Either apkDirs or apkFiles must be provided.');
-    setErrCode(EXIT_CODES.EX_USAGE);
+    process.exitCode = EXIT_CODES.EX_USAGE;
     return;
   }
 
@@ -802,7 +779,7 @@ export default async function run(
   // was already set by a dependency failure (e.g. EX_UNAVAILABLE for aapt).
   if (apkInfoList.length < 1) {
     core.error('No APK files were processed. Verify the provided paths contain valid APK files.');
-    if (errCode === null) setErrCode(EXIT_CODES.EX_NOINPUT);
+    process.exitCode ||= EXIT_CODES.EX_NOINPUT;
     return;
   }
 
@@ -941,6 +918,6 @@ if (_ENTRY_SCRIPT === _LIB_PATH) {
     dumpInfoFile: dumpInfoFileEnv,
   }).catch(err => {
     core.error(err.message);
-    if (errCode === null) setErrCode(EXIT_CODES.EX_DATAERR);
+    process.exitCode ||= EXIT_CODES.EX_DATAERR;
   });
 }

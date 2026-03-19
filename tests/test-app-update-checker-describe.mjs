@@ -19,8 +19,6 @@ import {
   SKIP_LIST,
   repos,
   REPO_CACHE_TTL_MS,
-  getErrCode,
-  resetErrCode,
 } from '../includes/app-update-checker-lib.mjs';
 
 import { default as run } from '../includes/app-update-checker-lib.mjs';
@@ -1072,11 +1070,12 @@ describe('run() input validation', () => {
     before(async () => {
       errors = [];
       const coreCapture = { ...STUB_CORE, error: (m) => errors.push(m) };
+      const prevExitCode = process.exitCode;
       try {
         await run({ core: coreCapture });
-        capturedExitCode = getErrCode();
+        capturedExitCode = process.exitCode;
       } finally {
-        resetErrCode();
+        process.exitCode = prevExitCode;
       }
     });
     it('run(): both undefined calls core.error', () => { assert.ok(errors.length > 0); });
@@ -1089,6 +1088,7 @@ describe('run() input validation', () => {
     let threw;
     before(async () => {
       threw = false;
+      const prevExitCode = process.exitCode;
       const origWorkspace = process.env.GITHUB_WORKSPACE;
       try {
         // Set a workspace without zip-content/origin so the default dir is absent;
@@ -1100,15 +1100,15 @@ describe('run() input validation', () => {
       } finally {
         if (origWorkspace === undefined) { delete process.env.GITHUB_WORKSPACE; }
         else { process.env.GITHUB_WORKSPACE = origWorkspace; }
-        resetErrCode();
+        process.exitCode = prevExitCode;
       }
     });
     it('run(): empty apkFiles no longer throws (uses default dir)', () => { assert.strictEqual(threw, false); });
   });
 
   // apkDirs contains a nonexistent directory → warns and skips (no throw)
-  // This also triggers core.error + setErrCode(EX_NOINPUT)
-  // because no APKs survive filtering.  Reset errCode so the
+  // This also triggers core.error + process.exitCode = EX_NOINPUT
+  // because no APKs survive filtering.  Save/restore process.exitCode so the
   // test runner is not affected.
   // apkFiles is also provided so effectiveDirs uses normDirs (not the default dir).
   describe('apkDirs contains a nonexistent directory', () => {
@@ -1116,10 +1116,11 @@ describe('run() input validation', () => {
     before(async () => {
       warnings = [];
       const coreCapture = { ...STUB_CORE, warning: (m) => warnings.push(m) };
+      const prevExitCode = process.exitCode;
       try {
         msg = await runError({ core: coreCapture, apkDirs: ['/nonexistent/path/to/apks'], apkFiles: ['/nonexistent.apk'] });
       } finally {
-        resetErrCode();
+        process.exitCode = prevExitCode;
       }
     });
     it('run(): nonexistent dir in apkDirs does not throw "APK directory not found"', () => { assert.ok(msg === null || !msg.includes('APK directory not found')); });
@@ -1133,10 +1134,11 @@ describe('run() input validation', () => {
     before(async () => {
       warnings = [];
       const coreCapture = { ...STUB_CORE, warning: (m) => warnings.push(m) };
+      const prevExitCode = process.exitCode;
       try {
         msg = await runError({ core: coreCapture, apkFiles: ['/nonexistent/file.apk'], apkDirs: ['/nonexistent'] });
       } finally {
-        resetErrCode();
+        process.exitCode = prevExitCode;
       }
     });
     it('run(): nonexistent file in apkFiles does not throw', () => { assert.ok(msg === null || !msg.includes('not found')); });
@@ -1151,10 +1153,11 @@ describe('run() input validation', () => {
       // We cannot actually run a full update check in tests (no network/aapt),
       // so just verify no validation error is thrown — the error (if any) must be
       // a runtime error about aapt/network, not the input-validation error.
+      const prevExitCode = process.exitCode;
       try {
         msg = await runError({ core: STUB_CORE, apkDirs: [] });
       } finally {
-        resetErrCode();
+        process.exitCode = prevExitCode;
       }
     });
     it('run(): empty apkDirs passes validation (runtime errors are OK)', () => { assert.ok(msg === null || (!msg.includes('apkDirs') && !msg.includes('apkFiles'))); });
@@ -1164,10 +1167,11 @@ describe('run() input validation', () => {
   describe('non-empty apkFiles passes validation', () => {
     let msg;
     before(async () => {
+      const prevExitCode = process.exitCode;
       try {
         msg = await runError({ core: STUB_CORE, apkFiles: ['/nonexistent.apk'] });
       } finally {
-        resetErrCode();
+        process.exitCode = prevExitCode;
       }
     });
     it('run(): non-empty apkFiles passes validation (runtime errors are OK)', () => { assert.ok(msg === null || (!msg.includes('apkFiles') && !msg.includes('apkDirs'))); });
@@ -1192,18 +1196,19 @@ describe('run() no processed APKs', () => {
   };
 
   // All APKs are in a nonexistent directory → validDirs is empty →
-  // apkInfoList is empty → core.error is called and setErrCode(EX_NOINPUT) is called.
+  // apkInfoList is empty → core.error is called and process.exitCode is set.
   // apkFiles is also provided so effectiveDirs uses normDirs (not the default dir).
   describe('all APK dirs nonexistent', () => {
     let errors, capturedExitCode;
     before(async () => {
       errors = [];
       const coreCapture = { ...STUB_CORE, error: (msg) => errors.push(msg) };
+      const prevExitCode = process.exitCode;
       try {
         await run({ core: coreCapture, apkDirs: ['/nonexistent/path/to/apks'], apkFiles: ['/nonexistent.apk'] });
-        capturedExitCode = getErrCode();
+        capturedExitCode = process.exitCode;
       } finally {
-        resetErrCode();
+        process.exitCode = prevExitCode;
       }
     });
     it('run(): no processed APKs calls core.error', () => { assert.ok(errors.length > 0); });
