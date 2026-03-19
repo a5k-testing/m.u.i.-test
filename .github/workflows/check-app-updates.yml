@@ -109,23 +109,25 @@ jobs:
 
             for (const prefix of CACHE_PREFIXES) {
               let failed = false;
-              const caches = await github.paginate(github.rest.actions.getActionsCacheList, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                key: prefix,
-                ref: 'refs/heads/main',
-                sort: 'created_at',
-                direction: 'desc',
-                per_page: 100,
-              }, (response, done) => {
-                if (response.status !== 200) {
-                  core.error(`Failed to list caches for prefix "${prefix}": HTTP ${response.status}`);
-                  done();
-                  failed = true;
-                  return [];
+              const caches = await github.paginate(
+                github.rest.actions.getActionsCacheList, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  key: prefix,
+                  ref: 'refs/heads/main',
+                  sort: 'created_at',
+                  direction: 'desc',
+                  per_page: 100,
+                }, (response, done) => {
+                  if (response.status !== 200) {
+                    core.error(`Failed to list caches for prefix "${prefix}": HTTP ${response.status}`);
+                    failed = true;
+                    done();
+                    return [];
+                  }
+                  return response.data.actions_caches;
                 }
-                return response.data.actions_caches;
-              }).catch(e => {
+              ).catch(e => {
                 core.error(`Failed to paginate caches for prefix "${prefix}": HTTP ${e.status}`);
                 return [];
               });
@@ -138,5 +140,6 @@ jobs:
                   cache_id: cache.id,
                 });
                 core.info(`Deleted cache "${cache.key}" (id=${cache.id})`);
+                await new Promise(r => setTimeout(r, 200));
               }
             }
