@@ -95,6 +95,7 @@ jobs:
   clean-caches:
     name: "Clean old caches"
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     timeout-minutes: 5
     permissions:
       actions: write  # Needed to delete caches
@@ -112,6 +113,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 key: prefix,
+                ref: 'refs/heads/main',
                 per_page: 100,
               });
               // Keep the 2 most recent caches per prefix; delete the rest
