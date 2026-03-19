@@ -110,6 +110,7 @@ jobs:
             for (const prefix of CACHE_PREFIXES) {
               // octokit: actions.getActionsCacheList
               let failed = false;
+              let status = 200;
               const caches = await github.paginate(github.rest.actions.getActionsCacheList, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -126,8 +127,15 @@ jobs:
                   return [];
                 }
                 return response.data.actions_caches;
+              }).catch(e => {
+                status = e.status ?? 0;
+                return null;
               });
               if (failed) continue;
+              if (status !== 200) {
+                core.error(`Failed to paginate caches for prefix "${prefix}": HTTP ${status}`);
+                continue;
+              }
               // Keep the 2 most recent caches per prefix; delete the rest
               for (const cache of caches.slice(2)) {
                 // octokit: actions.deleteActionsCacheById
