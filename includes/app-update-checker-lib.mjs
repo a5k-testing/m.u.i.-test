@@ -13,6 +13,13 @@ export const EXIT_CODES = Object.freeze({
   EX_SOFTWARE:    70, // internal software error
 });
 
+class ExitError extends Error {
+  constructor(code) {
+    super('EXIT-WITH-ERROR-CODE');
+    this.code = code;
+  }
+}
+
 // Node.js 20 or later is required
 if (parseInt(process.versions.node.split('.')[0], 10) < 20) {
   console.error(`\x1b[31mERROR: Node.js 20 or later is required (current: ${process.versions.node})\x1b[0m`);
@@ -564,7 +571,7 @@ export async function extractApkInfo(
   const aaptBin = findAaptBin();
   if (!aaptBin) {
     core.error("'aapt' not found. Install Android build-tools or set ANDROID_SDK_ROOT.");
-    throw Object.assign(new Error('EXIT-WITH-ERROR-CODE'), { code: EXIT_CODES.EX_UNAVAILABLE });
+    throw new ExitError(EXIT_CODES.EX_UNAVAILABLE);
   }
   core.info(`Using aapt: ${aaptBin}`);
 
@@ -689,7 +696,7 @@ export default async function main(
   try {
   if (apkDirs === undefined && apkFiles === undefined) {
     core.error('Either apkDirs or apkFiles must be provided.');
-    throw Object.assign(new Error('EXIT-WITH-ERROR-CODE'), { code: EXIT_CODES.EX_USAGE });
+    throw new ExitError(EXIT_CODES.EX_USAGE);
   }
 
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
@@ -777,7 +784,7 @@ export default async function main(
   // Abort when no APKs remain after filtering.
   if (apkInfoList.length < 1) {
     core.error('No APK files were processed. Verify the provided paths contain valid APK files.');
-    throw Object.assign(new Error('EXIT-WITH-ERROR-CODE'), { code: EXIT_CODES.EX_NOINPUT });
+    throw new ExitError(EXIT_CODES.EX_NOINPUT);
   }
 
   // Load or fetch (with TTL) every repo index
@@ -847,7 +854,7 @@ export default async function main(
     ])
     .write();
   } catch (e) {
-    if (e.message === 'EXIT-WITH-ERROR-CODE') {
+    if (e instanceof ExitError) {
       process.exitCode = e.code;
     } else {
       throw e;
