@@ -564,8 +564,7 @@ export async function extractApkInfo(
   const aaptBin = findAaptBin();
   if (!aaptBin) {
     core.error("'aapt' not found. Install Android build-tools or set ANDROID_SDK_ROOT.");
-    process.exitCode = EXIT_CODES.EX_UNAVAILABLE;
-    return [];
+    throw Object.assign(new Error('EXIT-WITH-ERROR-CODE'), { code: EXIT_CODES.EX_UNAVAILABLE });
   }
   core.info(`Using aapt: ${aaptBin}`);
 
@@ -687,10 +686,10 @@ export default async function run(
   }
 
   // Validate inputs
+  try {
   if (apkDirs === undefined && apkFiles === undefined) {
     core.error('Either apkDirs or apkFiles must be provided.');
-    process.exitCode = EXIT_CODES.EX_USAGE;
-    return;
+    throw Object.assign(new Error('EXIT-WITH-ERROR-CODE'), { code: EXIT_CODES.EX_USAGE });
   }
 
   // Determine workspace root: GITHUB_WORKSPACE (Actions) or parent of includes/
@@ -775,12 +774,10 @@ export default async function run(
       : '')
   );
 
-  // Abort when no APKs remain after filtering; use a more specific code if one
-  // was already set by a dependency failure (e.g. EX_UNAVAILABLE for aapt).
+  // Abort when no APKs remain after filtering.
   if (apkInfoList.length < 1) {
     core.error('No APK files were processed. Verify the provided paths contain valid APK files.');
-    process.exitCode ||= EXIT_CODES.EX_NOINPUT;
-    return;
+    throw Object.assign(new Error('EXIT-WITH-ERROR-CODE'), { code: EXIT_CODES.EX_NOINPUT });
   }
 
   // Load or fetch (with TTL) every repo index
@@ -849,6 +846,13 @@ export default async function run(
       ...summaryRows,
     ])
     .write();
+  } catch (e) {
+    if (e.message === 'EXIT-WITH-ERROR-CODE') {
+      process.exitCode = e.code;
+    } else {
+      throw e;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -918,6 +922,6 @@ if (_ENTRY_SCRIPT === _LIB_PATH) {
     dumpInfoFile: dumpInfoFileEnv,
   }).catch(err => {
     core.error(err.message);
-    process.exitCode ||= EXIT_CODES.EX_DATAERR;
+    process.exitCode = EXIT_CODES.EX_DATAERR;
   });
 }
