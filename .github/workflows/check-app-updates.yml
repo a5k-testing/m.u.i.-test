@@ -109,21 +109,20 @@ jobs:
 
             for (const prefix of CACHE_PREFIXES) {
               // octokit: actions.getActionsCacheList
-              let caches;
-              try {
-                caches = await github.paginate(github.rest.actions.getActionsCacheList, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  key: prefix,
-                  ref: 'refs/heads/main',
-                  sort: 'created_at',
-                  direction: 'desc',
-                  per_page: 100,
-                });
-              } catch (e) {
+              const response = await github.rest.actions.getActionsCacheList({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                key: prefix,
+                ref: 'refs/heads/main',
+                sort: 'created_at',
+                direction: 'desc',
+                per_page: 100,
+              }).catch(e => {
                 core.error(`Failed to list caches for prefix "${prefix}": ${e.message}`);
-                continue;
-              }
+                return null;
+              });
+              if (response?.status !== 200) continue;
+              const caches = response.data.actions_caches;
               // Keep the 2 most recent caches per prefix; delete the rest
               for (const cache of caches.slice(2)) {
                 // octokit: actions.deleteActionsCacheById
