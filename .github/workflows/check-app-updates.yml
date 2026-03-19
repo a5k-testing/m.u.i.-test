@@ -127,9 +127,9 @@ jobs:
                 return response.data.actions_caches;
               }).catch(e => {
                 core.error(`Failed to paginate caches for prefix "${prefix}": HTTP ${e.status}`);
-                return null;
+                return [];
               });
-              if (failed) continue;
+              if (failed || caches.length <= 2) continue;
               // Keep the 2 most recent caches per prefix; delete the rest
               for (const cache of caches.slice(2)) {
                 await github.rest.actions.deleteActionsCacheById({
