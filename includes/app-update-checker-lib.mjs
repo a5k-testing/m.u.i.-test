@@ -754,8 +754,8 @@ export default async function main({
     process.exit(EXIT_CODES.EX_USAGE);
   }
 
-  // Validate inputs
   try {
+    // Validate inputs
     if (apkDirs === undefined && apkFiles === undefined) {
       core.error('Either apkDirs or apkFiles must be provided.');
       throw new ExitError(EXIT_CODES.EX_USAGE);
@@ -777,7 +777,7 @@ export default async function main({
     // Resolve effective APK scan directories
     // If apkDirs and apkFiles are empty, the default directory is used
     const effectiveDirs =
-      normDirs.length === 0 || normFiles.length === 0
+      normDirs.length === 0 && normFiles.length === 0
         ? [path.posix.join(workspace, 'zip-content/origin')]
         : normDirs;
 
