@@ -114,10 +114,11 @@ jobs:
                 repo: context.repo.repo,
                 key: prefix,
                 ref: 'refs/heads/main',
+                sort: 'created_at',
+                direction: 'desc',
                 per_page: 100,
               });
               // Keep the 2 most recent caches per prefix; delete the rest
-              caches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
               for (const cache of caches.slice(2)) {
                 // octokit: actions.deleteActionsCacheById
                 await github.rest.actions.deleteActionsCacheById({

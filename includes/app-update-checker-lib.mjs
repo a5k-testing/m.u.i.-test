@@ -53,8 +53,9 @@ const toPosixMethod = Function.prototype.call.bind(String.prototype.toPosix);
 const toPosix = (val) => (typeof val === 'string' ? toPosixMethod(val) : val);
 
 // Path to this library file; used for workspace default and CLI entry detection
-const _LIB_PATH = fileURLToPath(import.meta.url).toPosix();
-const _LIB_DIR  = path.posix.dirname(_LIB_PATH);
+const _LIB_PATH    = fileURLToPath(import.meta.url).toPosix();
+const _LIB_DIR     = path.posix.dirname(_LIB_PATH);
+const _ENTRY_SCRIPT = process.argv[1].toPosix();
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -219,32 +220,32 @@ async function loadOrFetchRepoIndex(baseUrl, repoCacheDir, core) {
       cacheAgeMs = Date.now() - statSync(cacheFile).mtimeMs;
     } catch { /* file does not exist or is not accessible */ }
     if (cacheAgeMs < REPO_CACHE_TTL_MS) {
-      core?.info(
+      core.info(
         `Using cached index for ${shortUrl(baseUrl)}` +
         ` (age: ${Math.round(cacheAgeMs / 3_600_000)}h)`
       );
       try {
         return JSON.parse(readFileSync(cacheFile, 'utf-8'));
       } catch {
-        core?.warning(
+        core.warning(
           `cache read failed for ${shortUrl(baseUrl)}, fetching…`
         );
       }
     } else {
-      core?.info(`Fetching ${indexUrl}…`);
+      core.info(`Fetching ${indexUrl}…`);
     }
     const raw = await fetchUrl(indexUrl);
     try {
       mkdirSync(repoCacheDir, { recursive: true });
       writeFileSync(cacheFile, raw, 'utf-8');
     } catch (e) {
-      core?.warning(
+      core.warning(
         `could not save index cache for ${shortUrl(baseUrl)}: ${e.message}`
       );
     }
     return JSON.parse(raw);
   }
-  core?.info(`Fetching ${indexUrl}…`);
+  core.info(`Fetching ${indexUrl}…`);
   return JSON.parse(await fetchUrl(indexUrl));
 }
 
@@ -553,7 +554,7 @@ async function getCertSha256(apkPath) {
 //                                 for dir-scanned APKs, relPath is relative to baseDir
 //   lfsCacheDir {string|null}   – path to a Git-LFS cache directory
 //                                 (e.g. GITHUB_WORKSPACE/cache/lfs)
-//   core        {object}        – logger implementing .info(msg) (optional)
+//   core        {object}        – logger implementing .info(msg) (required)
 //
 // Returns: Promise<Array<{fileName, relPath, packageName, versionCode, versionName, certSha256}>>
 export async function extractApkInfo(
@@ -562,11 +563,11 @@ export async function extractApkInfo(
 ) {
   const aaptBin = findAaptBin();
   if (!aaptBin) {
-    core?.error?.("'aapt' not found. Install Android build-tools or set ANDROID_SDK_ROOT.");
+    core.error("'aapt' not found. Install Android build-tools or set ANDROID_SDK_ROOT.");
     process.exitCode = EXIT_CODES.EX_UNAVAILABLE;
     return [];
   }
-  core?.info(`Using aapt: ${aaptBin}`);
+  core.info(`Using aapt: ${aaptBin}`);
 
   const apkPaths = apkFiles ?? findApkFiles(baseDir);
   const results = [];
@@ -581,7 +582,7 @@ export async function extractApkInfo(
     let resolvedPath = apkPath;
     let fileSize;
     try { fileSize = statSync(apkPath).size; }
-    catch { core?.warning(`cannot stat ${fileName}, skipping`); continue; }
+    catch { core.warning(`cannot stat ${fileName}, skipping`); continue; }
 
     if (fileSize < 1024) {
       let content;
@@ -595,18 +596,18 @@ export async function extractApkInfo(
           const cached = path.posix.join(lfsCacheDir, sha256);
           if (existsSync(cached)) {
             resolvedPath = cached;
-            core?.info(
+            core.info(
               `INFO: resolved LFS pointer for ${fileName}` +
               ` (sha256=${sha256})`
             );
           } else {
-            core?.warning(
+            core.warning(
               `skipping LFS pointer (cache miss): ${fileName}`
             );
             continue;
           }
         } else {
-          core?.warning(
+          core.warning(
             `skipping LFS pointer (not in cache): ${fileName}`
           );
           continue;
@@ -617,18 +618,18 @@ export async function extractApkInfo(
     // Extract package name, version code, and version name
     const manifest = await getApkManifestInfo(aaptBin, resolvedPath);
     if (!manifest?.packageName) {
-      core?.warning(`skipping ${fileName} (package name not found)`);
+      core.warning(`skipping ${fileName} (package name not found)`);
       continue;
     }
 
     // Extract signing certificate SHA-256
     const certSha256 = await getCertSha256(resolvedPath);
     if (!certSha256) {
-      core?.warning(`skipping ${fileName} (cert not found)`);
+      core.warning(`skipping ${fileName} (cert not found)`);
       continue;
     }
 
-    core?.info(
+    core.info(
       `INFO: ${fileName}: pkg=${manifest.packageName},` +
       ` vc=${manifest.versionCode}, vn=${manifest.versionName},` +
       ` cert=${certSha256}`
@@ -680,9 +681,14 @@ export function dumpEffectiveDirs(effectiveDirs) {
 export default async function run(
   { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null } = {}
 ) {
+  if (!core) {
+    console.error('ERROR: The required "core" object was not provided to run().');
+    process.exit(EXIT_CODES.EX_USAGE);
+  }
+
   // Validate inputs
   if (apkDirs === undefined && apkFiles === undefined) {
-    core?.error?.('Either apkDirs or apkFiles must be provided.');
+    core.error('Either apkDirs or apkFiles must be provided.');
     process.exitCode = EXIT_CODES.EX_USAGE;
     return;
   }
@@ -849,7 +855,7 @@ export default async function run(
 // CLI entry point — runs only when invoked directly by Node.js
 // ---------------------------------------------------------------------------
 
-if (process.argv[1].toPosix() === _LIB_PATH) {
+if (_ENTRY_SCRIPT === _LIB_PATH) {
   const summary = {
     _items: [],
     addHeading(text) {
