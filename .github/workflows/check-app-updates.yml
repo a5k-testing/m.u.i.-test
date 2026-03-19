@@ -87,10 +87,10 @@ jobs:
         with:
           retries: 1
           script: |
-            const { default: run } = await import(
+            const { default: main } = await import(
               `${process.env.GITHUB_WORKSPACE}/includes/app-update-checker-lib.mjs`
             );
-            await run({ core, apkDirs: [] });
+            await main({ core, apkDirs: [] });
 
   clean-caches:
     name: "Clean old caches"

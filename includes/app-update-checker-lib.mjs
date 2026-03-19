@@ -677,11 +677,11 @@ export function dumpEffectiveDirs(effectiveDirs) {
 //                                       defaults to workspace/cache/repos.
 //   dumpInfoFile {string|null}        – When set, write UPDATE AVAILABLE entries
 //                                       to this path in key=value format.
-export default async function run(
+export default async function main(
   { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null } = {}
 ) {
   if (!core) {
-    console.error('ERROR: The required "core" object was not provided to run().');
+    console.error('ERROR: The required "core" object was not provided to main().');
     process.exit(EXIT_CODES.EX_USAGE);
   }
 
@@ -914,7 +914,7 @@ if (_ENTRY_SCRIPT === _LIB_PATH) {
     ? path.posix.join(process.cwd().toPosix(), 'update-info.dat')
     : null;
 
-  run({
+  main({
     core,
     apkDirs:      apkDirsEnv,
     apkFiles:     apkFilesEnv,
