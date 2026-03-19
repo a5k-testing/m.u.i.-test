@@ -561,6 +561,7 @@ async function getCertSha256(apkPath) {
 //                                 for dir-scanned APKs, relPath is relative to baseDir
 //   lfsCacheDir {string|null}   – path to a Git-LFS cache directory
 //                                 (e.g. GITHUB_WORKSPACE/cache/lfs)
+//   verbose     {boolean}       – when true, log per-APK pkg/vc/vn/cert details
 //   core        {object}        – logger implementing .info(msg) (required)
 //
 // Returns: Promise<Array<{fileName, relPath, packageName, versionCode, versionName, certSha256}>>
@@ -686,6 +687,8 @@ export function dumpEffectiveDirs(effectiveDirs) {
 //                                       defaults to workspace/cache/repos.
 //   dumpInfoFile {string|null}        – When set, write UPDATE AVAILABLE entries
 //                                       to this path in key=value format.
+//   verbose      {boolean}            – when true, log per-APK pkg/vc/vn/cert
+//                                       details and skip-list entries.
 export default async function main(
   { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null, verbose = false } = {}
 ) {
@@ -772,7 +775,7 @@ export default async function main(
   // Filter out skip-listed entries
   const apkInfoList = allApkInfo.filter(apk => {
     if (SKIP_LIST.has(apk.relPath)) {
-      core.info(`Skipping (skip list): ${apk.relPath}`);
+      if (verbose) { core.info(`Skipping (skip list): ${apk.relPath}`); }
       return false;
     }
     return true;
