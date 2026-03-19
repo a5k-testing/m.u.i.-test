@@ -120,7 +120,7 @@ jobs:
                   per_page: 100,
                 }, (response, done) => {
                   if (response.status !== 200) {
-                    core.error(`Failed to list caches for prefix "${prefix}": HTTP ${response.status}`);
+                    core.error(`Failed to list caches for prefix "${prefix}": [HTTP ${response.status}] ${JSON.stringify(response.data)}`);
                     failed = true;
                     done();
                     return [];
@@ -128,7 +128,8 @@ jobs:
                   return response.data.actions_caches;
                 }
               ).catch(e => {
-                core.error(`Failed to paginate caches for prefix "${prefix}": HTTP ${e.status}`);
+                core.error(`Failed to paginate caches for prefix "${prefix}": [HTTP ${e.status ?? 'Unknown'}] ${e.message}`);
+                failed = true;
                 return [];
               });
               if (failed || caches.length <= 2) continue;
