@@ -566,7 +566,7 @@ async function getCertSha256(apkPath) {
 // Returns: Promise<Array<{fileName, relPath, packageName, versionCode, versionName, certSha256}>>
 export async function extractApkInfo(
   baseDir,
-  { apkFiles = null, workspace = null, lfsCacheDir = null, core } = {}
+  { apkFiles = null, workspace = null, lfsCacheDir = null, verbose = false, core } = {}
 ) {
   const aaptBin = findAaptBin();
   if (!aaptBin) {
@@ -635,11 +635,13 @@ export async function extractApkInfo(
       continue;
     }
 
-    core.info(
-      `INFO: ${fileName}: pkg=${manifest.packageName},` +
-      ` vc=${manifest.versionCode}, vn=${manifest.versionName},` +
-      ` cert=${certSha256}`
-    );
+    if (verbose) {
+      core.info(
+        `INFO: ${fileName}: pkg=${manifest.packageName},` +
+        ` vc=${manifest.versionCode}, vn=${manifest.versionName},` +
+        ` cert=${certSha256}`
+      );
+    }
     results.push({
       fileName,
       relPath,
@@ -685,7 +687,7 @@ export function dumpEffectiveDirs(effectiveDirs) {
 //   dumpInfoFile {string|null}        – When set, write UPDATE AVAILABLE entries
 //                                       to this path in key=value format.
 export default async function main(
-  { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null } = {}
+  { core, apkDirs, apkFiles, lfsCacheDir, repoCacheDir, dumpInfoFile = null, verbose = false } = {}
 ) {
   if (!core) {
     console.error('ERROR: The required "core" object was not provided to main().');
@@ -736,7 +738,7 @@ export default async function main(
   // Extract APK info from all valid directories
   let allApkInfo = [];
   for (const dir of validDirs) {
-    const info = await extractApkInfo(dir, { workspace, lfsCacheDir: lfsDir, core });
+    const info = await extractApkInfo(dir, { workspace, lfsCacheDir: lfsDir, verbose, core });
     allApkInfo = allApkInfo.concat(info);
   }
 
@@ -761,6 +763,7 @@ export default async function main(
       apkFiles: validApkFiles,
       workspace,
       lfsCacheDir: lfsDir,
+      verbose,
       core,
     });
     allApkInfo = allApkInfo.concat(info);
@@ -927,6 +930,7 @@ if (_ENTRY_SCRIPT === _LIB_PATH) {
     apkFiles:     apkFilesEnv,
     repoCacheDir: process.env.APKS_REPO_CACHE_DIR || undefined,
     dumpInfoFile: dumpInfoFileEnv,
+    verbose:      Boolean(process.env.APKS_VERBOSE),
   }).catch(err => {
     core.error(err.message);
     process.exitCode = EXIT_CODES.EX_DATAERR;

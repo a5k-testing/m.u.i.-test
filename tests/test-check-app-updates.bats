@@ -58,6 +58,7 @@ fi
 printf 'DIRS=%s\n'      "${APKS_DIRS:-}"      >> "${MOCK_OUTPUT_FILE:-/dev/null}"
 printf 'FILES=%s\n'     "${APKS_FILES:-}"     >> "${MOCK_OUTPUT_FILE:-/dev/null}"
 printf 'DUMP_INFO=%s\n' "${APKS_DUMP_INFO:-}" >> "${MOCK_OUTPUT_FILE:-/dev/null}"
+printf 'VERBOSE=%s\n'   "${APKS_VERBOSE:-}"   >> "${MOCK_OUTPUT_FILE:-/dev/null}"
 exit 0
 MOCK
   chmod +x "${MOCK_DIR}/node"
@@ -321,4 +322,20 @@ teardown_file() {
   [ "${status}" -eq 0 ]
   # The output must contain the default directory path ending in zip-content/origin
   echo "${output}" | grep -qF 'zip-content/origin'
+}
+
+# ---------------------------------------------------------------------------
+# -v / verbose flag
+# ---------------------------------------------------------------------------
+
+@test "-v sets APKS_VERBOSE=1" {
+  run sh "${SCRIPT}" -v --file '/tmp/app.apk'
+  [ "${status}" -eq 0 ]
+  grep -qxF 'VERBOSE=1' "${MOCK_OUTPUT_FILE}"
+}
+
+@test "without -v APKS_VERBOSE is empty" {
+  run sh "${SCRIPT}" --file '/tmp/app.apk'
+  [ "${status}" -eq 0 ]
+  grep -qxF 'VERBOSE=' "${MOCK_OUTPUT_FILE}"
 }

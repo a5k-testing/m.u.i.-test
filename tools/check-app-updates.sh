@@ -45,7 +45,7 @@ show_error()
 
 main()
 {
-  local apk_dirs="${1:-}" apk_files="${2:-}" dump_info="${3:-}" dump_effective_dirs="${4:-}"
+  local apk_dirs="${1:-}" apk_files="${2:-}" dump_info="${3:-}" dump_effective_dirs="${4:-}" verbose="${5:-}"
   local script_dir repo_dir _dir apk_file_count
 
   # Resolve the directory containing this script and the repo root
@@ -78,17 +78,20 @@ EOF
   # APKS_FILES:                 newline-separated list of explicit APK paths (overrides/adds to scan).
   # APKS_DUMP_INFO:             when non-empty, write update-info.dat for UPDATE AVAILABLE entries.
   # APKS_DUMP_EFFECTIVE_DIRS:   when non-empty, print effectiveDirs and exit without running the full check.
+  # APKS_VERBOSE:               when non-empty, log per-APK pkg/vc/vn/cert details.
   APKS_DIRS="${apk_dirs}" APKS_FILES="${apk_files}" APKS_DUMP_INFO="${dump_info}" \
-  APKS_DUMP_EFFECTIVE_DIRS="${dump_effective_dirs}" \
+  APKS_DUMP_EFFECTIVE_DIRS="${dump_effective_dirs}" APKS_VERBOSE="${verbose}" \
     node "${repo_dir}/includes/app-update-checker-lib.mjs"
 }
 
 STATUS=0
+SCRIPT_VERBOSE='false'
 execute_script='true'
 apk_dirs_arg=''
 apk_files_arg=''
 dump_info_arg=''
 dump_effective_dirs_arg=''
+verbose_arg=''
 
 while test "${#}" -gt 0; do
   case "${1?}" in
@@ -100,6 +103,8 @@ while test "${#}" -gt 0; do
       # REUSE-IgnoreEnd
       execute_script='false'
       ;;
+
+    -v) SCRIPT_VERBOSE='true' ; verbose_arg='1' ;;
 
     --dir)
       shift
@@ -161,7 +166,7 @@ done
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
 
-  main "${apk_dirs_arg}" "${apk_files_arg}" "${dump_info_arg}" "${dump_effective_dirs_arg}" || STATUS="${?}"
+  main "${apk_dirs_arg}" "${apk_files_arg}" "${dump_info_arg}" "${dump_effective_dirs_arg}" "${verbose_arg}" || STATUS="${?}"
 fi
 
 pause_if_needed "${STATUS:?}"
