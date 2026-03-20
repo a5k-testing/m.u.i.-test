@@ -21,21 +21,20 @@ switch_case_indent = true
 space_redirects = true
 function_next_line = true
 
-[*.{sh,xml,toml,license,dat,txt,yml,gradle,json,rst}]
+[*.{sh,xml,toml,license,dat,txt,yml,gradle}]
 max_line_length = 265 # ToDO: try to reduce to 99
 
 [recovery-simulator/override/*]
 max_line_length = 150 # ToDO: try to reduce to 99
 
-[*.{js,mjs}]
+[*.{rst,js,mjs}]
 max_line_length = 80
-
-[{Makefile,.tgitconfig}]
-indent_style = tab
 
 [*.rst]
 indent_size = 3
-indent_style = unset
+
+[{Makefile,.tgitconfig}]
+indent_style = tab
 
 [*.gpg]
 insert_final_newline = unset
@@ -57,6 +56,10 @@ shell_variant = bash
 
 [recovery-simulator/recovery.sh]
 shell_variant = bash
+
+# Links cannot be shortened
+[README.rst]
+max_line_length = off
 
 # Long lines cannot be avoided
 [{.mailmap,allowed_signers,conf-2.sh,docs/CONTRIBUTORS.md}]
