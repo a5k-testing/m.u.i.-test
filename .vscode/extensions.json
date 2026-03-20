@@ -1,11 +1,4 @@
 {
-    "recommendations": [
-        "timonwong.shellcheck",
-        "marcovr.actions-shell-scripts",
-        "codecov.codecov"
-    ],
-    "unwantedRecommendations": [
-        "vscjava.vscode-java-pack",
-        "codacy-app.codacy"
-    ]
+    "recommendations": ["codecov.codecov", "editorconfig.editorconfig", "lextudio.restructuredtext", "marcovr.actions-shell-scripts", "ms-python.vscode-pylance", "timonwong.shellcheck"],
+    "unwantedRecommendations": ["vscjava.vscode-java-pack"]
 }
