@@ -1,0 +1,47 @@
+---
+# SPDX-FileCopyrightText: NONE
+# SPDX-License-Identifier: CC0-1.0
+
+name: "Bashdoc"
+permissions: {}
+on:
+  push:
+    paths:
+      - "**.sh"
+      - "tools/bashdoc.py"
+  pull_request:
+    paths:
+      - "**.sh"
+      - "tools/bashdoc.py"
+  workflow_dispatch:
+
+jobs:
+  generate-flowcharts:
+    name: "Generate flow diagrams"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # Needed to checkout the repository (only required for private repositories)
+
+    steps:
+      - name: "Checkout sources"
+        uses: actions/checkout@v6
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: "Generate flow diagrams"
+        shell: bash
+        run: |
+          # Generating Mermaid flow diagrams from shell scripts...
+          find . -name '*.sh' \
+            -not -path './.git/*' \
+            -not -path './cache/*' \
+            | sort \
+            | xargs python3 './tools/bashdoc.py' --output-dir './docs/flowcharts'
+      - name: "Upload flow diagrams"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "shell-flow-diagrams"
+          path: "docs/flowcharts/*.md"
+          if-no-files-found: warn
