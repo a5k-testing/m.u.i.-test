@@ -8,11 +8,9 @@ on:
   push:
     paths:
       - "**.sh"
-      - "tools/bashdoc.py"
   pull_request:
     paths:
       - "**.sh"
-      - "tools/bashdoc.py"
   workflow_dispatch:
 
 jobs:
@@ -26,22 +24,56 @@ jobs:
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
-      - name: "Setup Python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - name: "Generate flow diagrams"
+      - name: "Install dependencies"
         shell: bash
         run: |
-          # Generating Mermaid flow diagrams from shell scripts...
+          # Installing graphviz (required by flow.sh to render DOT graphs)...
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            --no-install-recommends \
+            -o Dpkg::Use-Pty=0 \
+            -o Dpkg::Progress-Fancy=0 \
+            graphviz
+      - name: "Download Bashdoc"
+        shell: bash
+        run: |
+          # Downloading bashdoc.sh and flow.sh from sourcemage/bashdoc (pinned commit)...
+          # Pinned to commit 9507a67 (2009-10-05) to guard against supply-chain changes.
+          readonly BASHDOC_REF='9507a67eb577d8d57de587c566bea263c68aa7b4'
+          curl -fsSL "https://raw.githubusercontent.com/sourcemage/bashdoc/${BASHDOC_REF}/bashdoc.sh" -o bashdoc.sh
+          curl -fsSL "https://raw.githubusercontent.com/sourcemage/bashdoc/${BASHDOC_REF}/flow.sh" -o flow.sh
+          chmod +x bashdoc.sh flow.sh
+      - name: "Generate Bashdoc HTML documentation"
+        shell: bash
+        run: |
+          # Generating HTML documentation and function lists with bashdoc.sh...
+          # Strip the leading './' from find output: bashdoc converts '/' to '.' in
+          # output filenames, and a leading './' would produce hidden '..name' files.
+          mkdir -p docs/bashdoc
           find . -name '*.sh' \
             -not -path './.git/*' \
             -not -path './cache/*' \
-            | sort \
-            | xargs python3 './tools/bashdoc.py' --output-dir './docs/flowcharts'
-      - name: "Upload flow diagrams"
+            | sort | sed 's|^\./||' \
+            | xargs ./bashdoc.sh -o docs/bashdoc
+      - name: "Generate flow diagrams"
+        shell: bash
+        run: |
+          # Generating function call flow diagram with flow.sh...
+          find . -name '*.sh' \
+            -not -path './.git/*' \
+            -not -path './cache/*' \
+            | sort | sed 's|^\./||' \
+            | xargs ./flow.sh --funcs docs/bashdoc
+          # flow.sh does not quote subgraph names in the DOT output.
+          # Script filenames contain '.' which is a special character in DOT IDs.
+          # Quoting the names fixes the syntax error so the graph renders correctly.
+          if test -f 'docs/bashdoc/out.dot'; then
+            sed -i 's/\tsubgraph \([^ ]*\) {/\tsubgraph "\1" {/' docs/bashdoc/out.dot
+            dot -Tpng -o docs/bashdoc/out.dot.png docs/bashdoc/out.dot
+            dot -Tcmap -o docs/bashdoc/out.dot.cmap docs/bashdoc/out.dot
+          fi
+      - name: "Upload Bashdoc artifacts"
         uses: actions/upload-artifact@v7
         with:
-          name: "shell-flow-diagrams"
-          path: "docs/flowcharts/*.md"
+          name: "bashdoc"
+          path: "docs/bashdoc/"
           if-no-files-found: warn
