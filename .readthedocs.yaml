@@ -12,9 +12,16 @@ build:
   os: "ubuntu-lts-latest"
   tools:
     python: "3"
+  apt_packages:
+    - gawk
   jobs:
     post_install:
-      - pip install Sphinx==9.1.0 sphinx-rtd-theme
+      # Install Sphinx and other extensions
+      - pip install Sphinx==9.1.0 sphinx-rtd-theme myst-parser
+      # Install shdoc
+      - mkdir -p "${HOME:?}/.local/bin"
+      - wget -q -O "${HOME:?}/.local/bin/shdoc" -- 'https://raw.githubusercontent.com/reconquest/shdoc/12c379229afe1ef5548acb487639ca71112cb4e0/shdoc'
+      - chmod +x "${HOME:?}/.local/bin/shdoc"
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
