@@ -18,7 +18,7 @@
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
 
 readonly SCRIPT_NAME='Android ROM permissions XML generator'
-readonly SCRIPT_SHORTNAME='RomPermXml'
+readonly SCRIPT_SHORTNAME='PermXmlGen'
 readonly SCRIPT_VERSION='0.3.5'
 readonly SCRIPT_AUTHOR='ale5000'
 
