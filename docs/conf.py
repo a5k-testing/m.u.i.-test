@@ -93,10 +93,15 @@ def get_revision():
     if not git:
         return None
     try:
-        # Safe: uses list-based arguments (no shell) to prevent injection
-        return subprocess.check_output(
-            [git, "rev-parse", "--short=8", "HEAD"], stderr=subprocess.DEVNULL
-        ).decode("utf-8").strip()  # nosec B603
+        return (
+            # Safe: uses list-based arguments (no shell) to prevent injection
+            subprocess.check_output(  # nosec B603 # noqa: S603
+                [git, "rev-parse", "--short=8", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode("utf-8")
+            .strip()
+        )
     except Exception:
         return None
 
@@ -132,21 +137,27 @@ def _find_shdoc_cmd():
     1. ``shdoc`` entry in ``PATH`` (the AWK script installed as an executable)
     2. ``~/.local/bin/shdoc`` (download destination used by the RTD build)
     """
-    extra_path = os.path.abspath(os.path.join(os.path.expanduser("~"), ".local", "bin"))
+    extra_path = os.path.abspath(
+        os.path.join(os.path.expanduser("~"), ".local", "bin")
+    )
     search_path = os.environ.get("PATH", "") + os.pathsep + extra_path
 
     gawk = shutil.which("gawk", path=search_path)
     if not gawk:
         logger.warning(
-            ""gawk" not found; shell script docs will not be generated. "
+            "'gawk' not found; shell script docs will not be generated. "
             "Install GNU AWK (gawk) and rebuild."
         )
         return None, "gawk"
 
-    shdoc = shutil.which("shdoc", path=search_path, mode=os.F_OK if sys.platform == "win32" else os.F_OK | os.X_OK)
+    shdoc = shutil.which(
+        "shdoc",
+        path=search_path,
+        mode=os.F_OK if sys.platform == "win32" else os.F_OK | os.X_OK,
+    )
     if not shdoc:
         logger.warning(
-            ""shdoc" not found; shell script docs will not be generated. "
+            "'shdoc' not found; shell script docs will not be generated. "
             "Install it from https://github.com/reconquest/shdoc and rebuild."
         )
         return None, "shdoc"
@@ -316,10 +327,12 @@ def _generate_shdoc(app):
 
         try:
             # Safe: list-based call, no shell=True; "--" prevents shdoc from
-            # interpreting a leading "-" in a filename as an option.  nosec B603
-            result = subprocess.run(  # nosec B603
+            # interpreting a leading "-" in a filename as an option.
+            result = subprocess.run(  # nosec B603 # noqa: S603
                 shdoc_cmd + ["--", script_path],
-                capture_output=True, text=True, check=False
+                capture_output=True,
+                text=True,
+                check=False,
             )
             if result.returncode != 0:
                 logger.warning(
@@ -409,7 +422,7 @@ def transform_rst_links(app, doctree):
             reftarget=reftarget,
             refdoc=docname,
             refwarn=True,
-            refexplicit=True
+            refexplicit=True,
         )
         # Transfer children (the link text) and replace the original node
         new_node.extend(node.children)
@@ -423,7 +436,7 @@ def setup(app):
     return {
         "version": "0.1",
         "parallel_read_safe": True,
-        "parallel_write_safe": True
+        "parallel_write_safe": True,
     }
 
 
@@ -443,10 +456,7 @@ if revision:
 
 # General configuration
 needs_sphinx = "8.1"
-extensions = [
-    "sphinx_rtd_theme",
-    "myst_parser"
-]
+extensions = ["sphinx_rtd_theme", "myst_parser"]
 
 # Options for highlighting
 highlight_language = "sh"
@@ -459,10 +469,7 @@ rst_epilog = f"""
 # Options for source files
 exclude_patterns = ["CONTRIBUTORS.md"]
 master_doc = "index"
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".md": "markdown"
-}
+source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 
 # Options for HTML output
 html_theme = "sphinx_rtd_theme"
@@ -471,7 +478,7 @@ html_context = {
     "github_user": "micro5k",
     "github_repo": "microg-unofficial-installer",
     "github_version": "main",
-    "conf_py_path": "/docs/"
+    "conf_py_path": "/docs/",
 }
 
 # Options for LaTeX output (e.g., PDF)
@@ -479,6 +486,4 @@ latex_elements = {}
 
 # The "openany" option allows chapters to begin on the next available page;
 # this prevents unwanted blank pages by allowing starts on even or odd pages
-latex_elements.update({
-    "extraclassoptions": "openany"
-})
+latex_elements.update({"extraclassoptions": "openany"})
