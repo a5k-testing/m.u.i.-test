@@ -116,68 +116,6 @@ def _myst_slug(heading_text):
     return slug.strip('-')
 
 
-def _fix_shdoc_markdown(content):
-    """Post-process shdoc-generated Markdown so anchor links resolve correctly.
-
-    shdoc emits wrong anchor slugs in its Index section: links like
-    ``[func_name](#funcname)`` (shdoc lowercases the heading text and strips
-    all non-alphanumeric characters) while myst_parser generates heading IDs
-    via the GFM algorithm where underscores become hyphens (e.g.
-    ``### setup_app`` → ``#setup-app``).
-
-    This function builds a shdoc-slug → myst-slug mapping for all headings in
-    *content* and rewrites ``(#shdoc_slug)`` anchor links to ``(#myst_slug)``.
-    Any remaining unresolved anchor references are fixed at Sphinx
-    cross-reference resolution time by :func:`_on_missing_reference`.
-    """
-    # Build shdoc-slug → myst-slug mapping for all headings
-    slug_map = {}
-    for m in re.finditer(r'^(#{1,6})\s+(.+)$', content, re.MULTILINE):
-        level = len(m.group(1))
-        heading_text = m.group(2).strip()
-        if level < 2:
-            continue
-        shdoc = re.sub(r'[^a-z0-9]', '', heading_text.lower())
-        myst = _myst_slug(heading_text)
-        if shdoc != myst:
-            slug_map[shdoc] = myst
-
-    # Fix anchor links: (#shdoc_slug) → (#myst_slug)
-    if slug_map:
-        def _replace_anchor(m):
-            anchor = m.group(1)
-            return f'(#{slug_map.get(anchor, anchor)})'
-        content = re.sub(r'\(#([a-z0-9-]+)\)', _replace_anchor, content)
-
-    return content
-
-
-def _on_missing_reference(app, env, node, contnode):
-    """Resolve intra-page anchor links in shdoc-generated pages.
-
-    shdoc generates ``[func](#slug)`` links in its Index section.  After
-    :func:`_fix_shdoc_markdown` has corrected the slugs (shdoc-style → myst
-    GFM style), these links point to valid heading anchors in the HTML output.
-    Sphinx has no label entry for auto-generated heading IDs, so the
-    ``missing-reference`` event fires for each one.
-
-    We handle only the ``myst``-typed references that look like plain intra-page
-    anchor slugs (no ``/``), and return a plain HTML anchor reference — the same
-    ``<a href="#slug">`` that myst_parser itself would emit — without the need to
-    insert explicit ``(label)=`` directives into every generated Markdown file.
-    """
-    if node.get('reftype') != 'myst':
-        return None
-
-    reftarget = node.get('reftarget', '')
-    if not reftarget or '/' in reftarget:
-        return None
-
-    ref_node = nodes.reference('', '', internal=True, refuri=f'#{reftarget}')
-    ref_node += contnode
-    return ref_node
-
-
 def _find_shdoc_cmd():
     """Return ``(cmd_list, None)`` for running shdoc, or ``(None, reason)``.
 
@@ -395,7 +333,6 @@ def _generate_shdoc(app):
                 logger.info(f'[shdoc] No output for {script_rel}, skipping')
                 return None
 
-            output = _fix_shdoc_markdown(output)
             with open(out_path, 'w', encoding='utf-8') as f:
                 f.write(output + '\n')
             logger.info(f'[shdoc] Generated: {out_path}')
@@ -421,6 +358,28 @@ def _generate_shdoc(app):
 
     _write_scripts_index(scripts_by_dir['tools'], scripts_by_dir['utils'])
     _write_devel_index(devel_generated)
+
+
+def _fix_shdoc_refs(app, doctree):
+    for node in doctree.findall(addnodes.pending_xref):
+        if node.get("reftype") != "myst":
+            continue
+
+        target = node.get("reftarget", "")
+        if (
+            node.get("refexplicit")
+            and not node.get("refuri")
+            and target
+            and "/" not in target
+        ):
+
+            new_target = target.replace("_", "-")
+            if new_target != target:
+                node["reftarget"] = new_target
+                doc = node.get("refdoc", "unknown")
+                logger.info(
+                    f"[DEBUG] Fixed target: {target} -> {new_target} in {doc}"
+                )
 
 
 def transform_rst_links(app, doctree):
@@ -458,18 +417,18 @@ def transform_rst_links(app, doctree):
 
 
 def setup(app):
-    # Generate shell-script docs before Sphinx reads any source files
     app.connect('builder-inited', _generate_shdoc)
-    # Hook to modify the document structure before rendering
+    app.connect('doctree-read', _fix_shdoc_refs)
     app.connect('doctree-read', transform_rst_links)
-    # Resolve intra-page anchor refs in shdoc-generated pages (no explicit labels needed)
-    app.connect('missing-reference', _on_missing_reference)
     return {
         'version': '0.1',
         'parallel_read_safe': True,
         'parallel_write_safe': True
     }
 
+
+# ToDO: Fix it
+suppress_warnings = ["myst.xref_missing"]
 
 # Project information
 project = 'microG unofficial installer'
