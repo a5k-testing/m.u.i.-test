@@ -385,22 +385,21 @@ def _fix_shdoc_refs(app, doctree):
             and target
             and "/" not in target
         ):
-
             new_target = target.replace("_", "-")
             if new_target != target:
                 node["reftarget"] = new_target
                 doc = node.get("refdoc", "unknown")
                 logger.info(
-                    f"[DEBUG] Fixed target: {target} -> {new_target} in {doc}"
+                    f"[DEBUG] Fixed target: {target} -> {new_target} in {doc}",
                 )
 
 
 def transform_rst_links(app, doctree):
-    """
+    """Convert internal .rst file links to Sphinx cross-references.
+
     Automatically converts internal .rst file links to Sphinx cross-references
     (:doc: or :ref:), enabling validation and proper path resolution.
     """
-
     docname = app.env.docname
     # Traverse only reference nodes that have a "refuri" attribute
     for node in doctree.findall(nodes.reference):
@@ -440,7 +439,7 @@ def setup(app):
     }
 
 
-# ToDO: Fix it
+# TODO: Fix it
 suppress_warnings = ["myst.xref_missing"]
 
 # Project information
