@@ -21,69 +21,93 @@ logger = logging.getLogger(__name__)
 _DOCS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Root of the repository (one level above docs/)
-_REPO_ROOT = os.path.normpath(os.path.join(_DOCS_DIR, '..'))
+_REPO_ROOT = os.path.normpath(os.path.join(_DOCS_DIR, ".."))
 
 
 def get_version():
-    props_path = os.path.join(_REPO_ROOT, 'zip-content', 'module.prop')
+    props_path = os.path.join(_REPO_ROOT, "zip-content", "module.prop")
 
     if os.path.exists(props_path):
-        with open(props_path, 'r') as f:
+        with open(props_path) as f:
             for line in f:
-                if line.startswith('version='):
-                    return line.replace('version=', '').lstrip('v').strip()
-    return '0.0.0-unknown'
+                if line.startswith("version="):
+                    return line.replace("version=", "").lstrip("v").strip()
+    return "0.0.0-unknown"
 
 
 def get_revision():
     # Use Read the Docs environment variables if available
-    git_rev = os.environ.get('READTHEDOCS_GIT_COMMIT_HASH')
-    git_id = os.environ.get('READTHEDOCS_GIT_IDENTIFIER')
+    git_rev = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH")
+    git_id = os.environ.get("READTHEDOCS_GIT_IDENTIFIER")
     if git_rev:
         git_rev = git_rev[:8]
         return f"{git_rev} ({git_id})" if git_id else git_rev
 
     # Fallback to Git CLI
-    git = shutil.which('git')
+    git = shutil.which("git")
     if not git:
         return None
     try:
-        # Safe: uses list-based arguments (no shell) to prevent injection
-        return subprocess.check_output(
-            [git, 'rev-parse', '--short=8', 'HEAD'], stderr=subprocess.DEVNULL
-        ).decode('utf-8').strip()  # nosec B603
+        return (
+            # Safe: uses list-based arguments (no shell) to prevent injection
+            subprocess.check_output(  # nosec B603 # noqa: S603
+                [git, "rev-parse", "--short=8", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode("utf-8")
+            .strip()
+        )
     except Exception:
         return None
 
 
+def _fix_shdoc_refs(app, doctree):
+    for node in doctree.findall(addnodes.pending_xref):
+        if node.get("reftype") != "myst":
+            continue
+
+        target = node.get("reftarget", "")
+        if (
+            node.get("refexplicit")
+            and not node.get("refuri")
+            and target
+            and "/" not in target
+        ):
+            new_target = target.replace("_", "-")
+            if new_target != target:
+                node["reftarget"] = new_target
+                doc = node.get("refdoc", "unknown")
+                logger.info(f"[DEBUG] Fixed: {target} -> {new_target} in {doc}")
+
+
 def transform_rst_links(app, doctree):
-    """
+    """Convert internal .rst file links to Sphinx cross-references.
+
     Automatically converts internal .rst file links to Sphinx cross-references
     (:doc: or :ref:), enabling validation and proper path resolution.
     """
-
     docname = app.env.docname
-    # Traverse only reference nodes that have a 'refuri' attribute
+    # Traverse only reference nodes that have a "refuri" attribute
     for node in doctree.findall(nodes.reference):
-        uri = node.get('refuri', '')
-        if '.rst' not in uri or uri.startswith(('http', 'mailto:', '//')):
+        uri = node.get("refuri", "")
+        if ".rst" not in uri or uri.startswith(("http", "mailto:", "//")):
             continue
 
-        parts = uri.split('#', 1)
+        parts = uri.split("#", 1)
         has_anchor = len(parts) > 1
-        reftype = 'ref' if has_anchor else 'doc'
-        reftarget = parts[1] if has_anchor else parts[0].removesuffix('.rst')
+        reftype = "ref" if has_anchor else "doc"
+        reftarget = parts[1] if has_anchor else parts[0].removesuffix(".rst")
         logger.info(f"[DEBUG] Converting {uri} -> :{reftype}:`{reftarget}`")
 
         # Create pending_xref node which Sphinx resolves during build phase
         new_node = addnodes.pending_xref(
-            '',
+            "",
             reftype=reftype,
-            refdomain='std',
+            refdomain="std",
             reftarget=reftarget,
             refdoc=docname,
             refwarn=True,
-            refexplicit=True
+            refexplicit=True,
         )
         # Transfer children (the link text) and replace the original node
         new_node.extend(node.children)
@@ -91,19 +115,22 @@ def transform_rst_links(app, doctree):
 
 
 def setup(app):
-    # Hook to modify the document structure before rendering
-    app.connect('doctree-read', transform_rst_links)
+    app.connect("doctree-read", _fix_shdoc_refs)
+    app.connect("doctree-read", transform_rst_links)
     return {
-        'version': '0.1',
-        'parallel_read_safe': True,
-        'parallel_write_safe': True
+        "version": "0.1",
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
     }
 
 
+# TODO: Fix it
+suppress_warnings = ["myst.xref_missing"]
+
 # Project information
-project = 'microG unofficial installer'
-author = 'ale5000'
-project_copyright = '2016-2019, 2021-%Y ale5000'
+project = "microG unofficial installer"
+author = "ale5000"
+project_copyright = "2016-2019, 2021-%Y ale5000"
 release = get_version()
 version = release
 
@@ -112,13 +139,11 @@ if revision:
     project_copyright += f" | Revision: {revision}"
 
 # General configuration
-needs_sphinx = '8.1'
-extensions = [
-    'sphinx_rtd_theme'
-]
+needs_sphinx = "8.1"
+extensions = ["sphinx_rtd_theme", "myst_parser"]
 
 # Options for highlighting
-highlight_language = 'sh'
+highlight_language = "sh"
 
 # Options for markup
 rst_epilog = f"""
@@ -126,28 +151,23 @@ rst_epilog = f"""
 """
 
 # Options for source files
-exclude_patterns = ['CONTRIBUTORS.md']
-master_doc = 'index'
-source_suffix = {
-    '.rst': 'restructuredtext',
-    '.md': 'markdown'
-}
+exclude_patterns = ["CONTRIBUTORS.md"]
+master_doc = "index"
+source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 
 # Options for HTML output
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 html_context = {
-    'display_github': True,
-    'github_user': 'micro5k',
-    'github_repo': 'microg-unofficial-installer',
-    'github_version': 'main',
-    'conf_py_path': '/docs/'
+    "display_github": True,
+    "github_user": "micro5k",
+    "github_repo": "microg-unofficial-installer",
+    "github_version": "main",
+    "conf_py_path": "/docs/",
 }
 
 # Options for LaTeX output (e.g., PDF)
 latex_elements = {}
 
-# The 'openany' option allows chapters to begin on the next available page;
+# The "openany" option allows chapters to begin on the next available page;
 # this prevents unwanted blank pages by allowing starts on even or odd pages
-latex_elements.update({
-    'extraclassoptions': 'openany'
-})
+latex_elements.update({"extraclassoptions": "openany"})
