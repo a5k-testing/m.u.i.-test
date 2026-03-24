@@ -77,7 +77,12 @@ def _fix_shdoc_refs(app, doctree):
             if new_target != target:
                 node["reftarget"] = new_target
                 doc = node.get("refdoc", "unknown")
-                logger.info(f"[DEBUG] Fixed: {target} -> {new_target} in {doc}")
+                logger.info(
+                    "[DEBUG] Fixed target: %s -> %s in %s",
+                    target,
+                    new_target,
+                    doc,
+                )
 
 
 def transform_rst_links(app, doctree):
