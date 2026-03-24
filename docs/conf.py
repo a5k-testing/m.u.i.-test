@@ -73,7 +73,7 @@ def get_version():
     props_path = os.path.join(_REPO_ROOT, "zip-content", "module.prop")
 
     if os.path.exists(props_path):
-        with open(props_path, "r") as f:
+        with open(props_path) as f:
             for line in f:
                 if line.startswith("version="):
                     return line.replace("version=", "").lstrip("v").strip()
