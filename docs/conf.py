@@ -23,80 +23,80 @@ logger = logging.getLogger(__name__)
 _DOCS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Root of the repository (one level above docs/)
-_REPO_ROOT = os.path.normpath(os.path.join(_DOCS_DIR, '..'))
+_REPO_ROOT = os.path.normpath(os.path.join(_DOCS_DIR, ".."))
 
 # Directory where generated Markdown files for stand-alone tools/utils are written
-_SHDOC_SCRIPTS_OUTPUT_DIR = os.path.join(_DOCS_DIR, 'scripts')
+_SHDOC_SCRIPTS_OUTPUT_DIR = os.path.join(_DOCS_DIR, "scripts")
 
 # Directory where generated Markdown files for internal/developer scripts are written
-_SHDOC_DEVEL_OUTPUT_DIR = os.path.join(_DOCS_DIR, 'devel')
+_SHDOC_DEVEL_OUTPUT_DIR = os.path.join(_DOCS_DIR, "devel")
 
 # Shell scripts that form part of the *developer guide* (internal/zip-content
 # scripts).  Their documentation is placed under ``devel/`` because it is
 # intended for contributors and developers, not end-users.
 _SHDOC_DEVEL_SCRIPTS = [
-    'zip-content/inc/common-functions.sh',
-    'zip-content/zip-install.sh',
+    "zip-content/inc/common-functions.sh",
+    "zip-content/zip-install.sh",
 ]
 
-_SHDOC_SCRIPTS_SKIP_TOOLS = {'help.sh'}
+_SHDOC_SCRIPTS_SKIP_TOOLS = {"help.sh"}
 
 
 def _collect_shdoc_scripts():
     """Return stand-alone shell scripts grouped by source directory.
 
-    Returns a dict ``{'tools': [...], 'utils': [...]}`` where each value is a
-    sorted list of repository-relative paths (e.g. ``'tools/get-signature.sh'``).
+    Returns a dict ``{"tools": [...], "utils": [...]}`` where each value is a
+    sorted list of repository-relative paths (e.g. ``"tools/get-signature.sh"``).
     Scripts listed in :data:`_SHDOC_SCRIPTS_SKIP_TOOLS` are excluded from the
     ``tools`` list.
     """
-    result = {'tools': [], 'utils': []}
+    result = {"tools": [], "utils": []}
 
     # tools/*.sh — all scripts except those in _SHDOC_SCRIPTS_SKIP_TOOLS
-    tools_dir = os.path.join(_REPO_ROOT, 'tools')
+    tools_dir = os.path.join(_REPO_ROOT, "tools")
     if os.path.isdir(tools_dir):
         for entry in sorted(os.listdir(tools_dir)):
-            if entry.endswith('.sh') and entry not in _SHDOC_SCRIPTS_SKIP_TOOLS:
-                result['tools'].append(os.path.join('tools', entry))
+            if entry.endswith(".sh") and entry not in _SHDOC_SCRIPTS_SKIP_TOOLS:
+                result["tools"].append(os.path.join("tools", entry))
 
     # utils/*.sh — all scripts
-    utils_dir = os.path.join(_REPO_ROOT, 'utils')
+    utils_dir = os.path.join(_REPO_ROOT, "utils")
     if os.path.isdir(utils_dir):
         for entry in sorted(os.listdir(utils_dir)):
-            if entry.endswith('.sh'):
-                result['utils'].append(os.path.join('utils', entry))
+            if entry.endswith(".sh"):
+                result["utils"].append(os.path.join("utils", entry))
 
     return result
 
 
 def get_version():
-    props_path = os.path.join(_REPO_ROOT, 'zip-content', 'module.prop')
+    props_path = os.path.join(_REPO_ROOT, "zip-content", "module.prop")
 
     if os.path.exists(props_path):
-        with open(props_path, 'r') as f:
+        with open(props_path, "r") as f:
             for line in f:
-                if line.startswith('version='):
-                    return line.replace('version=', '').lstrip('v').strip()
-    return '0.0.0-unknown'
+                if line.startswith("version="):
+                    return line.replace("version=", "").lstrip("v").strip()
+    return "0.0.0-unknown"
 
 
 def get_revision():
     # Use Read the Docs environment variables if available
-    git_rev = os.environ.get('READTHEDOCS_GIT_COMMIT_HASH')
-    git_id = os.environ.get('READTHEDOCS_GIT_IDENTIFIER')
+    git_rev = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH")
+    git_id = os.environ.get("READTHEDOCS_GIT_IDENTIFIER")
     if git_rev:
         git_rev = git_rev[:8]
         return f"{git_rev} ({git_id})" if git_id else git_rev
 
     # Fallback to Git CLI
-    git = shutil.which('git')
+    git = shutil.which("git")
     if not git:
         return None
     try:
         # Safe: uses list-based arguments (no shell) to prevent injection
         return subprocess.check_output(
-            [git, 'rev-parse', '--short=8', 'HEAD'], stderr=subprocess.DEVNULL
-        ).decode('utf-8').strip()  # nosec B603
+            [git, "rev-parse", "--short=8", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode("utf-8").strip()  # nosec B603
     except Exception:
         return None
 
@@ -108,12 +108,12 @@ def _myst_slug(heading_text):
     and hyphens → replace spaces and underscores with ``-`` → strip leading/
     trailing ``-``.
 
-    Example: ``'setup_app'`` → ``'setup-app'``
+    Example: ``"setup_app"`` → ``"setup-app"``
     """
     slug = heading_text.lower()
-    slug = re.sub(r'[^\w\s-]', '', slug)
-    slug = re.sub(r'[\s_]+', '-', slug)
-    return slug.strip('-')
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[\s_]+", "-", slug)
+    return slug.strip("-")
 
 
 def _find_shdoc_cmd():
@@ -124,7 +124,7 @@ def _find_shdoc_cmd():
     command prefix that, when the target shell script is appended, produces
     documentation on stdout.
 
-    *reason* is one of ``'gawk'`` or ``'shdoc'`` when the corresponding tool
+    *reason* is one of ``"gawk"`` or ``"shdoc"`` when the corresponding tool
     is missing, so callers can emit tailored warning messages.
 
     Search order for the shdoc AWK script:
@@ -132,27 +132,27 @@ def _find_shdoc_cmd():
     1. ``shdoc`` entry in ``PATH`` (the AWK script installed as an executable)
     2. ``~/.local/bin/shdoc`` (download destination used by the RTD build)
     """
-    extra_path = os.path.abspath(os.path.join(os.path.expanduser('~'), '.local', 'bin'))
-    search_path = os.environ.get('PATH', '') + os.pathsep + extra_path
+    extra_path = os.path.abspath(os.path.join(os.path.expanduser("~"), ".local", "bin"))
+    search_path = os.environ.get("PATH", "") + os.pathsep + extra_path
 
-    gawk = shutil.which('gawk', path=search_path)
+    gawk = shutil.which("gawk", path=search_path)
     if not gawk:
         logger.warning(
-            "'gawk' not found; shell script docs will not be generated. "
-            'Install GNU AWK (gawk) and rebuild.'
+            ""gawk" not found; shell script docs will not be generated. "
+            "Install GNU AWK (gawk) and rebuild."
         )
-        return None, 'gawk'
+        return None, "gawk"
 
-    shdoc = shutil.which('shdoc', path=search_path, mode=os.F_OK if sys.platform == 'win32' else os.F_OK | os.X_OK)
+    shdoc = shutil.which("shdoc", path=search_path, mode=os.F_OK if sys.platform == "win32" else os.F_OK | os.X_OK)
     if not shdoc:
         logger.warning(
-            "'shdoc' not found; shell script docs will not be generated. "
-            'Install it from https://github.com/reconquest/shdoc and rebuild.'
+            ""shdoc" not found; shell script docs will not be generated. "
+            "Install it from https://github.com/reconquest/shdoc and rebuild."
         )
-        return None, 'shdoc'
+        return None, "shdoc"
 
     # Run the shdoc AWK script via gawk
-    return [gawk, '-f', shdoc], None
+    return [gawk, "-f", shdoc], None
 
 
 def _write_scripts_index(tools_names, utils_names, missing=None):
@@ -161,51 +161,51 @@ def _write_scripts_index(tools_names, utils_names, missing=None):
     *tools_names* and *utils_names* are sorted lists of doc-name stems from the
     ``tools/`` and ``utils/`` directories respectively.  When both are empty a
     placeholder page is written — the text varies depending on *missing*
-    (``'gawk'`` or ``'shdoc'``) so readers know exactly what to install.
+    (``"gawk"`` or ``"shdoc"``) so readers know exactly what to install.
     """
-    index_path = os.path.join(_SHDOC_SCRIPTS_OUTPUT_DIR, 'index.rst')
+    index_path = os.path.join(_SHDOC_SCRIPTS_OUTPUT_DIR, "index.rst")
     lines = [
-        '#############',
-        'Shell scripts',
-        '#############',
-        '',
-        '.. SPDX-FileCopyrightText: NONE',
-        '.. SPDX-License-Identifier: CC0-1.0',
-        '.. This file is auto-generated by conf.py — do not edit manually.',
-        '',
+        "#############",
+        "Shell scripts",
+        "#############",
+        "",
+        ".. SPDX-FileCopyrightText: NONE",
+        ".. SPDX-License-Identifier: CC0-1.0",
+        ".. This file is auto-generated by conf.py — do not edit manually.",
+        "",
     ]
 
     if tools_names or utils_names:
         lines += [
-            'Auto-generated reference documentation for the stand-alone utility scripts',
-            'shipped with this project (``tools/`` and ``utils/`` directories).',
-            'Annotations are extracted from inline comments using',
-            '`shdoc <https://github.com/reconquest/shdoc>`_.',
-            '',
+            "Auto-generated reference documentation for the stand-alone utility scripts",
+            "shipped with this project (``tools/`` and ``utils/`` directories).",
+            "Annotations are extracted from inline comments using",
+            "`shdoc <https://github.com/reconquest/shdoc>`_.",
+            "",
         ]
         for section_title, underline_char, names in [
-            ('Tools', '-', tools_names),
-            ('Utilities', '-', utils_names),
+            ("Tools", "-", tools_names),
+            ("Utilities", "-", utils_names),
         ]:
             if not names:
                 continue
             lines += [
                 section_title,
                 underline_char * len(section_title),
-                '',
-                '.. toctree::',
-                '   :maxdepth: 1',
-                '',
+                "",
+                ".. toctree::",
+                "   :maxdepth: 1",
+                "",
             ]
             for name in sorted(names):
-                lines.append(f'   {name}')
-            lines.append('')
+                lines.append(f"   {name}")
+            lines.append("")
     else:
         _append_placeholder(lines, missing)
 
-    lines.append('')
-    with open(index_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(lines))
+    lines.append("")
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 
 def _write_devel_index(doc_names, missing=None):
@@ -216,65 +216,65 @@ def _write_devel_index(doc_names, missing=None):
     contributors who need to understand the build internals.
 
     When *doc_names* is empty a placeholder page is written — the text varies
-    depending on *missing* (``'gawk'`` or ``'shdoc'``) so readers know exactly
+    depending on *missing* (``"gawk"`` or ``"shdoc"``) so readers know exactly
     what to install.
     """
-    index_path = os.path.join(_SHDOC_DEVEL_OUTPUT_DIR, 'index.rst')
+    index_path = os.path.join(_SHDOC_DEVEL_OUTPUT_DIR, "index.rst")
     lines = [
-        '###############',
-        'Developer guide',
-        '###############',
-        '',
-        '.. SPDX-FileCopyrightText: NONE',
-        '.. SPDX-License-Identifier: CC0-1.0',
-        '.. This file is auto-generated by conf.py — do not edit manually.',
-        '',
+        "###############",
+        "Developer guide",
+        "###############",
+        "",
+        ".. SPDX-FileCopyrightText: NONE",
+        ".. SPDX-License-Identifier: CC0-1.0",
+        ".. This file is auto-generated by conf.py — do not edit manually.",
+        "",
     ]
 
     if doc_names:
         lines += [
-            'Auto-generated reference documentation for the internal build scripts',
-            '(e.g. ``zip-content/``).  This section is part of the *developer guide*',
-            'and is intended for contributors who need to understand or modify the',
-            'build internals.  Annotations are extracted using',
-            '`shdoc <https://github.com/reconquest/shdoc>`_.',
-            '',
-            '.. toctree::',
-            '   :maxdepth: 1',
-            '',
+            "Auto-generated reference documentation for the internal build scripts",
+            "(e.g. ``zip-content/``).  This section is part of the *developer guide*",
+            "and is intended for contributors who need to understand or modify the",
+            "build internals.  Annotations are extracted using",
+            "`shdoc <https://github.com/reconquest/shdoc>`_.",
+            "",
+            ".. toctree::",
+            "   :maxdepth: 1",
+            "",
         ]
         for name in sorted(doc_names):
-            lines.append(f'   {name}')
+            lines.append(f"   {name}")
     else:
         _append_placeholder(lines, missing)
 
-    lines.append('')
-    with open(index_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(lines))
+    lines.append("")
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 
 def _append_placeholder(lines, missing):
     """Append a placeholder block to *lines* explaining what is missing."""
-    if missing == 'gawk':
+    if missing == "gawk":
         lines += [
-            'Script documentation could not be generated because',
-            '**gawk** (GNU AWK) was not found during this build.',
-            '',
-            '.. note::',
-            '',
-            '   Install GNU AWK and rebuild to see the generated documentation.',
-            '   On Debian/Ubuntu: ``sudo apt-get install gawk``',
+            "Script documentation could not be generated because",
+            "**gawk** (GNU AWK) was not found during this build.",
+            "",
+            ".. note::",
+            "",
+            "   Install GNU AWK and rebuild to see the generated documentation.",
+            "   On Debian/Ubuntu: ``sudo apt-get install gawk``",
         ]
     else:
         lines += [
-            'Shell script documentation is generated automatically when',
-            '`shdoc <https://github.com/reconquest/shdoc>`_ is available.',
-            '',
-            '.. note::',
-            '',
-            '   ``shdoc`` was not found during this build.',
-            '   Install it from https://github.com/reconquest/shdoc and rebuild',
-            '   to see the generated documentation.',
+            "Shell script documentation is generated automatically when",
+            "`shdoc <https://github.com/reconquest/shdoc>`_ is available.",
+            "",
+            ".. note::",
+            "",
+            "   ``shdoc`` was not found during this build.",
+            "   Install it from https://github.com/reconquest/shdoc and rebuild",
+            "   to see the generated documentation.",
         ]
 
 
@@ -308,41 +308,41 @@ def _generate_shdoc(app):
         """
         script_path = os.path.normpath(os.path.join(_REPO_ROOT, script_rel))
         if not os.path.exists(script_path):
-            logger.warning(f'[shdoc] Script not found, skipping: {script_path}')
+            logger.warning(f"[shdoc] Script not found, skipping: {script_path}")
             return None
 
         doc_name = os.path.splitext(os.path.basename(script_path))[0]
-        out_path = os.path.join(output_dir, f'{doc_name}.md')
+        out_path = os.path.join(output_dir, f"{doc_name}.md")
 
         try:
-            # Safe: list-based call, no shell=True; '--' prevents shdoc from
-            # interpreting a leading '-' in a filename as an option.  nosec B603
+            # Safe: list-based call, no shell=True; "--" prevents shdoc from
+            # interpreting a leading "-" in a filename as an option.  nosec B603
             result = subprocess.run(  # nosec B603
-                shdoc_cmd + ['--', script_path],
+                shdoc_cmd + ["--", script_path],
                 capture_output=True, text=True, check=False
             )
             if result.returncode != 0:
                 logger.warning(
-                    f'[shdoc] Non-zero exit ({result.returncode}) for {script_rel}: '
-                    f'{result.stderr.strip()}'
+                    f"[shdoc] Non-zero exit ({result.returncode}) for {script_rel}: "
+                    f"{result.stderr.strip()}"
                 )
                 return None
 
             output = result.stdout.strip()
             if not output:
-                logger.info(f'[shdoc] No output for {script_rel}, skipping')
+                logger.info(f"[shdoc] No output for {script_rel}, skipping")
                 return None
 
-            with open(out_path, 'w', encoding='utf-8') as f:
-                f.write(output + '\n')
-            logger.info(f'[shdoc] Generated: {out_path}')
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(output + "\n")
+            logger.info(f"[shdoc] Generated: {out_path}")
             return doc_name
         except Exception as e:
-            logger.warning(f'[shdoc] Failed to process {script_rel}: {e}')
+            logger.warning(f"[shdoc] Failed to process {script_rel}: {e}")
             return None
 
     # Stand-alone utility scripts → scripts/  (tools and utils kept separate)
-    scripts_by_dir = {'tools': [], 'utils': []}
+    scripts_by_dir = {"tools": [], "utils": []}
     for dir_name, script_rels in _collect_shdoc_scripts().items():
         for script_rel in script_rels:
             name = _run_shdoc(script_rel, _SHDOC_SCRIPTS_OUTPUT_DIR)
@@ -356,7 +356,7 @@ def _generate_shdoc(app):
         if name:
             devel_generated.append(name)
 
-    _write_scripts_index(scripts_by_dir['tools'], scripts_by_dir['utils'])
+    _write_scripts_index(scripts_by_dir["tools"], scripts_by_dir["utils"])
     _write_devel_index(devel_generated)
 
 
@@ -389,23 +389,23 @@ def transform_rst_links(app, doctree):
     """
 
     docname = app.env.docname
-    # Traverse only reference nodes that have a 'refuri' attribute
+    # Traverse only reference nodes that have a "refuri" attribute
     for node in doctree.findall(nodes.reference):
-        uri = node.get('refuri', '')
-        if '.rst' not in uri or uri.startswith(('http', 'mailto:', '//')):
+        uri = node.get("refuri", "")
+        if ".rst" not in uri or uri.startswith(("http", "mailto:", "//")):
             continue
 
-        parts = uri.split('#', 1)
+        parts = uri.split("#", 1)
         has_anchor = len(parts) > 1
-        reftype = 'ref' if has_anchor else 'doc'
-        reftarget = parts[1] if has_anchor else parts[0].removesuffix('.rst')
+        reftype = "ref" if has_anchor else "doc"
+        reftarget = parts[1] if has_anchor else parts[0].removesuffix(".rst")
         logger.info(f"[DEBUG] Converting {uri} -> :{reftype}:`{reftarget}`")
 
         # Create pending_xref node which Sphinx resolves during build phase
         new_node = addnodes.pending_xref(
-            '',
+            "",
             reftype=reftype,
-            refdomain='std',
+            refdomain="std",
             reftarget=reftarget,
             refdoc=docname,
             refwarn=True,
@@ -417,13 +417,13 @@ def transform_rst_links(app, doctree):
 
 
 def setup(app):
-    app.connect('builder-inited', _generate_shdoc)
-    app.connect('doctree-read', _fix_shdoc_refs)
-    app.connect('doctree-read', transform_rst_links)
+    app.connect("builder-inited", _generate_shdoc)
+    app.connect("doctree-read", _fix_shdoc_refs)
+    app.connect("doctree-read", transform_rst_links)
     return {
-        'version': '0.1',
-        'parallel_read_safe': True,
-        'parallel_write_safe': True
+        "version": "0.1",
+        "parallel_read_safe": True,
+        "parallel_write_safe": True
     }
 
 
@@ -431,9 +431,9 @@ def setup(app):
 suppress_warnings = ["myst.xref_missing"]
 
 # Project information
-project = 'microG unofficial installer'
-author = 'ale5000'
-project_copyright = '2016-2019, 2021-%Y ale5000'
+project = "microG unofficial installer"
+author = "ale5000"
+project_copyright = "2016-2019, 2021-%Y ale5000"
 release = get_version()
 version = release
 
@@ -442,14 +442,14 @@ if revision:
     project_copyright += f" | Revision: {revision}"
 
 # General configuration
-needs_sphinx = '8.1'
+needs_sphinx = "8.1"
 extensions = [
-    'sphinx_rtd_theme',
-    'myst_parser'
+    "sphinx_rtd_theme",
+    "myst_parser"
 ]
 
 # Options for highlighting
-highlight_language = 'sh'
+highlight_language = "sh"
 
 # Options for markup
 rst_epilog = f"""
@@ -457,28 +457,28 @@ rst_epilog = f"""
 """
 
 # Options for source files
-exclude_patterns = ['CONTRIBUTORS.md']
-master_doc = 'index'
+exclude_patterns = ["CONTRIBUTORS.md"]
+master_doc = "index"
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.md': 'markdown'
+    ".rst": "restructuredtext",
+    ".md": "markdown"
 }
 
 # Options for HTML output
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 html_context = {
-    'display_github': True,
-    'github_user': 'micro5k',
-    'github_repo': 'microg-unofficial-installer',
-    'github_version': 'main',
-    'conf_py_path': '/docs/'
+    "display_github": True,
+    "github_user": "micro5k",
+    "github_repo": "microg-unofficial-installer",
+    "github_version": "main",
+    "conf_py_path": "/docs/"
 }
 
 # Options for LaTeX output (e.g., PDF)
 latex_elements = {}
 
-# The 'openany' option allows chapters to begin on the next available page;
+# The "openany" option allows chapters to begin on the next available page;
 # this prevents unwanted blank pages by allowing starts on even or odd pages
 latex_elements.update({
-    'extraclassoptions': 'openany'
+    "extraclassoptions": "openany"
 })
