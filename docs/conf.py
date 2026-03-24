@@ -138,7 +138,7 @@ def _find_shdoc_cmd():
     2. ``~/.local/bin/shdoc`` (download destination used by the RTD build)
     """
     extra_path = os.path.abspath(
-        os.path.join(os.path.expanduser("~"), ".local", "bin")
+        os.path.join(os.path.expanduser("~"), ".local", "bin"),
     )
     search_path = os.environ.get("PATH", "") + os.pathsep + extra_path
 
@@ -146,7 +146,7 @@ def _find_shdoc_cmd():
     if not gawk:
         logger.warning(
             "'gawk' not found; shell script docs will not be generated. "
-            "Install GNU AWK (gawk) and rebuild."
+            "Install GNU AWK (gawk) and rebuild.",
         )
         return None, "gawk"
 
@@ -158,7 +158,7 @@ def _find_shdoc_cmd():
     if not shdoc:
         logger.warning(
             "'shdoc' not found; shell script docs will not be generated. "
-            "Install it from https://github.com/reconquest/shdoc and rebuild."
+            "Install it from https://github.com/reconquest/shdoc and rebuild.",
         )
         return None, "shdoc"
 
@@ -337,7 +337,7 @@ def _generate_shdoc(app):
             if result.returncode != 0:
                 logger.warning(
                     f"[shdoc] Non-zero exit ({result.returncode}) for {script_rel}: "
-                    f"{result.stderr.strip()}"
+                    f"{result.stderr.strip()}",
                 )
                 return None
 
