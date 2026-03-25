@@ -32,9 +32,9 @@ _DOCS_DIR = os.path.dirname(os.path.abspath(__file__))  # type: Final
 _REPO_ROOT = os.path.normpath(os.path.join(_DOCS_DIR, ".."))  # type: Final
 
 # Directory where generated Markdown files for stand-alone tools/utils are written
-_SHDOC_SCRIPTS_OUTPUT_DIR = os.path.join(_DOCS_DIR, "scripts")
+_SHDOC_SCRIPTS_OUTPUT_DIR = os.path.join(_DOCS_DIR, "scripts")  # type: Final
 # Directory where generated Markdown files for internal/developer scripts are written
-_SHDOC_DEVEL_OUTPUT_DIR = os.path.join(_DOCS_DIR, "devel")
+_SHDOC_DEVEL_OUTPUT_DIR = os.path.join(_DOCS_DIR, "devel")  # type: Final
 
 # Shell scripts that form part of the *developer guide* (internal/zip-content
 # scripts).  Their documentation is placed under ``devel/`` because it is
@@ -43,33 +43,45 @@ _SHDOC_DEVEL_SCRIPTS = [
     "zip-content/inc/common-functions.sh",
     "zip-content/zip-install.sh",
 ]  # type: Final[list[str]]
+
 _SHDOC_SCRIPTS_SKIP_TOOLS = {"help.sh"}  # type: Final[set[str]]
 
 
 def _collect_shdoc_scripts():
     # type: () -> dict[str, list[str]]
-    """Return stand-alone shell scripts grouped by source directory.
+    """Return shell scripts grouped by source directory.
 
     Returns a dict ``{"tools": [...], "utils": [...]}`` where each value is a
-    sorted list of repository-relative paths (e.g. ``"tools/get-signature.sh"``).
+    sorted list of repository-relative paths
+    (e.g. ``"tools/get-signature.sh"``).
+
     Scripts listed in :data:`_SHDOC_SCRIPTS_SKIP_TOOLS` are excluded from the
     ``tools`` list.
     """
-    result = {"tools": [], "utils": []}
+    result = {}  # type: dict[str, list[str]]
 
-    # tools/*.sh — all scripts except those in _SHDOC_SCRIPTS_SKIP_TOOLS
-    tools_dir = os.path.join(_REPO_ROOT, "tools")
-    if os.path.isdir(tools_dir):
-        for entry in sorted(os.listdir(tools_dir)):
-            if entry.endswith(".sh") and entry not in _SHDOC_SCRIPTS_SKIP_TOOLS:
-                result["tools"].append(os.path.join("tools", entry))
+    # Cache global constant to local variable for faster lookup
+    skip_tools = _SHDOC_SCRIPTS_SKIP_TOOLS  # type: Final
 
-    # utils/*.sh — all scripts
-    utils_dir = os.path.join(_REPO_ROOT, "utils")
-    if os.path.isdir(utils_dir):
-        for entry in sorted(os.listdir(utils_dir)):
-            if entry.endswith(".sh"):
-                result["utils"].append(os.path.join("utils", entry))
+    # Iterate through folders to reduce code duplication
+    for folder in ("tools", "utils"):
+        target_dir = os.path.join(_REPO_ROOT, folder)
+
+        if os.path.isdir(target_dir):
+            entries = sorted(os.listdir(target_dir))
+            prefix = folder + os.sep
+
+            # Use list comprehensions for performance
+            if folder == "tools":
+                result["tools"] = [
+                    prefix + e
+                    for e in entries
+                    if e.endswith(".sh") and e not in skip_tools
+                ]
+            else:
+                result[folder] = [
+                    prefix + e for e in entries if e.endswith(".sh")
+                ]
 
     return result
 
@@ -116,9 +128,9 @@ def get_revision():
 
 
 def _myst_slug(heading_text):
-    """Return the myst_parser (GFM-compatible) anchor slug for *heading_text*.
+    r"""Return the myst_parser (GFM-compatible) anchor slug for *heading_text*.
 
-    Algorithm: lowercase → keep ``\\w`` chars (which includes ``_``), spaces
+    Algorithm: lowercase → keep ``\w`` chars (which includes ``_``), spaces
     and hyphens → replace spaces and underscores with ``-`` → strip leading/
     trailing ``-``.
 
@@ -172,11 +184,11 @@ def _find_shdoc_cmd():
         return None, "shdoc"
 
     # Run the shdoc AWK script via gawk
-    return [gawk, "-f", shdoc], None
+    return [os.path.abspath(gawk), "-f", os.path.abspath(shdoc)], None
 
 
 def _write_scripts_index(tools_names, utils_names, missing=None):
-    """Write ``docs/scripts/index.rst`` with separate sections for each directory.
+    """Generate ``docs/scripts/index.rst`` with directory sections.
 
     *tools_names* and *utils_names* are sorted lists of doc-name stems from the
     ``tools/`` and ``utils/`` directories respectively.  When both are empty a
@@ -298,17 +310,19 @@ def _append_placeholder(lines, missing):
         ]
 
 
-def _generate_shdoc(app):
+def _generate_shdoc(_app):
     """Sphinx ``builder-inited`` handler: run shdoc and emit Markdown files.
 
     Executes shdoc (https://github.com/reconquest/shdoc) against every entry
     in :data:`_SHDOC_DEVEL_SCRIPTS` and the scripts discovered by
     :func:`_collect_shdoc_scripts`, writing the generated Markdown output to
-    :data:`_SHDOC_DEVEL_OUTPUT_DIR` and :data:`_SHDOC_SCRIPTS_OUTPUT_DIR` respectively.
+    :data:`_SHDOC_DEVEL_OUTPUT_DIR` and :data:`_SHDOC_SCRIPTS_OUTPUT_DIR`
+    respectively.
+
     Index pages are always written for both folders so the toctree references
     in ``index.rst`` remain valid even when shdoc is not installed.
     """
-    # Clean and recreate output directories to avoid stale files from previous builds
+    # Clean and recreate output dirs to avoid stale files from previous builds
     for _dir in (_SHDOC_SCRIPTS_OUTPUT_DIR, _SHDOC_DEVEL_OUTPUT_DIR):
         if os.path.isdir(_dir):
             shutil.rmtree(_dir)
@@ -320,6 +334,10 @@ def _generate_shdoc(app):
         _write_devel_index([], missing=missing)
         return
 
+    if not isinstance(shdoc_cmd, list):
+        err_msg = f"shdoc_cmd must be a list, not a {type(shdoc_cmd).__name__}"
+        raise TypeError(err_msg)
+
     def _run_shdoc(script_rel, output_dir):
         """Run shdoc on *script_rel* and write Markdown to *output_dir*.
 
@@ -328,7 +346,10 @@ def _generate_shdoc(app):
         """
         script_path = os.path.normpath(os.path.join(_REPO_ROOT, script_rel))
         if not os.path.exists(script_path):
-            logger.warning(f"[shdoc] Script not found, skipping: {script_path}")
+            logger.warning(
+                "[shdoc] Script not found, skipping: %s",
+                script_path,
+            )
             return None
 
         doc_name = os.path.splitext(os.path.basename(script_path))[0]
@@ -338,40 +359,42 @@ def _generate_shdoc(app):
             # Safe: list-based call, no shell=True; "--" prevents shdoc from
             # interpreting a leading "-" in a filename as an option.
             result = subprocess.run(  # nosec B603 # noqa: S603
-                shdoc_cmd + ["--", script_path],
+                [*shdoc_cmd, "--", script_path],
                 capture_output=True,
                 text=True,
                 check=False,
             )
             if result.returncode != 0:
                 logger.warning(
-                    f"[shdoc] Non-zero exit ({result.returncode}) for {script_rel}: "
-                    f"{result.stderr.strip()}",
+                    "[shdoc] Non-zero exit (%s) for %s: %s",
+                    result.returncode,
+                    script_rel,
+                    result.stderr.strip(),
                 )
                 return None
 
             output = result.stdout.strip()
             if not output:
-                logger.info(f"[shdoc] No output for {script_rel}, skipping")
+                logger.info("[shdoc] No output for %s, skipping", script_rel)
                 return None
 
             with open(out_path, "w", encoding="utf-8") as f:
                 f.write(output + "\n")
-            logger.info(f"[shdoc] Generated: {out_path}")
+            logger.info("[shdoc] Generated: %s", out_path)
             return doc_name
         except Exception as e:
-            logger.warning(f"[shdoc] Failed to process {script_rel}: {e}")
+            logger.warning("[shdoc] Failed to process %s: %s", script_rel, e)
             return None
 
-    # Stand-alone utility scripts → scripts/  (tools and utils kept separate)
+    # Stand-alone utility scripts -> scripts/ (one section per folder)
     scripts_by_dir = {"tools": [], "utils": []}
-    for dir_name, script_rels in _collect_shdoc_scripts().items():
-        for script_rel in script_rels:
-            name = _run_shdoc(script_rel, _SHDOC_SCRIPTS_OUTPUT_DIR)
+    for dir_name, script_names in _collect_shdoc_scripts().items():
+        for script_name in script_names:
+            name = _run_shdoc(script_name, _SHDOC_SCRIPTS_OUTPUT_DIR)
             if name:
                 scripts_by_dir[dir_name].append(name)
 
-    # Developer/internal scripts → devel/
+    # Developer/internal scripts -> devel/
     devel_generated = []
     for script_rel in _SHDOC_DEVEL_SCRIPTS:
         name = _run_shdoc(script_rel, _SHDOC_DEVEL_OUTPUT_DIR)
@@ -426,7 +449,12 @@ def transform_rst_links(app, doctree):
         has_anchor = len(parts) > 1
         reftype = "ref" if has_anchor else "doc"
         reftarget = parts[1] if has_anchor else parts[0].removesuffix(".rst")
-        logger.info(f"[DEBUG] Converting {uri} -> :{reftype}:`{reftarget}`")
+        logger.info(
+            "[DEBUG] Converting %s -> :%s:`%s`",
+            uri,
+            reftype,
+            reftarget,
+        )
 
         # Create pending_xref node which Sphinx resolves during build phase
         new_node = addnodes.pending_xref(
