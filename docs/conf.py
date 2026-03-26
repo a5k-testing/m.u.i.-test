@@ -39,10 +39,10 @@ _SHDOC_DEVEL_OUTPUT_DIR = os.path.join(_DOCS_DIR, "devel")  # type: Final
 # Shell scripts that form part of the *developer guide* (internal/zip-content
 # scripts).  Their documentation is placed under ``devel/`` because it is
 # intended for contributors and developers, not end-users.
-_SHDOC_DEVEL_SCRIPTS = [
+_SHDOC_DEVEL_SCRIPTS = (
     "zip-content/inc/common-functions.sh",
     "zip-content/zip-install.sh",
-]  # type: Final[list[str]]
+)  # type: Final[tuple[str, ...]]
 
 _SHDOC_SCRIPTS_SKIP_TOOLS = {"help.sh"}  # type: Final[set[str]]
 
