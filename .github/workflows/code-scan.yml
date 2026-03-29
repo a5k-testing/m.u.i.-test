@@ -118,13 +118,36 @@ jobs:
           # This will hand over control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
           upload: false
-      - name: "Combine multiple SARIF runs"
+      - name: "Combine all SARIF runs by tool name"
         shell: bash
         run: |
-          jq '.runs |= unique_by({tool, invocations, results})' 0< './results.sarif' 1> './results-combined.sarif'
-      - name: "Upload SARIF results file"
-        uses: github/codeql-action/upload-sarif@v4.34.1
-        if: false # IMPORTANT: Disabled until it is fixed
+          jq '.runs |= (
+            # Group runs by tool name to create unique categories (Post-March 27, 2026 GitHub requirement)
+            group_by(.tool.driver.name) |
+            map(
+              # Store the group and the first element (as template)
+              . as $group |
+              .[0] as $first |
+              # Rebuild the run object by collecting data in a single pass
+              $first + {
+                # Add mandatory category ID
+                "automationDetails": ($first.automationDetails + { "id": ("Codacy/" + $first.tool.driver.name) }),
+                # Collect all results and artifacts from the group
+                "results": ([$group[].results[]] | unique),
+                "artifacts": ([$group[].artifacts[]] | unique),
+                # Merge all invocation fields and calculate global success
+                "invocations": [
+                  (
+                    reduce $group[].invocations[] as $item ({}; . + $item) |
+                    . + { "executionSuccessful": ([$group[].invocations[].executionSuccessful] | all) }
+                  )
+                ]
+              }
+            )
+          )' -- './results.sarif' 1> './results-combined.sarif'
+      - name: "Upload SARIF results file to GitHub"
+        uses: github/codeql-action/upload-sarif@v4
+        if: "${{ github.ref == 'refs/heads/main' }}"
         with:
           sarif_file: "results-combined.sarif"
           category: "Codacy"
@@ -143,8 +166,19 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: "0" # Shallow clones should be disabled for a better relevancy of analysis
+      - name: "Avoid SonarQube warning"
+        shell: bash
+        run: |
+          # Avoiding the SonarQube warning...
+          mv -f -- ./build.gradle ./build-manually.gradle
       - name: "SonarQube scan"
         uses: SonarSource/sonarqube-scan-action@v7
         timeout-minutes: 10
         env:
           SONAR_TOKEN: "${{ secrets.SONAR_TOKEN }}"
+      - name: "Post Avoid SonarQube warning"
+        shell: bash
+        if: "always()"
+        run: |
+          # Post job cleanup.
+          mv -f -- ./build-manually.gradle ./build.gradle
