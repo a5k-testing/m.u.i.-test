@@ -5,15 +5,15 @@
 
 .POSIX:
 
-ALL_DESCRIPTION = Build full OTA and OSS OTA packages
-BUILDOTA_DESCRIPTION = Build full OTA package
-BUILDOTAOSS_DESCRIPTION = Build OSS OTA package
-BUILD_DESCRIPTION = Alias for buildotaoss
-TEST_DESCRIPTION = Run recovery simulator tests
-CHECK_DESCRIPTION = Alias for test
-DISTCHECK_DESCRIPTION = Alias for check
-CLEAN_DESCRIPTION = Remove build artifacts
-HELP_DESCRIPTION = List available targets
+DESCRIPTION_TARGET_ALL = Build full OTA and OSS OTA packages
+DESCRIPTION_TARGET_BUILDOTA = Build full OTA package
+DESCRIPTION_TARGET_BUILDOTAOSS = Build OSS OTA package
+DESCRIPTION_TARGET_BUILD = Alias for buildotaoss
+DESCRIPTION_TARGET_TEST = Run recovery simulator tests
+DESCRIPTION_TARGET_CHECK = Alias for test
+DESCRIPTION_TARGET_DISTCHECK = Alias for check
+DESCRIPTION_TARGET_CLEAN = Remove build artifacts
+DESCRIPTION_TARGET_HELP = List available targets
 
 all: buildota buildotaoss
 
@@ -38,7 +38,7 @@ clean:
 
 help:
 	@$(MAKE) -qnrp 2>/dev/null | awk \
-		'/^[A-Z][A-Z0-9_]*_DESCRIPTION[[:space:]]*=[[:space:]]*/{ key=$$1; sub(/_DESCRIPTION$$/, "", key); val=$$0; sub(/^[^=]*=[[:space:]]*/,"",val); desc[tolower(key)]=val } \
+		'/^DESCRIPTION_TARGET_[A-Z][A-Z0-9_]*[[:space:]]*=[[:space:]]*/{ key=$$1; sub(/^DESCRIPTION_TARGET_/, "", key); val=$$0; sub(/^[^=]*=[[:space:]]*/,"",val); desc[tolower(key)]=val } \
 		 /^\.hide:/{ line=$$0; sub(/^\.hide:[[:space:]]*/,"",line); n_h=split(line,ha," "); for(i=1;i<=n_h;i++) if(ha[i]!="") hide[ha[i]]=1 } \
 		 /^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=$$0; sub(/:.*$$/,"",t); if(tolower(t)!="makefile" && substr(t,1,1)!="." && !(t in seen)) { seen[t]=1; targets[t]=1 } } \
 		 END{ for(t in hide) delete targets[t]; n=asorti(targets,sorted); \
