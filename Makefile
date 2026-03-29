@@ -39,8 +39,11 @@ clean:
 help:
 	@$(MAKE) -qnrp 2>/dev/null | awk \
 		'/^[A-Z][A-Z0-9_]*_DESCRIPTION[[:space:]]*=[[:space:]]*/{ key=$$1; sub(/_DESCRIPTION$$/, "", key); val=$$0; sub(/^[^=]*=[[:space:]]*/,"",val); desc[tolower(key)]=val } \
-		 /^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=$$0; sub(/:.*$$/,"",t); if(tolower(t)!="makefile" && substr(t,1,1)!=".") ord[++n]=t } \
-		 END{ for(i=1;i<=n;i++){ t=ord[i]; k=tolower(t); gsub(/-/,"_",k); if(k in desc) printf "%-20s %s\n", t, desc[k] } }'
+		 /^\.hide:/{ line=$$0; sub(/^\.hide:[[:space:]]*/,"",line); n_h=split(line,ha," "); for(i=1;i<=n_h;i++) if(ha[i]!="") hide[ha[i]]=1 } \
+		 /^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=$$0; sub(/:.*$$/,"",t); if(tolower(t)!="makefile" && substr(t,1,1)!="." && !(t in seen)) { seen[t]=1; targets[t]=1 } } \
+		 END{ for(t in hide) delete targets[t]; n=asorti(targets,sorted); \
+		   for(i=1;i<=n;i++) { if(sorted[i]=="all") { k="all"; if(k in desc) printf "%-20s %s\n","all",desc[k]; else print "all"; break } }; \
+		   for(i=1;i<=n;i++) { t=sorted[i]; if(t=="all") continue; k=tolower(t); gsub(/-/,"_",k); if(k in desc) printf "%-20s %s\n",t,desc[k]; else print t } }'
 
 # Disable the default inference rule for .sh files
 .sh:
