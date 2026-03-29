@@ -27,9 +27,16 @@ clean: ## Remove build artifacts
 	rm -f "$(CURDIR)"/output/*.zip.sha256
 
 help: ## List available targets
-	@awk -F ':.*## ' '/^[a-zA-Z_][a-zA-Z0-9_-]*:.*## /{printf "%-20s %s\n", $$1, $$2}' Makefile
-# Note: 'Makefile' is hardcoded above for portability across GNU make, BSD Make and pdpmake,
-# which have no common special variable that expands to the current makefile name.
+	@$(MAKE) -qnrp 2>/dev/null | awk \
+		'/^MAKEFILE_LIST[[:space:]]*:=[[:space:]]*/{ mf=$$3; next } \
+		 /^# Not a target:/{ s=1; next } \
+		 s{ s=0; next } \
+		 /^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=$$0; sub(/:.*$$/, "", t); v[t]=1 } \
+		 END{ if (!mf) mf="Makefile"; \
+		   while ((getline l < mf) > 0) \
+		     if (match(l, /^[a-zA-Z_][a-zA-Z0-9_-]*:.*## /)) { \
+		       t=substr(l,1,index(l,":")-1); \
+		       if (t in v) printf "%-20s %s\n", t, substr(l,index(l,"## ")+3) } }'
 
 # Disable the default inference rule for .sh files
 .sh:
