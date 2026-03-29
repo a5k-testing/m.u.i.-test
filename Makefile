@@ -5,38 +5,42 @@
 
 .POSIX:
 
-all: buildota buildotaoss ; ## Build full OTA and OSS OTA packages
+ALL_DESCRIPTION = Build full OTA and OSS OTA packages
+BUILDOTA_DESCRIPTION = Build full OTA package
+BUILDOTAOSS_DESCRIPTION = Build OSS OTA package
+BUILD_DESCRIPTION = Alias for buildotaoss
+TEST_DESCRIPTION = Run recovery simulator tests
+CHECK_DESCRIPTION = Alias for test
+DISTCHECK_DESCRIPTION = Alias for check
+CLEAN_DESCRIPTION = Remove build artifacts
+HELP_DESCRIPTION = List available targets
+
+all: buildota buildotaoss
 
 .PHONY: all clean test check distcheck build help
 
-buildota: ## Build full OTA package
+buildota:
 	BUILD_TYPE=full "$(CURDIR)/build.sh" --no-default-build-type --no-pause $(ARGS)
 
-buildotaoss: ## Build OSS OTA package
+buildotaoss:
 	BUILD_TYPE=oss "$(CURDIR)/build.sh" --no-default-build-type --no-pause $(ARGS)
-build: buildotaoss ; ## Alias for buildotaoss
+build: buildotaoss
 
-test: ## Run recovery simulator tests
+test:
 	"$(CURDIR)/recovery-simulator/recovery.sh" "$(CURDIR)"/output/*.zip
-check: test ; ## Alias for test
-distcheck: check ; ## Alias for check
+check: test
+distcheck: check
 
-clean: ## Remove build artifacts
+clean:
 	rm -f "$(CURDIR)"/output/*.zip
 	rm -f "$(CURDIR)"/output/*.zip.md5
 	rm -f "$(CURDIR)"/output/*.zip.sha256
 
-help: ## List available targets
+help:
 	@$(MAKE) -qnrp 2>/dev/null | awk \
-		'/^MAKEFILE_LIST[[:space:]]*:=[[:space:]]*/{ mf=$$3; next } \
-		 /^# Not a target:/{ s=1; next } \
-		 s{ s=0; next } \
-		 /^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=$$0; sub(/:.*$$/, "", t); v[t]=1 } \
-		 END{ if (!mf) mf="Makefile"; \
-		   while ((getline l < mf) > 0) \
-		     if (match(l, /^[a-zA-Z_][a-zA-Z0-9_-]*:.*## /)) { \
-		       t=substr(l,1,index(l,":")-1); \
-		       if (t in v) printf "%-20s %s\n", t, substr(l,index(l,"## ")+3) } }'
+		'/^[A-Z][A-Z0-9_]*_DESCRIPTION[[:space:]]*=[[:space:]]*/{ key=$$1; sub(/_DESCRIPTION$$/, "", key); val=$$0; sub(/^[^=]*=[[:space:]]*/,"",val); desc[tolower(key)]=val } \
+		 /^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=$$0; sub(/:.*$$/,"",t); if(tolower(t)!="makefile" && substr(t,1,1)!=".") ord[++n]=t } \
+		 END{ for(i=1;i<=n;i++){ t=ord[i]; k=tolower(t); gsub(/-/,"_",k); if(k in desc) printf "%-20s %s\n", t, desc[k] } }'
 
 # Disable the default inference rule for .sh files
 .sh:
