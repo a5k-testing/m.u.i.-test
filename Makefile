@@ -39,8 +39,9 @@ clean:
 help:
 	@$(MAKE) -qnrp 2>/dev/null | awk \
 		'/^DESCRIPTION_TARGET_[A-Z][A-Z0-9_]*[[:space:]]*=[[:space:]]*/{ desc[tolower(substr($$1,20))]=substr($$0,index($$0,"=")+2) } \
+		 /^\.hide:/{ n=split(substr($$0,7),a); for(i=1;i<=n;i++) hide[a[i]]=1 } \
 		 /^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=substr($$0,1,index($$0,":")-1); if(tolower(t)!="makefile") tgt[t]=1 } \
-		 END{ for(t in tgt){ if(t in desc) printf "%-20s %s\n",t,desc[t]|"sort"; else print t|"sort" } }'
+		 END{ for(t in tgt){ if(t in hide) continue; if(t in desc) printf "%-20s %s\n",t,desc[t]|"sort"; else print t|"sort" } }'
 
 # Disable the default inference rule for .sh files
 .sh:
