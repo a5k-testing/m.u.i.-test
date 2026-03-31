@@ -18,7 +18,7 @@ REUSE_TOOL       = reuse
 # --- Target descriptions (for help logic) ---
 DESCRIPTION_TARGET_BUILDOTA    = Build the flashable OTA zip
 DESCRIPTION_TARGET_BUILDOTAOSS = Build the flashable OTA zip (open-source components only)
-DESCRIPTION_TARGET_INSTALLTEST = Emulate an Android recovery on your PC and run the flashable zip file inside it
+DESCRIPTION_TARGET_INSTALLTEST = 🧪 Test the flashable zip in a simulated Android recovery environment on your PC
 DESCRIPTION_TARGET_CLEAN       = Remove build artifacts
 DESCRIPTION_TARGET_REUSE_LINT  = Verify license and copyright compliance (REUSE)
 DESCRIPTION_TARGET_SPDX        = Generate the SBOM in SPDX format
