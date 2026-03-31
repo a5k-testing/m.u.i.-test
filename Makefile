@@ -71,10 +71,7 @@ sbom: spdx ;
 
 help:
 	@'$(MAKE)' 2>/dev/null -qnrp | awk \
-		'{ sub(/\r$$/, "") } \
-		/^DESCRIPTION_TARGET_[A-Z0-9_]+[[:space:]]*=/{ k=tolower(substr($$1,20)); gsub(/_/,"-",k); desc[k]=substr($$0,index($$0,"=")+2) } \
+		'/^DESCRIPTION_TARGET_[A-Z0-9_]+[[:space:]]*=/{ k=tolower(substr($$1,20)); gsub(/_/,"-",k); desc[k]=substr($$0,index($$0,"=")+2) } \
 		/^\.hide:/{ n=split(substr($$0,7),a); for(i=1;i<=n;i++) hide[a[i]]=1 } \
 		/^[a-zA-Z_][a-zA-Z0-9_-]*:/{ t=substr($$0,1,index($$0,":")-1); if(tolower(t)!="makefile") tgt[t]=1 } \
-		END{ n=0; for(t in tgt){ if(!(t in hide)){ n++; keys[n]=t } }; \
-		for(i=2;i<=n;i++){ k=keys[i]; j=i-1; while(j>=1&&keys[j]>k){ keys[j+1]=keys[j]; j-- }; keys[j+1]=k }; \
-		for(i=1;i<=n;i++){ t=keys[i]; if(t in desc) printf "%-15s %s\n",t,desc[t]; else print t } }'
+		END{ n=0; for(t in tgt){ if(t in hide) continue; i=n; while(i>0&&keys[i]>t){ keys[i+1]=keys[i]; i-- }; keys[i+1]=t; n++ }; for(i=1;i<=n;i++){ if(keys[i] in desc) printf "%-15s %s\n",keys[i],desc[keys[i]]; else print keys[i] } }'
