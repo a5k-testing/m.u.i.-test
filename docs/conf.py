@@ -131,6 +131,41 @@ def which(cmd, mode=os.F_OK | os.X_OK, path=None):
     return None
 
 
+def which(cmd, mode=os.F_OK | os.X_OK, path=None):
+    # type: (str, int, str | None) -> str | None
+    """Find the full path to an executable file, mimicking shutil.which.
+
+    :param cmd: The command to search for
+    :param mode: The permission mode to check (default is exists and executable)
+    :param path: Custom search path (defaults to the PATH environment variable)
+    :return: Full path to the executable or None if not found
+    """
+    if _shutil_which:
+        return _shutil_which(cmd, mode, path)
+
+    # If cmd contains a path component, check it directly
+    if os.path.dirname(cmd):
+        if os.access(cmd, mode) and os.path.isfile(cmd):
+            return cmd
+        return None
+
+    if path is None:
+        path = os.environ.get("PATH", os.defpath)
+    if not path:
+        return None
+
+    exts = ("", ".exe") if sys.platform == "win32" else ("",)  # type: Final
+
+    for directory in path.split(os.pathsep):
+        full_prefix = os.path.join(os.path.expanduser(directory), cmd)
+        for ext in exts:
+            candidate = full_prefix + ext
+            if os.access(candidate, mode) and os.path.isfile(candidate):
+                return candidate
+
+    return None
+
+
 def get_version():
     # type: () -> str
 

@@ -3,13 +3,12 @@ microG unofficial installer
 ###########################
 
 ..
-   SPDX-License-Identifier: GPL-3.0-or-later
+   SPDX-FileCopyrightText: 2016 ale5000
+   SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
    SPDX-FileType: DOCUMENTATION
 
 :Author:
    `ale5000 <https://github.com/ale5000-git>`_
-:License:
-   `GPLv3.0 or later <https://www.gnu.org/licenses/gpl-3.0.html>`_
 
 .. image:: https://app.readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
    :alt: Documentation status
@@ -119,8 +118,7 @@ If you want to improve the project, please review our `contributing guidelines
 We are grateful for all our contributors! 🎉 Seriously — every bug fix,
 improvement, or creative complaint has made this better.
 
-Please check the `contributors list <./docs/CONTRIBUTORS.md>`_ for more
-details.
+Please check the `contributors list <./docs/CONTRIBUTORS.md>`_ for more details.
 
 *(Even fixing a typo counts. Probably. We'll review it very carefully either
 way.)*
@@ -133,8 +131,8 @@ Donations
    :alt: Support this project
    :target: ./docs/DONATE.rst
 
-I maintain this project on my own in my spare time — the finite, precious
-kind that competes with sleep, meals eaten while staring at a terminal, and the
+I maintain this project on my own in my spare time — the finite, precious kind
+that competes with sleep, meals eaten while staring at a terminal, and the
 occasional social obligation.
 
 If it's saved you time, or frustration, please consider supporting its
@@ -147,7 +145,38 @@ development!
    faster.)*
 
 
+License
+=======
+
+This project is licensed under the **GNU General Public License v3.0 or later**
+(GPLv3+), with a custom **Archive Packaging Exception** to facilitate
+distribution in compressed packages.
+
+-  **Core license**: The full text of the GPLv3 can be found in `LICENSE.rst
+   <./LICENSE.rst>`__.
+-  **Exception terms**: The specific permissions for creating archives are
+   detailed in `LICENSE-EXCEPTION.rst <./LICENSE-EXCEPTION.rst>`__.
+
+**What this means for you:** You are free to bundle this software into your own
+archives (such as flashable ZIPs or tarballs) alongside proprietary or
+differently licensed modules, provided those modules are independent and not
+derived from this software.
+
+**Note for developers:** The following SPDX identifier is used in this project's
+source files to enable the archive packaging exception:
+
+.. code:: yaml
+
+   SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
+
+
 Copyright
 =========
 
+..
+   REUSE-IgnoreStart
+
 © 2016-2019, 2021-2026 ale5000
+
+..
+   REUSE-IgnoreEnd

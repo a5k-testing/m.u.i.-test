@@ -35,14 +35,14 @@ stages:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "LICENSES/*"
+        - "conf/*"
         - "docs/*.rst"
-        - "includes/*"
+        - "lib/*.sh"
         - "tools/*.jar"
         - "zip-content/**"
         - "CHANGELOG.rst"
         - "LICENSE*.rst"
         - "build.sh"
-        - "conf-*.sh"
       when: always
   cache: []
   script: "BUILD_TYPE='oss' './build.sh'"
@@ -54,14 +54,14 @@ build-job:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "LICENSES/*"
+        - "conf/*"
         - "docs/*.rst"
-        - "includes/*"
+        - "lib/*.sh"
         - "tools/*.jar"
         - "zip-content/**"
         - "CHANGELOG.rst"
         - "LICENSE*.rst"
         - "build.sh"
-        - "conf-*.sh"
       when: always
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always

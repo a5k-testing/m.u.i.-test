@@ -18,12 +18,16 @@
 /.lesshst
 /.wget-hsts
 __pycache__/
+.mypy_cache/
 .DS_Store
 Thumbs.db
 desktop.ini
 *.dex
 *.log
 *.sarif
+
+/package.json
+/package-lock.json
 
 /.gitconfig
 
@@ -39,6 +43,9 @@ desktop.ini
 # Gradle files
 /.gradle/
 /build/
+/gradle/gradle-daemon-jvm.properties
+/gradle/verification-metadata.xml
+/maven-client/build/
 
 # Local Gradle configuration files
 local.properties

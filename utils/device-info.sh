@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # SPDX-FileCopyrightText: 2023 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
 
 # @name Android device info extractor
 # @brief Extract and display hardware and software properties from ADB-connected Android devices or a build.prop-style file.
@@ -19,7 +19,7 @@
 
 readonly SCRIPT_NAME='Android device info extractor'
 readonly SCRIPT_SHORTNAME='DevInfo'
-readonly SCRIPT_VERSION='2.9'
+readonly SCRIPT_VERSION='2.9.1'
 readonly SCRIPT_AUTHOR='ale5000'
 
 set -u
@@ -211,13 +211,19 @@ restore_title()
 
 pause_if_needed()
 {
-  # shellcheck disable=SC3028 # In POSIX sh, SHLVL is undefined
-  if test "${CI:?}" = 'false' && test "${SHLVL:-}" = '1' && test -t 0 && test -t 1 && test -t 2; then
-    printf 1>&2 '\n\033[1;32m%s\033[0m' 'Press any key to exit...' || true
-    # shellcheck disable=SC3045
-    IFS='' read 1>&2 -r -s -n 1 _ || true
-    printf 1>&2 '\n' || true
+  # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
+  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
+    if test -n "${NO_COLOR-}"; then
+      printf 1>&2 '\n%s' 'Press any key to exit... ' || :
+    else
+      printf 1>&2 '\n\033[1;32m\r%s' 'Press any key to exit... ' || :
+    fi
+    # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
+    IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
+    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
   fi
+  unset no_pause
+  return "${1:-0}"
 }
 
 verify_adb()

@@ -1,10 +1,10 @@
-###########################
-Build the flashable OTA zip
-###########################
+#######################
+Build the flashable zip
+#######################
 
 ..
-   SPDX-FileCopyrightText: (c) 2026 ale5000
-   SPDX-License-Identifier: GPL-3.0-or-later
+   SPDX-FileCopyrightText: 2026 ale5000
+   SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
    SPDX-FileType: DOCUMENTATION
 
 .. contents:: Build methods:
@@ -32,7 +32,7 @@ All build methods require:
    ``build.sh`` via the bundled BusyBox for Windows (no extra installation
    required).
 
-Additional requirement depending on the build method:
+Additional requirements depending on the build method:
 
 -  **make / pdpmake** — for the ``make`` build method.
 
@@ -68,11 +68,12 @@ Includes only open-source components:
 Test the build
 --------------
 
-Emulates an Android recovery on the PC and runs the produced zip inside it:
+Run the flashable zip in a simulated Android recovery environment on your PC to
+see the results:
 
 .. code:: sh
 
-   make test
+   make installtest
 
 .. note::
 
@@ -104,7 +105,8 @@ Includes only open-source components:
 Test the build
 --------------
 
-Emulates an Android recovery on the PC and runs the produced zip inside it:
+Run the flashable zip in a simulated Android recovery environment on your PC to
+see the results:
 
 .. code:: sh
 
@@ -136,7 +138,8 @@ Open the project in VS Code and run the ``buildOtaOSS`` task.
 Test the build
 --------------
 
-Emulates an Android recovery on the PC and runs the produced zip inside it:
+Run the flashable zip in a simulated Android recovery environment on your PC to
+see the results:
 
 Open the project in VS Code and run the ``installTest`` task.
 

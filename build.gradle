@@ -1,7 +1,6 @@
 // -*- coding: utf-8; mode: conf-javaprop -*-
-// SPDX-FileCopyrightText: (c) 2016 ale5000
-// SPDX-License-Identifier: GPL-3.0-or-later
-// SPDX-FileType: SOURCE
+// SPDX-FileCopyrightText: 2016 ale5000
+// SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
 
 buildscript {
     apply from: 'dependencies.gradle'
@@ -9,59 +8,82 @@ buildscript {
 
 plugins {
     id 'base'
+    id 'maven-publish'
     //id 'com.github.hierynomus.license-report' version '0.15.0'
     //id 'com.github.spotbugs' version '4.7.6'
 }
 
-develocity.buildScan {
-    termsOfUseUrl.set 'https://gradle.com/help/legal-terms-of-use'
-    termsOfUseAgree.set 'yes'
-    publishing.onlyIf { System.getenv('UPLOAD_BUILD_SCAN') != null }
+def moduleProps = providers.fileContents(layout.projectDirectory.file('zip-content/module.prop'))
+    .asText
+    .map { text ->
+        def p = new Properties()
+        p.load(new StringReader(text))
+        return p
+    }
+
+//def moduleProps = providers.properties(layout.projectDirectory.file('zip-content/module.prop'))
+
+configure(project) {
+    defaultTasks 'tasks'
+
+    ext {
+        lazyDescription = moduleProps.map { it.getProperty('description', 'Unknown flashable ZIP') }
+        lazyVersion = moduleProps.map { it.getProperty('version', 'v0.0.0-unknown').trim().toLowerCase(Locale.ROOT) }
+        lazyGroup = moduleProps.map { it.getProperty('group', 'unknown').trim() }
+        lazyProjectId = moduleProps.map { it.getProperty('id', '').trim() }
+        lazyOsName = providers.systemProperty('os.name')
+    }
+
+    if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        throw new GradleException('Java 17 or later is required.')
+    }
 }
 
 /* ===FUNCTIONS=== */
 
-private void initialize() {
-    Properties props = new Properties()
+import groovy.transform.Memoized
 
-    defaultTasks 'tasks'
+@Memoized
+private Provider<String> getProjectId() {
+    ext.lazyProjectId.map { it ?: { throw new InvalidUserDataException('id in "zip-content/module.prop" is empty or not set.') }() }
+}
 
-    project.buildDir = project.file("output")
-    project.file('zip-content/module.prop').withInputStream { props.load(it) }
+@Memoized
+private Provider<String> getScriptExt() {
+    ext.lazyOsName.map { it.toLowerCase(Locale.ROOT).contains('windows') ? '.bat' : '.sh' }
+}
 
-    description = String.valueOf(props.getProperty('description'))
-    version = String.valueOf(props.getProperty('version')).toLowerCase(Locale.ENGLISH).trim()
-    group = String.valueOf(props.getProperty('group'))
-    ext.ourArchivesBaseName = String.valueOf(props.getProperty('id')).trim()
+@Memoized
+private Provider<String> getGitCommitHash() {
+    providers.exec {
+        commandLine 'git', 'rev-parse', '--short=8', 'HEAD'
+    }.standardOutput.asText.map{ it.trim() }.orElse('unknown')
+}
 
-    //ext.isBeta = version.endsWith('-beta')
-    //ext.isAlpha = version.endsWith('-alpha')
-    //ext.isSnapshot = version.endsWith('-snapshot')
+@Memoized
+private Provider<String> getMavenVersion() {
+    ext.lazyVersion.map { it.endsWith('-alpha') ? "${it}-SNAPSHOT" : it }
+}
 
-    println name
-    println 'Version: ' + version
-    println 'OS: ' + System.properties['os.name']
-
-    if(JavaVersion.current() < JavaVersion.VERSION_17) {
-        throw new GradleException('This require Java 17 or later')
+private Provider<String> getZipName(String variant = '*') {
+    ext.lazyVersion.flatMap { v ->
+        getProjectId().zip(getGitCommitHash()) { id, hash ->
+            "${id}-${v}-g${hash}-${variant}-by-ale5000-signed.zip"
+        }
     }
 }
 
-private String getOurArchivesBaseName()
-{
-    String val = String.valueOf("${ext.ourArchivesBaseName}")
-    if(val.isEmpty() || val == 'null')
-        throw new InvalidUserDataException('String is empty.')
+/*private Provider<String> getZipName(String variant = '*') {
+    providers.zip(getProjectId(), getGitCommitHash(), ext.lazyVersion) { id, hash, v ->
+        "${id}-${v}-g${hash}-${variant}-by-ale5000-signed.zip"
+    }
+}*/
 
-    return "${val}"
-}
-
-private void configureSigning(def android, File keystorePropsFile)
-{
+/*private void configureSigning(def android, File keystorePropsFile) {
     if(!keystorePropsFile.exists()) return
     if(android == null) throw new GradleException('android is null inside configureSigning()')
 
-    println 'Signed build'
+    logger.lifecycle 'Signed build'
 
     Properties keystoreProps = new Properties()
     keystoreProps.load(new FileInputStream(keystorePropsFile))
@@ -87,90 +109,388 @@ private void configureSigning(def android, File keystorePropsFile)
     }
 
     android.buildTypes.release.signingConfig android.signingConfigs.config
-}
+}*/
 
-initialize()
+/* ===CLASSES=== */
+
+import groovy.transform.PackageScope
+
+@PackageScope
+final class Bridge {
+    private static MavenPublication mavenPub
+
+    private Bridge() {}
+
+    private static void init(MavenPublication mavenPub) {
+        if(this.mavenPub == null) {
+            this.mavenPub = mavenPub
+        }
+    }
+
+    @PackageScope
+    static MavenPublication getMavenPub() {
+        return this.mavenPub
+    }
+}
 
 /* ===BLOCKS=== */
 
 base {
-    archivesName = getOurArchivesBaseName()
+    archivesName.set getProjectId()
 }
 
-/* ==TASKS=== */
+project.afterEvaluate {
+    // Keep it as lazy as possible while ensuring values show up correctly in 'gradlew properties',
+    // since these Gradle properties and the maven-publish plugin don't support Providers.
 
-tasks.register('cleanCache', Delete) {
-    delete "${projectDir}/cache"
+    description = "${-> ext.lazyDescription.get()}"
+    version = "${-> ext.lazyVersion.get()}"
+    group = "${-> ext.lazyGroup.get()}"
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                groupId = 'com.github.micro5k'
+                artifactId = "${-> getProjectId().get()}"
+                version = "${-> getMavenVersion().get()}"
+                pom {
+                    name = "${-> project.name}"
+                    packaging = 'zip'
+
+                    licenses {
+                        license {
+                            name = 'GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception'
+                            url = 'https://www.gnu.org/licenses/gpl-3.0.txt'
+                            distribution = 'repo'
+                            comments = 'Licensed under GNU General Public License v3.0 or later with Archive Packaging Exception. Full license texts are available in LICENSES within the ZIP.'
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id = 'ale5000'
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
+
+/* ===TASKS=== */
 
 tasks.register('cleanRecoveryOutput', Delete) {
-    delete "${projectDir}/recovery-simulator/output"
+    group = '- Cleanup'
+    description = 'Deletes the recovery simulator output directory.'
+    delete layout.projectDirectory.dir('recovery-simulator/output')
 }
 
-tasks.named('clean').configure {
-    finalizedBy tasks.named('cleanRecoveryOutput')
-    finalizedBy tasks.named('cleanCache')
+tasks.named('clean') {
+    group = '- Cleanup'
+    dependsOn 'cleanRecoveryOutput'
 }
 
-static String getScriptExt() {
-    if(System.properties['os.name'].toLowerCase(Locale.ROOT).contains('windows')) {
-        return '.bat'
-    } else {
-        return '.sh'
+tasks.register('cleanCache', Delete) {
+    group = '- Cleanup'
+    description = 'Deletes the local cache directory.'
+    delete layout.projectDirectory.dir('cache')
+}
+
+tasks.register('cleanPubTmpFiles', Delete) {
+    group = '- Cleanup'
+    dependsOn 'cleanGeneratePomFileForMavenPublication'
+
+    delete layout.buildDirectory.dir('tmp/publishMavenPublicationToMavenLocal')
+    delete layout.buildDirectory.dir('tmp/generatedChecksums')
+
+    doLast {
+        ['publications/maven', 'publications', 'tmp'].each {
+            if(layout.buildDirectory.dir(it).get().asFile?.delete()) {
+                logger.info "Removed empty temporary folder: ${-> it}"
+            }
+        }
+    }
+}
+
+tasks.register('distClean') {
+    group = '- Cleanup'
+    description = 'Cleans all build outputs, local caches, and removes all untracked/ignored files via Git.'
+    dependsOn 'clean', 'cleanCache', 'cleanPubTmpFiles'
+
+    doLast {
+        if (layout.projectDirectory.dir('.git').asFile.exists()) {
+            exec {
+                commandLine 'git', 'clean', '-xdf'
+                ignoreExitValue = true
+            }
+        } else {
+            logger.warn 'WARNING: Skipping git clean: .git directory not found.'
+        }
     }
 }
 
 tasks.register('buildOta', Exec) {
-    group = '- OTA build'
-    description = 'Build the flashable OTA zip.'
+    group = '- Flashable ZIP'
+    description = 'Build the flashable zip [Full edition].'
+    outputs.cacheIf('Avoid caching large binary artifacts to save disk space and network bandwidth.') { false }
+
+    ['LICENSES', 'conf', 'docs', 'lib', 'zip-content'].each { folder ->
+        inputs.dir(layout.projectDirectory.dir(folder)).withPropertyName("buildInputDir_${folder}")
+    }
+    inputs.files(
+        layout.projectDirectory.dir('tools').asFileTree.matching { include '*.jar' },
+        layout.projectDirectory.files('CHANGELOG.rst', 'build.sh'),
+        layout.projectDirectory.asFileTree.matching { include 'LICENSE*.rst' }
+    ).withPropertyName('buildInputFiles')
+
+    outputs.file(layout.buildDirectory.file(getZipName('full'))).withPropertyName('buildOutputFileFull')
+
+    workingDir = layout.projectDirectory
+    executable = "${-> layout.projectDirectory.file("build${getScriptExt().get()}") }"
+
+    environment([
+        'BUILD_TYPE': 'full',
+        'NO_PAUSE'  : '1'
+    ])
 
     doFirst {
-        println 'Building the flashable OTA zip with Gradle...'
-        environment BUILD_TYPE: 'full'
-        environment NO_PAUSE: '1'
-        executable "${projectDir}/build" + getScriptExt()
+        logger.lifecycle 'Building the flashable zip with Gradle...'
     }
 }
 
 tasks.register('buildOtaOSS', Exec) {
-    group = '- OTA build'
-    description = 'Build the flashable OTA zip (open-source components only).'
+    group = '- Flashable ZIP'
+    description = 'Build the flashable zip [OSS edition].'
+    outputs.cacheIf('Avoid caching large binary artifacts to save disk space and network bandwidth.') { false }
+
+    ['LICENSES', 'conf', 'docs', 'lib', 'zip-content'].each { folder ->
+        inputs.dir(layout.projectDirectory.dir(folder)).withPropertyName("buildInputDir_${folder}")
+    }
+    inputs.files(
+        layout.projectDirectory.dir('tools').asFileTree.matching { include '*.jar' },
+        layout.projectDirectory.files('CHANGELOG.rst', 'build.sh'),
+        layout.projectDirectory.asFileTree.matching { include 'LICENSE*.rst' }
+    ).withPropertyName('buildInputFiles')
+
+    outputs.file(layout.buildDirectory.file(getZipName('oss'))).withPropertyName('buildOutputFileOss')
+
+    workingDir = layout.projectDirectory
+    executable = "${-> layout.projectDirectory.file("build${getScriptExt().get()}") }"
+
+    environment([
+        'BUILD_TYPE': 'oss',
+        'NO_PAUSE'  : '1'
+    ])
 
     doFirst {
-        println 'Building the flashable OTA zip (open-source components only) with Gradle...'
-        environment BUILD_TYPE: 'oss'
-        environment NO_PAUSE: '1'
-        executable "${projectDir}/build" + getScriptExt()
+        logger.lifecycle 'Building the flashable zip (open-source components only) with Gradle...'
     }
 }
-tasks.named('build').configure {
-    finalizedBy buildOtaOSS
+
+tasks.named('assemble') {
+    group = null
+    description = 'Alias of "buildOtaOSS" task.'
+    dependsOn 'buildOtaOSS'
+}
+
+tasks.named('build') {
+    group = null
+    description = 'Alias of "buildOtaOSS" task.'
 }
 
 tasks.register('installTest', Exec) {
     group = 'verification'
-    description = 'Emulate an Android recovery on your PC and run the flashable zip file inside it to see the result.'
-    mustRunAfter build, buildOta, buildOtaOSS
+    description = 'Test the flashable zip in a simulated Android recovery environment on your PC.'
 
-    doFirst {
-        environment LIVE_SETUP_ALLOWED: 'false' /* Live setup doesn't work when executed through Gradle */
-        environment NO_PAUSE: '1'
-        environment BB_GLOBBING: '1'
-        executable "${projectDir}/recovery-simulator/recovery" + getScriptExt()
-        args "${projectDir}/output/*.zip"
-    }
+    doNotTrackState('Force task execution by disabling up-to-date checks.')
+    mustRunAfter buildOta, buildOtaOSS
+
+    workingDir = layout.projectDirectory
+    executable = "${-> layout.projectDirectory.dir('recovery-simulator').file("recovery${ getScriptExt().get() }") }"
+
+    final Provider<RegularFile> outFilesProv = layout.buildDirectory.file('*.zip')
+    argumentProviders.add({ [outFilesProv.get().asFile.absolutePath] } as CommandLineArgumentProvider)
+
+    environment([
+        'LIVE_SETUP_ALLOWED': 'false', /* Live setup doesn't work when executed through Gradle */
+        'NO_PAUSE': '1',
+        'BB_GLOBBING': '1'
+    ])
 }
 
 tasks.register('test') {
     dependsOn installTest
 }
 
-// Dummy task
-tasks.register('install')
+tasks.named('wrapper') {
+    gradleVersion = "${-> targetGradleVersion}"
+    distributionSha256Sum = "${-> targetGradleSha256Sum}"
 
-tasks.named('wrapper').configure {
-    println 'Gradle: ' + gradleVersionTarget
-    gradleVersion = gradleVersionTarget
-    //distributionType = Wrapper.DistributionType.ALL
-    distributionSha256Sum = gradleSha256Sum
+    doFirst {
+        logger.lifecycle 'Gradle wrapper update status:'
+        logger.lifecycle "- Current version: ${-> gradle.gradleVersion}"
+        logger.lifecycle "- Target version:  ${-> targetGradleVersion}"
+    }
+}
+
+/* === PUBLISHING === */
+
+final Provider<FileTree> zipFilesTree = getZipName().map { name -> layout.buildDirectory.asFileTree.matching { include name } }
+
+/*abstract class DynamicArtifactSource implements ValueSource<Integer, DynamicArtifactParams> {
+    private static final List<String> artifactTypes = ['oss', 'full'].asImmutable()
+
+    interface DynamicArtifactParams extends ValueSourceParameters {
+        @InputFiles ConfigurableFileCollection getZipFiles()
+    }
+
+    @Override
+    Integer obtain() {
+        final HashSet<String> seen = []
+        final MavenPublication mavenPub = Bridge.getMavenPub()
+        parameters.zipFiles.files.each { foundFile ->
+            String type = artifactTypes.find { foundFile.name.contains("-${it}-") } ?: { throw new GradleException("Publishing failed: File ${foundFile.name} is missing a valid build type.") }()
+            if(!seen.add(type)) throw new GradleException("Publishing failed: The type '${type}' already exists.")
+            String clsf = (type == 'oss' ? null : type)
+            mavenPub.artifact(foundFile) { extension = 'zip'; classifier = clsf; builtBy 'collectArtifacts' }
+        }
+        if(seen.isEmpty()) throw new GradleException("Publishing failed: No artifact found. Check if build tasks were executed.")
+        seen.size()
+    }
+}
+
+final Provider<Integer> artifactsProcessor = providers.of(DynamicArtifactSource) {
+    parameters.zipFiles.setFrom zipFilesTree
+}*/
+
+import java.security.MessageDigest
+import java.security.DigestInputStream
+
+File generateChecksum(targetFile, hashExt, checksumsDir) {
+    final MessageDigest md = MessageDigest.getInstance(hashExt.toUpperCase().replace('SHA256', 'SHA-256').replace('SHA1', 'SHA-1'))
+    final byte[] buffer = new byte[65536]
+    targetFile.withInputStream {
+        final DigestInputStream dis = new DigestInputStream(it, md)
+        while(dis.read(buffer) != -1) { }
+    }
+    final File chksumFile = new File(checksumsDir, "${targetFile.name}.${hashExt}")
+    chksumFile.text = md.digest().encodeHex().toString()
+
+    chksumFile
+}
+
+Integer processArtifacts(parameters, mavenPub) {
+    final Directory tmpDir = layout.buildDirectory.dir('tmp').get()
+    final File checksumsDir = tmpDir.dir('generatedChecksums').asFile
+    checksumsDir?.deleteDir()
+    checksumsDir.mkdirs()
+    tmpDir.asFile?.deleteOnExit()
+
+    final List<String> artifactTypes = ['oss', 'full'].asImmutable()
+    final HashSet<String> seen = []
+    final boolean isLocal = gradle.startParameter.taskNames.any { it == 'publishToMavenLocal' || it.endsWith(':publishToMavenLocal') }
+    parameters.zipFiles.files.each { foundFile ->
+        final String type = artifactTypes.find { foundFile.name.contains("-${it}-") } ?: { throw new GradleException("Publishing failed: File ${foundFile.name} is missing a valid build type.") }()
+        if(!seen.add(type)) throw new GradleException("Publishing failed: The type '${type}' already exists.")
+        final String clsf = (type == 'oss' ? null : type)
+        mavenPub.artifact(foundFile) { extension = 'zip'; classifier = clsf; builtBy 'collectArtifacts' }
+        if(isLocal) {
+            ['sha256', 'sha1', 'md5'].each { hashExt ->
+                final File existChksumFile = file("${foundFile.absolutePath}.${hashExt}")
+                final File chksumFile = existChksumFile.exists() ? existChksumFile : generateChecksum(foundFile, hashExt, checksumsDir)
+                mavenPub.artifact(chksumFile) { extension = "zip.${hashExt}"; classifier = clsf; builtBy 'collectArtifacts' }
+            }
+        }
+    }
+    if(seen.isEmpty()) throw new GradleException("Publishing failed: No artifact found. Check if build tasks were executed.")
+
+    seen.size()
+}
+
+tasks.register('collectArtifacts') {
+    notCompatibleWithConfigurationCache('Dynamic artifact insertion is not compatible with Configuration Cache.')
+    outputs.cacheIf('Task is collection-only; caching is disabled.') { false }
+
+    mustRunAfter 'buildOta', 'buildOtaOSS'
+
+    inputs.files(zipFilesTree).withPropertyName('collectedZips')
+    outputs.upToDateWhen { false }
+
+    doLast {
+        //Bridge.init(publishing.publications.maven)
+        //final Integer count = artifactsProcessor.get()
+
+        final Map<String, Object> parameters = [
+            zipFiles: objects.fileCollection().tap {
+                setFrom( getZipName().map { name -> layout.buildDirectory.asFileTree.matching { include name } } )
+            }
+        ].asImmutable()
+        final Integer count = processArtifacts(parameters, publishing.publications.maven)
+
+        logger.lifecycle "Successfully registered ${count} base artifact(s)."
+    }
+}
+
+tasks.register('showPublishedArtifacts') {
+    outputs.upToDateWhen { false }
+
+    def artifactData = provider {
+        publishing.publications.collectMany { pub ->
+            pub.artifacts?.collect { "Pub: ${pub.name} | File: ${it.file.name} | Ext: ${it.extension}${it.classifier ? " | Classifier: ${it.classifier}" : ""}" } ?: []
+        }
+    }
+
+    inputs.property('data', artifactData)
+
+    doLast {
+        artifactData.get().each { logger.lifecycle it }
+    }
+}
+
+tasks.named('publishToMavenLocal') {
+    finalizedBy 'cleanPubTmpFiles'
+}
+
+tasks.withType(GenerateMavenPom).configureEach {
+    dependsOn 'collectArtifacts'
+}
+
+[PublishToMavenRepository, PublishToMavenLocal].each { type ->
+    tasks.withType(type).configureEach {
+        dependsOn 'collectArtifacts'
+
+        finalizedBy 'showPublishedArtifacts'
+    }
+}
+
+/* ===HEADER=== */
+
+abstract class HeaderPrinter implements ValueSource<String, HeaderParams> {
+    private static final log = Logging.getLogger(HeaderPrinter)
+
+    interface HeaderParams extends ValueSourceParameters {
+        @Input Property<String> getProjectName()
+        @Input Property<String> getVersion()
+        @Input Property<String> getOsName()
+    }
+
+    @Override
+    String obtain() {
+        log.lifecycle '=' * 36
+        log.lifecycle "Project: ${parameters.projectName.get()}"
+        log.lifecycle "Version: ${parameters.version.get()}"
+        log.lifecycle "OS:      ${parameters.osName.get()}"
+        log.lifecycle '=' * 36
+        ''
+    }
+}
+
+def headerTrigger = providers.of(HeaderPrinter) {
+    parameters.projectName.set provider { project.name }
+    parameters.version.set ext.lazyVersion
+    parameters.osName.set ext.lazyOsName
+}
+
+gradle.taskGraph.whenReady {
+    logger.info "${-> headerTrigger.get()}"
 }

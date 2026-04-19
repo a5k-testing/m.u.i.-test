@@ -8,14 +8,14 @@ on:
   push:
     paths:
       - "LICENSES/*"
+      - "conf/*"
       - "docs/*.rst"
-      - "includes/*"
+      - "lib/*.sh"
       - "tools/*.jar"
       - "zip-content/**"
       - "CHANGELOG.rst"
       - "LICENSE*.rst"
       - "build.sh"
-      - "conf-*.sh"
     branches:
       - "**"
   schedule:
@@ -48,23 +48,23 @@ jobs:
         with:
           distribution: "temurin"
           java-version-file: ".tool-versions"
-      - name: "Use cache"
+      - name: "Use build cache"
         uses: actions/cache@v5
-        timeout-minutes: 10
+        timeout-minutes: 5
         with:
-          key: "build-${{ hashFiles('conf-2.sh') }}"
+          key: "build-${{ hashFiles('conf/conf-full.inc.sh') }}"
           restore-keys: "build-"
           path: "cache/build"
           enableCrossOsArchive: true
       - name: "Use LFS cache"
         uses: actions/cache@v5
-        timeout-minutes: 10
+        timeout-minutes: 5
         with:
-          key: "lfs-${{ hashFiles('conf-lfs.sh') }}"
+          key: "lfs-${{ hashFiles('conf/conf-lfs.inc.sh') }}"
           restore-keys: "lfs-"
           path: "cache/lfs"
           enableCrossOsArchive: true
-      - name: "Build the flashable OTA zip"
+      - name: "Build the flashable zip [OSS edition]"
         id: "build"
         shell: bash
         timeout-minutes: 10
@@ -163,7 +163,7 @@ jobs:
           printf 'Update tag? %s\n' "${UPDATE_TAG:?}"
           printf 'Update release? %s\n' "${UPDATE_RELEASE:?}"
       - name: "Delete previous nightly release"
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
         with:
           retries: 3
@@ -188,7 +188,7 @@ jobs:
               throw new Error('getReleaseByTag failed: response is undefined or missing data.');
             }
       - name: "Update nightly tag"
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         if: "${{ steps.nightly-logic.outputs.UPDATE_TAG == 'true' }}"
         with:
           retries: 3
@@ -223,7 +223,7 @@ jobs:
               throw new Error(errorMsg);
             }
       - name: "Create nightly release"
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: "${{ steps.nightly-logic.outputs.UPDATE_RELEASE == 'true' }}"
         with:
           name: "${{ steps.build.outputs.ZIP_VERSION }} nightly"
@@ -262,23 +262,34 @@ jobs:
       actions: write # Needed to keep alive the workflow
 
     steps:
-      - name: "Checkout file"
+      - name: "Checkout needed files"
         uses: actions/checkout@v6
         with:
           lfs: false
           sparse-checkout: |
-            conf-2.sh
+            conf/conf-full.inc.sh
+            conf/conf-lfs.inc.sh
           sparse-checkout-cone-mode: false
-      - name: "Ping cache" # Cache expiration: 7 days
-        uses: actions/cache@v5
+      - name: "Ping build cache" # Cache expiration: 7 days
+        uses: actions/cache/restore@v5
         timeout-minutes: 5
         with:
-          key: "build-${{ hashFiles('conf-2.sh') }}"
+          key: "build-${{ hashFiles('conf/conf-full.inc.sh') }}"
+          restore-keys: "build-"
           path: "cache/build"
           enableCrossOsArchive: true
           lookup-only: true
+      - name: "Ping LFS cache" # Cache expiration: 7 days
+        uses: actions/cache/restore@v5
+        timeout-minutes: 5
+        with:
+          key: "lfs-${{ hashFiles('conf/conf-lfs.inc.sh') }}"
+          restore-keys: "lfs-"
+          path: "cache/lfs"
+          enableCrossOsArchive: true
+          lookup-only: true
       - name: "Keep workflow alive"
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         timeout-minutes: 5
         env:
           WORKFLOW_REF: "${{ github.workflow_ref }}"
@@ -310,12 +321,12 @@ jobs:
 
     steps:
       - name: "Delete old caches"
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           retries: 3
           script: |
             /* jshint esversion: 11 */
-            const CACHE_PREFIXES = Object.freeze(['build-', 'lfs-']);
+            const CACHE_PREFIXES = Object.freeze(['build-', 'lfs-', 'gradle-wrapper-']);
 
             for (const prefix of CACHE_PREFIXES) {
               let failed = false;
