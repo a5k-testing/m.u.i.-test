@@ -96,45 +96,6 @@ _SHDOC_DEVEL_SCRIPTS = (
 _SHDOC_SCRIPTS_SKIP_TOOLS = {"help.sh"}  # type: Final[set[str]]
 
 
-def _collect_shdoc_scripts():
-    # type: () -> dict[str, list[str]]
-    """Return shell scripts grouped by source directory.
-
-    Returns a dict ``{"tools": [...], "utils": [...]}`` where each value is a
-    sorted list of repository-relative paths
-    (e.g. ``"tools/get-signature.sh"``).
-
-    Scripts listed in :data:`_SHDOC_SCRIPTS_SKIP_TOOLS` are excluded from the
-    ``tools`` list.
-    """
-    result = {}  # type: dict[str, list[str]]
-
-    # Cache global constant to local variable for faster lookup
-    skip_tools = _SHDOC_SCRIPTS_SKIP_TOOLS  # type: Final
-
-    # Iterate through folders to reduce code duplication
-    for folder in ("tools", "utils"):
-        target_dir = os.path.join(_REPO_ROOT, folder)
-
-        if os.path.isdir(target_dir):
-            entries = sorted(os.listdir(target_dir))
-            prefix = folder + os.sep
-
-            # Use list comprehensions for performance
-            if folder == "tools":
-                result["tools"] = [
-                    prefix + e
-                    for e in entries
-                    if e.endswith(".sh") and e not in skip_tools
-                ]
-            else:
-                result[folder] = [
-                    prefix + e for e in entries if e.endswith(".sh")
-                ]
-
-    return result
-
-
 def which(cmd, mode=os.F_OK | os.X_OK, path=None):
     # type: (str, int, str | None) -> str | None
     """Find the full path to an executable file, mimicking shutil.which.
@@ -208,6 +169,45 @@ def get_revision():
         )
     except (FileNotFoundError, subprocess.CalledProcessError):
         return None
+
+
+def _collect_shdoc_scripts():
+    # type: () -> dict[str, list[str]]
+    """Return shell scripts grouped by source directory.
+
+    Returns a dict ``{"tools": [...], "utils": [...]}`` where each value is a
+    sorted list of repository-relative paths
+    (e.g. ``"tools/get-signature.sh"``).
+
+    Scripts listed in :data:`_SHDOC_SCRIPTS_SKIP_TOOLS` are excluded from the
+    ``tools`` list.
+    """
+    result = {}  # type: dict[str, list[str]]
+
+    # Cache global constant to local variable for faster lookup
+    skip_tools = _SHDOC_SCRIPTS_SKIP_TOOLS  # type: Final
+
+    # Iterate through folders to reduce code duplication
+    for folder in ("tools", "utils"):
+        target_dir = os.path.join(_REPO_ROOT, folder)
+
+        if os.path.isdir(target_dir):
+            entries = sorted(os.listdir(target_dir))
+            prefix = folder + os.sep
+
+            # Use list comprehensions for performance
+            if folder == "tools":
+                result["tools"] = [
+                    prefix + e
+                    for e in entries
+                    if e.endswith(".sh") and e not in skip_tools
+                ]
+            else:
+                result[folder] = [
+                    prefix + e for e in entries if e.endswith(".sh")
+                ]
+
+    return result
 
 
 def _myst_slug(heading_text):
@@ -531,11 +531,10 @@ def _transform_rst_links(app, doctree):
         parts = uri.split("#", 1)
         has_anchor = len(parts) > 1
         reftype = "ref" if has_anchor else "doc"
-        reftarget = (
-            parts[1]
-            if has_anchor
-            else (parts[0][:-4] if parts[0].endswith(".rst") else parts[0])
-        )
+        if has_anchor:
+            reftarget = parts[1]
+        else:
+            reftarget = parts[0][:-4] if parts[0].endswith(".rst") else parts[0]
         logger.info(
             "[DEBUG] Converting %s -> :%s:`%s`",
             uri,
@@ -575,36 +574,43 @@ def setup(app):
     }
 
 
-# TODO: Fix it
-suppress_warnings = ["myst.xref_missing"]
-
 # Project information
 project = "microG unofficial installer"
 author = "ale5000"
-project_copyright = "2016-2019, 2021-%Y ale5000"
+project_copyright = "2016-2019, 2021-{0} ale5000".format(
+    datetime.datetime.now(_UTC).strftime("%Y"),
+)
 release = get_version()
 version = release
 
 revision = get_revision()
 if revision:
-    project_copyright += f" | Revision: {revision}"
+    project_copyright += " | Revision: {0}".format(revision)
 
 # General configuration
-needs_sphinx = "8.1"
+needs_sphinx = "1.8"
 extensions = ["sphinx_rtd_theme", "myst_parser"]
 
 # Options for highlighting
 highlight_language = "sh"
 
+# Options for internationalisation
+language = "en"
+
 # Options for markup
-rst_epilog = f"""
-.. |release| replace:: v{release}
-"""
+rst_epilog = "\n.. |release| replace:: v{0}\n".format(release)
 
 # Options for source files
 exclude_patterns = ["CONTRIBUTORS.md"]
 master_doc = "index"
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
+
+# Options for warning control
+
+# Links are working using implicit references but MyST still emit warnings
+# instead of verify
+# TODO: Find an alternative way
+suppress_warnings = ["myst.xref_missing"]
 
 # Options for HTML output
 html_theme = "sphinx_rtd_theme"
