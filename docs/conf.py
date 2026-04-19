@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: NONE
-# SPDX-License-Identifier: CC0-1.0
+# SPDX-FileCopyrightText: 2026 ale5000
+# SPDX-License-Identifier: LGPL-3.0-or-later
 
 """Configuration file for the Sphinx documentation builder.
 
@@ -10,21 +10,70 @@ using Sphinx. For a full list of built-in configuration values, see:
 https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
+import datetime
 import os
 import re
 import shutil
-import subprocess  # nosec B404
+import subprocess  # nosec: B404
 import sys
 
 from docutils import nodes
 from sphinx import addnodes
 from sphinx.util import logging
 
-TYPE_CHECKING = False
-if TYPE_CHECKING:
-    from typing import Any, Final  # noqa: F401
+try:
+    from typing import TYPE_CHECKING
 
-    from sphinx.application import Sphinx  # noqa: F401
+    if TYPE_CHECKING:
+        from typing import IO, Any, Callable, Final  # noqa: F401
+
+        from sphinx.application import Sphinx  # noqa: F401
+except ImportError:
+    pass
+
+try:
+    from subprocess import DEVNULL as _TMP_DEVNULL  # nosec: B404
+
+    _DEVNULL = _TMP_DEVNULL  # type: int | IO[Any]
+except ImportError:
+    import atexit
+
+    _DEVNULL = open(os.devnull, "wb")  # noqa: SIM115
+    atexit.register(_DEVNULL.close)
+
+try:
+    # Attempt to use the native shutil.which for Python 3.3+
+    from shutil import which as _tmp_shutil_which
+
+    _shutil_which = _tmp_shutil_which  # type: Callable[..., str | None] | None
+except ImportError:
+    _shutil_which = None
+
+try:
+    from datetime import timezone as _tmp_tz
+
+    _UTC = _tmp_tz.utc  # type: datetime.tzinfo
+except ImportError:
+
+    class TimezoneUTC(datetime.tzinfo):
+        """UTC implementation for compatibility with legacy Python versions.
+
+        Ensures 'aware' datetime objects can be used for UTC time.
+        """
+
+        def utcoffset(self, _dt):
+            # type: (datetime.datetime | None) -> datetime.timedelta
+            return datetime.timedelta(0)
+
+        def dst(self, _dt):
+            # type: (datetime.datetime | None) -> datetime.timedelta
+            return datetime.timedelta(0)
+
+        def tzname(self, _dt):
+            # type: (datetime.datetime | None) -> str
+            return "UTC"
+
+    _UTC = TimezoneUTC()
 
 logger = logging.getLogger(__name__)  # type: Final
 
@@ -86,6 +135,41 @@ def _collect_shdoc_scripts():
     return result
 
 
+def which(cmd, mode=os.F_OK | os.X_OK, path=None):
+    # type: (str, int, str | None) -> str | None
+    """Find the full path to an executable file, mimicking shutil.which.
+
+    :param cmd: The command to search for
+    :param mode: The permission mode to check (default is exists and executable)
+    :param path: Custom search path (defaults to the PATH environment variable)
+    :return: Full path to the executable or None if not found
+    """
+    if _shutil_which:
+        return _shutil_which(cmd, mode, path)
+
+    # If cmd contains a path component, check it directly
+    if os.path.dirname(cmd):
+        if os.access(cmd, mode) and os.path.isfile(cmd):
+            return cmd
+        return None
+
+    if path is None:
+        path = os.environ.get("PATH", os.defpath)
+    if not path:
+        return None
+
+    exts = ("", ".exe") if sys.platform == "win32" else ("",)  # type: Final
+
+    for directory in path.split(os.pathsep):
+        full_prefix = os.path.join(os.path.expanduser(directory), cmd)
+        for ext in exts:
+            candidate = full_prefix + ext
+            if os.access(candidate, mode) and os.path.isfile(candidate):
+                return candidate
+
+    return None
+
+
 def get_version():
     # type: () -> str
 
@@ -103,27 +187,26 @@ def get_revision():
     # type: () -> str | None
 
     # Use Read the Docs environment variables if available
-    git_rev = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH")
+    git_rev = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH", "")[:8] or None
     git_id = os.environ.get("READTHEDOCS_GIT_IDENTIFIER")
     if git_rev:
-        git_rev = git_rev[:8]
-        return f"{git_rev} ({git_id})" if git_id else git_rev
+        return "{0} ({1})".format(git_rev, git_id) if git_id else git_rev
 
     # Fallback to Git CLI
-    git = shutil.which("git")  # type: Final
+    git = which("git")  # type: Final
     if not git:
         return None
     try:
         return (
             # Safe: uses list-based arguments (no shell) to prevent injection
-            subprocess.check_output(  # nosec B603 # noqa: S603
-                [git, "rev-parse", "--short=8", "HEAD"],
-                stderr=subprocess.DEVNULL,
+            subprocess.check_output(  # nosec: B603 # noqa: S603
+                [git, "rev-parse", "--short=8", "HEAD"],  # nosemgrep
+                stderr=_DEVNULL,
             )
             .decode("utf-8")
             .strip()
         )
-    except Exception:
+    except (FileNotFoundError, subprocess.CalledProcessError):
         return None
 
 
@@ -431,7 +514,7 @@ def _fix_shdoc_refs(_app, doctree):
                 )
 
 
-def transform_rst_links(app, doctree):
+def _transform_rst_links(app, doctree):
     # type: (Sphinx, nodes.document) -> None
     """Convert internal .rst file links to Sphinx cross-references.
 
@@ -448,7 +531,11 @@ def transform_rst_links(app, doctree):
         parts = uri.split("#", 1)
         has_anchor = len(parts) > 1
         reftype = "ref" if has_anchor else "doc"
-        reftarget = parts[1] if has_anchor else parts[0].removesuffix(".rst")
+        reftarget = (
+            parts[1]
+            if has_anchor
+            else (parts[0][:-4] if parts[0].endswith(".rst") else parts[0])
+        )
         logger.info(
             "[DEBUG] Converting %s -> :%s:`%s`",
             uri,
@@ -480,7 +567,7 @@ def setup(app):
     """
     app.connect("builder-inited", _generate_shdoc)
     app.connect("doctree-read", _fix_shdoc_refs)
-    app.connect("doctree-read", transform_rst_links)
+    app.connect("doctree-read", _transform_rst_links)
     return {
         "version": "0.1",
         "parallel_read_safe": True,
