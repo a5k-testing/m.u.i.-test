@@ -5,7 +5,7 @@
   "files": [
     "docs/CONTRIBUTORS.md"
   ],
-  "imageSize": 70,
+  "imageSize": 100,
   "commit": true,
   "commitConvention": "angular",
   "commitType": "docs",
@@ -15,21 +15,12 @@
   "skipCi": true,
   "contributors": [
     {
-      "login": "storm1ng",
-      "name": "Manuel Jenny",
-      "avatar_url": "https://avatars.githubusercontent.com/u/4191545?v=4",
-      "profile": "https://www.manueljenny.ch",
+      "login": "Nanolx",
+      "name": "Chris 'Nano' Bratusek",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3106131?v=4",
+      "profile": "https://www.nanolx.org",
       "contributions": [
         "code"
-      ]
-    },
-    {
-      "login": "",
-      "name": "~1769491",
-      "avatar_url": "https://avatars.githubusercontent.com/u/0?v=4",
-      "profile": "https://liberapay.com/~1769491/",
-      "contributions": [
-        "financial"
       ]
     },
     {
@@ -42,12 +33,50 @@
       ]
     },
     {
+      "login": "storm1ng",
+      "name": "Manuel Jenny",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4191545?v=4",
+      "profile": "https://www.manueljenny.ch",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
       "login": "nadiamoe",
       "name": "Nadia Santalla",
       "avatar_url": "https://avatars.githubusercontent.com/u/969721?v=4",
       "profile": "https://nadia.moe",
       "contributions": [
         "code"
+      ]
+    },
+    {
+      "login": "",
+      "name": "eightscrow",
+      "avatar_url": "https://avatars.githubusercontent.com/u/0?v=4",
+      "profile": "https://liberapay.com/eightscrow/",
+      "contributions": [
+        "financial"
+      ]
+    },
+    {
+      "login": "",
+      "name": "~1769491",
+      "avatar_url": "https://avatars.githubusercontent.com/u/0?v=4",
+      "profile": "https://liberapay.com/~1769491/",
+      "contributions": [
+        "financial"
+      ]
+    },
+    {
+      "login": "mar-v-in",
+      "name": "Marvin W",
+      "avatar_url": "https://avatars.githubusercontent.com/u/994036?v=4",
+      "profile": "https://github.com/mar-v-in",
+      "contributions": [
+        "infra",
+        "ideas",
+        "research"
       ]
     }
   ]

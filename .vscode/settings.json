@@ -1,20 +1,68 @@
 {
+    "explorer.excludeGitIgnore": true,
+    "task.autoDetect": "off",
+
+    "gradle.autoDetect": "off",
+    "gradle.enabled": false,
+    "java.autobuild.enabled": false,
+    "java.import.gradle.enabled": false,
+    "java.import.maven.enabled": false,
+
     "shellcheck.enable": true,
     "shellcheck.enableQuickFix": true,
     "shellcheck.logLevel": "trace",
     "shellcheck.run": "onType",
 
     "codecov.coverage.enabled": true,
-
     "codacy.guardrails.analyzeGeneratedCode": "disabled",
     "codacy.guardrails.instructionsFile": "manual",
 
-    "java.import.gradle.enabled": false,
-    "java.import.maven.enabled": false,
-    "java.autobuild.enabled": false,
-    "java.showBuildStatusOnStart.enabled": "off",
-    "java.server.launchMode": "LightWeight",
+    "python.analysis.supportRestructuredText": true,
+    "python.analysis.supportDocstringTemplate": true,
+    "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.inlayHints.functionReturnTypes": true,
 
-    "task.autoDetect": "off",
-    "gradle.autoDetect": "off"
+    "autoDocstring.docstringFormat": "sphinx",
+    "autoDocstring.guessTypes": true,
+
+    "editor.detectIndentation": true,
+    "files.insertFinalNewline": true,
+
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+
+    "customLocalFormatters.formatters": [
+        {
+            "command": "rstfmt --width 80 -",
+            "languages": ["restructuredtext"],
+            "editor.formatOnSave": false
+        }
+    ],
+    "[restructuredtext]": {
+        "editor.detectIndentation": false,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 3,
+        "editor.wordWrap": "on",
+        "editor.defaultFormatter": "jkillian.custom-local-formatters"
+    },
+
+    "ruff.configuration": {
+        "target-version": "py37",
+        "lint": {
+            "external": ["S"]
+        }
+    },
+    "ruff.lineLength": 80,
+    "ruff.lint.select": ["ALL"],
+    "ruff.lint.ignore": ["ANN001", "ANN201", "ANN202", "PTH", "SIM105", "UP009", "UP030", "UP032", "TD002", "TD003"],
+    "[python]": {
+        "editor.rulers": [80, 100, 120],
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        }
+    }
 }

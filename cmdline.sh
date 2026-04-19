@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-
-# SPDX-FileCopyrightText: (c) 2016 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2016 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
 # shellcheck enable=all
 
 # Workaround for shells without support for local (example: ksh pbosh obosh)
@@ -99,11 +98,14 @@ if test "${A5K_FUNCTIONS_INCLUDED:-false}" = 'false'; then
     unset IS_PATH_INITIALIZED
     unset __QUOTED_PARAMS
 
+    export USING_LIB='main.lib.sh'
+
     if test "${_run_strategy}" = 'source'; then
-      . "${_main_dir}/includes/common.sh" "${@}" || return "${?}"
+      # shellcheck source=SCRIPTDIR/lib/main.lib.sh
+      . "${_main_dir}/lib/${USING_LIB}" "${@}" || return "${?}"
     elif test "${_run_strategy}" = 's-opt'; then
       # shellcheck disable=SC2086 # Ignore: Double quote to prevent globbing and word splitting
-      exec "${__SHELL_EXE}" ${_applet} -s -c ". '${_main_dir}/includes/common.sh' || exit \${?}" "${_applet:-${0-}}" "${@}"
+      exec "${__SHELL_EXE}" ${_applet} -s -c ". '${_main_dir}/lib/${USING_LIB}' || exit \${?}" "${_applet:-${0-}}" "${@}"
     else
       if test "${#}" -gt 0; then
         _nl="$(printf '\nx')" _nl="${_nl%x}"
@@ -118,7 +120,7 @@ if test "${A5K_FUNCTIONS_INCLUDED:-false}" = 'false'; then
       fi
 
       # shellcheck disable=SC2086 # Ignore: Double quote to prevent globbing and word splitting
-      exec "${__SHELL_EXE}" ${_applet} --init-file "${_main_dir}/includes/common.sh"
+      exec "${__SHELL_EXE}" ${_applet} --init-file "${_main_dir}/lib/${USING_LIB}"
     fi
   }
 

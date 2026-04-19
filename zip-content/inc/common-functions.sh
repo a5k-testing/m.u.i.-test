@@ -2,8 +2,8 @@
 # @file common-functions.sh
 # @brief A library with common functions used during flashable ZIP installation.
 
-# SPDX-FileCopyrightText: (c) 2016 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2016 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
 
 # shellcheck enable=all
 # shellcheck disable=SC3043 # SC3043: In POSIX sh, local is undefined
@@ -33,6 +33,13 @@ export ADVANCED_INFO_DISPLAYED=''
 export ASSOCIATED_LOOP_DEVICES=''
 export MOUNTED_APEX_CHILDREN=''
 readonly ROLLBACK_TEST='false'
+
+# Default maximum API level used when an upper bound is not specified in configuration.
+# 999 is intentionally higher than any realistic Android API level and effectively means "no upper limit"
+readonly DEFAULT_MAX_API_LEVEL='999'
+
+# Minimum size threshold (in bytes) for app rollback eligibility => 100 KiB
+readonly APP_MIN_SIZE_FOR_ROLLING_BACK='102400'
 
 # shellcheck disable=SC3040,SC2015
 {
@@ -574,6 +581,7 @@ _prepare_mountpoint()
 
 _find_apex()
 {
+  # Prefer base APEX directory, then ".release", then ".debug"
   if test -d "${2:?}/${1:?}"; then
     printf '%s\n' "${2:?}/${1:?}"
   elif test -d "${2:?}/${1:?}.release"; then
@@ -1034,6 +1042,7 @@ parse_setting()
   _get_local_settings
 
   if test "${_sett_type:?}" = 'app'; then
+    # For app settings, first prefer the "APP_" key name; fall back to the deprecated "INSTALL_" key for backward compatibility
     if _parse_setting_helper "zip.${MODULE_ID:?}.APP_${_sett_name:?}" || _parse_setting_helper "zip.${MODULE_ID:?}.INSTALL_${_sett_name:?}"; then
       return
     fi
@@ -2312,10 +2321,10 @@ perform_installation()
   done
 
   if test "${API:?}" -lt 21; then
-    if test "${CPU64}" != false; then
+    if test "${CPU64:?}" != 'false'; then
       perform_secure_copy_to_device 'lib64'
     fi
-    if test "${CPU}" != false; then
+    if test "${CPU:?}" != 'false'; then
       perform_secure_copy_to_device 'lib'
     fi
   fi
@@ -2567,14 +2576,14 @@ reset_gms_data_of_all_apps()
 }
 
 # Hash related functions
-verify_sha1_hash()
+verify_sha256_hash()
 {
   local _v_filename _v_file_hash
 
   _v_filename="${2:?}/${1:?}"
   test -f "${_v_filename:?}" || ui_error "The file to verify is missing => '${_v_filename?}'"
 
-  _v_file_hash="$(sha1sum -- "${_v_filename:?}" | cut -d ' ' -f '1' -s)" || ui_error "Failed to calculate SHA1 hash of '${_v_filename?}'"
+  _v_file_hash="$(sha256sum -- "${_v_filename:?}" | cut -d ' ' -f '1' -s)" || ui_error "Failed to calculate the SHA-256 hash of '${_v_filename?}'"
   if test -z "${_v_file_hash?}" || test "${_v_file_hash:?}" != "${3?}"; then
     ui_msg "  Verifying ${1?}... ERROR"
     return 1
@@ -2816,7 +2825,7 @@ setup_app()
   _output_dir=''
   _installed_file_list=''
 
-  if test "${API:?}" -ge "${_min_api:?}" && test "${API:?}" -le "${_max_api:-999}"; then
+  if test "${API:?}" -ge "${_min_api:?}" && test "${API:?}" -le "${_max_api:-"${DEFAULT_MAX_API_LEVEL:?}"}"; then
     if test "${_optional:?}" = 'true' && test "${LIVE_SETUP_ENABLED:?}" = 'true'; then
       choose "Do you want to install ${_vanity_name:?}?" '+) Yes' '-) No'
       if test "${?}" -eq 3; then _install='1'; else _install='0'; fi
@@ -2828,7 +2837,7 @@ setup_app()
 
     if test "${_install:?}" -ne 0 || test "${_optional:?}" != 'true'; then
       ui_msg "Enabling: ${_vanity_name:?}"
-      verify_sha1_hash "${_filename:?}.apk" "${TMP_PATH:?}/origin/${_dir:?}" "${_file_hash:?}" || ui_error "Failed hash verification of '${_vanity_name?}'"
+      verify_sha256_hash "${_filename:?}.apk" "${TMP_PATH:?}/origin/${_dir:?}" "${_file_hash:?}" || ui_error "Failed hash verification of '${_vanity_name?}'"
 
       if test "${API:?}" -ge 21; then
         _output_dir="${_dir:?}/${_output_name:?}"
@@ -2853,7 +2862,7 @@ setup_app()
       fi
       move_rename_file "${TMP_PATH:?}/origin/${_dir:?}/${_filename:?}.apk" "${TMP_PATH:?}/files/${_output_dir:?}/${_output_name:?}.apk" || ui_error "Failed to setup the app => '${_vanity_name?}'"
 
-      if test "${CURRENTLY_ROLLING_BACK:-false}" != 'true' && test "${_optional:?}" = 'true' && test "$(get_size_of_file "${TMP_PATH:?}/files/${_output_dir:?}/${_output_name:?}.apk" || printf '0' || :)" -gt 102400; then
+      if test "${CURRENTLY_ROLLING_BACK:-false}" != 'true' && test "${_optional:?}" = 'true' && test "$(get_size_of_file "${TMP_PATH:?}/files/${_output_dir:?}/${_output_name:?}.apk" || printf '0' || :)" -ge "${APP_MIN_SIZE_FOR_ROLLING_BACK:?}"; then
         _installed_file_list="${_installed_file_list#|}"
         printf '%s\n' "${_vanity_name:?}|${_output_dir:?}/${_output_name:?}.apk|${_installed_file_list?}" 1>> "${TMP_PATH:?}/processed-${_dir:?}s.log" || ui_error "Failed to update processed-${_dir?}s.log"
       fi
@@ -2898,7 +2907,7 @@ setup_lib()
 
   _output_dir="${_dir:?}"
 
-  if test "${API:?}" -ge "${_min_api:?}" && test "${API:?}" -le "${_max_api:-999}"; then
+  if test "${API:?}" -ge "${_min_api:?}" && test "${API:?}" -le "${_max_api:-"${DEFAULT_MAX_API_LEVEL:?}"}"; then
     if test "${_optional:?}" = 'true' && test "${LIVE_SETUP_ENABLED:?}" = 'true'; then
       choose "Do you want to install ${_vanity_name:?}?" '+) Yes' '-) No'
       if test "${?}" -eq 3; then _install='1'; else _install='0'; fi
@@ -2910,7 +2919,7 @@ setup_lib()
 
     if test "${_install:?}" -ne 0 || test "${_optional:?}" != 'true'; then
       ui_msg "Enabling: ${_vanity_name:?}"
-      verify_sha1_hash "${_filename:?}.jar" "${TMP_PATH:?}/origin/${_dir:?}" "${_file_hash:?}" || ui_error "Failed hash verification of '${_vanity_name?}'"
+      verify_sha256_hash "${_filename:?}.jar" "${TMP_PATH:?}/origin/${_dir:?}" "${_file_hash:?}" || ui_error "Failed hash verification of '${_vanity_name?}'"
 
       mkdir -p "${TMP_PATH:?}/files/${_output_dir:?}" || ui_error "Failed to create the folder for '${_vanity_name?}'"
 
@@ -3295,7 +3304,8 @@ _parse_input_event()
       return 115
     fi
 
-    if test "${key_code:?}" = '014a' || test "${key_code:?}" = '0145'; then # BTN_TOUCH => 0x014a (330), BTN_TOOL_FINGER => 0x0145 (325)
+    # Touch screen related key codes: BTN_TOUCH => 0x014a (330), BTN_TOOL_FINGER => 0x0145 (325)
+    if test "${key_code:?}" = '014a' || test "${key_code:?}" = '0145'; then
       ui_warning "Touch screen event ignored, key: 0x${key_code?}"
       return 115
     fi
@@ -3414,6 +3424,7 @@ _timeout_compat()
 }
 
 _esc_keycode="$(printf '\033')"
+readonly _esc_keycode
 _choose_remapper()
 {
   local _key

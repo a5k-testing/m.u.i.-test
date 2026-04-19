@@ -18,10 +18,14 @@ jobs:
     name: "ShellChecker"
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read # Needed to checkout the repository (only required for private repositories)
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
+        with:
+          lfs: false
       - name: "ShellChecker"
         uses: a5k-actions/shellchecker@v0
 
@@ -29,11 +33,14 @@ jobs:
     name: "REUSE compliance check"
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: "${{ false }}"
+    permissions:
+      contents: read # Needed to checkout the repository (only required for private repositories)
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
+        with:
+          lfs: false
       - name: "REUSE compliance check"
         uses: fsfe/reuse-action@v6
 
@@ -41,9 +48,13 @@ jobs:
     name: "JSON and YAML"
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read # Needed to checkout the repository (only required for private repositories)
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
+        with:
+          lfs: false
       - name: "JSON and YAML - Validator"
         uses: GrantBirki/json-yaml-validate@v4

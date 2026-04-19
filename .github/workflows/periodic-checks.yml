@@ -7,12 +7,10 @@ permissions: {}
 on:
   push:
     paths:
-      - "gradle/wrapper/gradle-wrapper.jar"
       - "**codecov.yml"
       - "Makefile"
   pull_request:
     paths:
-      - "gradle/wrapper/gradle-wrapper.jar"
       - "**codecov.yml"
       - "Makefile"
   schedule:
@@ -25,12 +23,14 @@ jobs:
     name: "Base"
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read # Needed to checkout the repository (only required for private repositories)
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
-      - name: "Validate Gradle Wrapper"
-        uses: gradle/actions/wrapper-validation@v5
+        with:
+          lfs: false
       - name: "Validate Codecov configuration"
         shell: bash
         run: |
@@ -38,13 +38,17 @@ jobs:
           codecovyml_path='${{ github.workspace }}/.codecov.yml'
           if test -f "${codecovyml_path}"; then
             status='0'
+            # NOSONAR_BEGIN
             wget -qO- --post-file "${codecovyml_path:?}" https://codecov.io/validate || status="${?}"
+            # NOSONAR_END
             if test "${status:?}" -eq 0; then echo 'Result: pass'; else echo 'Result: fail'; exit "${status:?}"; fi
           fi
           codecovyml_path='${{ github.workspace }}/codecov.yml'
           if test -f "${codecovyml_path}"; then
             status='0'
+            # NOSONAR_BEGIN
             wget -qO- --post-file "${codecovyml_path:?}" https://codecov.io/validate || status="${?}"
+            # NOSONAR_END
             if test "${status:?}" -eq 0; then echo 'Result: pass'; else echo 'Result: fail'; exit "${status:?}"; fi
           fi
 
@@ -52,10 +56,14 @@ jobs:
     name: "Validate makefile"
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read # Needed to checkout the repository (only required for private repositories)
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
+        with:
+          lfs: false
       - name: "Validation"
         uses: Uno-Takashi/checkmake-action@v2
         with:
@@ -65,10 +73,14 @@ jobs:
     name: "Validate dep5"
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read # Needed to checkout the repository (only required for private repositories)
 
     steps:
       - name: "Checkout sources"
         uses: actions/checkout@v6
+        with:
+          lfs: false
       - name: "Validation"
         shell: bash
         run: |

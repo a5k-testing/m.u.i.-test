@@ -1,12 +1,28 @@
 #!/usr/bin/env sh
-# SPDX-FileCopyrightText: (c) 2024 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2024 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
 
+# @name Bits info
+# @brief Report bit-widths of the shell, OS, CPU, and POSIX utilities; detect the architecture and type of binary files.
+# @description Probes the integer width of the current shell (arithmetic,
+# test built-in, printf signed/unsigned, $RANDOM seed) and of common POSIX
+# utilities (awk printf, cut -b, date timestamps), and reports OS and CPU
+# bitness.
+#
+# When called with file arguments, identifies the format and target
+# architecture (32-bit / 64-bit) of binary files, including ELF, PE, NE, LE,
+# LX, MZ (plain DOS), APE (Actually Portable Executables), Mach-O, FAT Mach-O,
+# and Java bytecode.
+# @author ale5000
+
+# Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/tools
 # shellcheck enable=all
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
 
 SCRIPT_NAME='Bits info'
-SCRIPT_VERSION='1.5.30'
+SCRIPT_SHORTNAME='BitsInfo'
+SCRIPT_VERSION='1.5.32'
+SCRIPT_AUTHOR='ale5000'
 
 ### CONFIGURATION ###
 
@@ -1116,7 +1132,7 @@ clear_env()
 pause_if_needed()
 {
   # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
-  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-unknown}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
+  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
     if test -n "${NO_COLOR-}"; then
       printf 1>&2 '\n%s' 'Press any key to exit... ' || :
     else
@@ -1124,10 +1140,9 @@ pause_if_needed()
     fi
     # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
     IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
-    printf 1>&2 '\n' || :
-    test -n "${NO_COLOR-}" || printf 1>&2 '\033[0m\r    \r' || :
+    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
   fi
-  unset no_pause || :
+  unset no_pause
   return "${1:-0}"
 }
 
@@ -1452,9 +1467,11 @@ while test "${#}" -gt 0; do
     -V | --version)
       execute_script='false'
       no_pause=1
+      # REUSE-IgnoreStart
       printf '%s\n' "${SCRIPT_NAME} v${SCRIPT_VERSION}"
-      printf '%s\n' "Copy""right (c) 2024 ale5000"
-      printf '%s\n' 'License GPLv3+'
+      printf '%s\n' "Copyright (c) 2024 ${SCRIPT_AUTHOR}"
+      printf '%s\n' 'License GPL v3+'
+      # REUSE-IgnoreEnd
       ;;
     -h | --help | '-?')
       execute_script='false'
@@ -1510,12 +1527,12 @@ while test "${#}" -gt 0; do
 
     --*)
       execute_script='false'
-      printf 1>&2 '%s\n' "${SCRIPT_NAME}: unrecognized option '${1}'"
+      printf 1>&2 '%s\n' "${SCRIPT_SHORTNAME}: unrecognized option '${1}'"
       STATUS=2
       ;;
     -*)
       execute_script='false'
-      printf 1>&2 '%s\n' "${SCRIPT_NAME}: invalid option -- '${1#-}'"
+      printf 1>&2 '%s\n' "${SCRIPT_SHORTNAME}: invalid option -- '${1#-}'"
       STATUS=2
       ;;
 

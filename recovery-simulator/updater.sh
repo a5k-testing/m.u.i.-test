@@ -1,7 +1,7 @@
 #!/sbin/sh
+# SPDX-FileCopyrightText: NONE
+# SPDX-License-Identifier: CC0-1.0
 
-# SPDX-FileCopyrightText: (c) 2022 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
 # shellcheck enable=all
 
 # Ensure that the overridden commands are preferred over BusyBox applets (and that unsafe commands aren't accessible)
@@ -21,10 +21,10 @@ unset OSTYPE
 unset OPTERR
 unset OPTIND
 
-# IFS change is intended
-# nosemgrep
+# editorconfig-checker-disable
 IFS=' 	
 '
+# editorconfig-checker-enable
 PS1='\w \$ '
 PS2='> '
 if test "${COVERAGE:-false}" = 'false'; then

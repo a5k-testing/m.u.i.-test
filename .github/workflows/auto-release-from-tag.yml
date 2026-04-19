@@ -32,13 +32,13 @@ jobs:
       - name: "Checkout sources"
         uses: actions/checkout@v6
         with:
-          lfs: true
+          lfs: false
       - name: "Setup Java"
         uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version-file: ".tool-versions"
-      - name: "Build the flashable OTA zip"
+      - name: "Build the flashable zip [OSS edition]"
         id: "build"
         shell: bash
         timeout-minutes: 10
@@ -112,6 +112,9 @@ jobs:
       - name: "Release logic"
         id: "release-logic"
         shell: bash
+        env:
+          INPUT_TAG_NAME: "${{ github.event_name == 'workflow_dispatch' && inputs.tag-name || '' }}" # The "workflow_call" event still pass as "workflow_dispatch"
+          INPUT_TAG_NAME_VALID: "${{ startsWith(inputs.tag-name, 'v') }}"
         run: |
           # Release logic...
           CREATE_RELEASE='false'
@@ -121,11 +124,11 @@ jobs:
           printf 'CREATE_RELEASE=%s\n' "${CREATE_RELEASE:?}" 1>> "${GITHUB_OUTPUT?}"
           printf 'Create release? %s\n' "${CREATE_RELEASE:?}"
           # Verifying tag name...
-          if '${{ github.event_name == 'workflow_dispatch' && inputs.tag-name != '' }}'; then # The "workflow_call" event still pass as "workflow_dispatch"
-            if '${{ startsWith(inputs.tag-name, 'v') }}'; then
-              TAG_NAME='${{ inputs.tag-name }}'
+          if test -n "${INPUT_TAG_NAME?}"; then
+            if test "${INPUT_TAG_NAME_VALID:?}" == 'true'; then
+              TAG_NAME="${INPUT_TAG_NAME:?}"
             else
-              printf '%s\n' '::error::Invalid "tag-name" parameter: ${{ inputs.tag-name }}'
+              printf '%s\n' "::error::Invalid 'tag-name' parameter: ${INPUT_TAG_NAME?}"
               exit 3
             fi
           elif '${{ startsWith(github.ref, 'refs/tags/v') }}'; then
@@ -136,7 +139,7 @@ jobs:
           fi
           printf 'TAG_NAME=%s\n' "${TAG_NAME:?}" 1>> "${GITHUB_OUTPUT?}"
       - name: "Create release"
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: "${{ steps.release-logic.outputs.CREATE_RELEASE == 'true' }}"
         with:
           name: "${{ steps.release-logic.outputs.TAG_NAME }}"

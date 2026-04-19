@@ -1,18 +1,20 @@
 #!/usr/bin/env sh
+# SPDX-FileCopyrightText: 2016 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
 
-# SPDX-FileCopyrightText: (c) 2016 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
 # shellcheck enable=all
-# shellcheck disable=SC3043 # In POSIX sh, local is undefined
+# shellcheck disable=SC3028 # Ignore: In POSIX sh, FUNCNAME is undefined
+# shellcheck disable=SC3043 # Ignore: In POSIX sh, 'local' is undefined
 
 if test "${A5K_FUNCTIONS_INCLUDED:-false}" = 'false'; then readonly A5K_FUNCTIONS_INCLUDED='true'; fi
+
+readonly LIB_FILENAME="${USING_LIB:?}"
+unset USING_LIB
 
 export LANG='en_US.UTF-8'
 export TZ='UTC'
 
 unset LANGUAGE
-unset LC_CTYPE
-unset LC_MESSAGES
 unset UNZIP
 unset UNZIPOPT
 unset UNZIP_OPTS
@@ -30,10 +32,16 @@ unset CDPATH
 readonly NL='
 '
 
+_lib_funcname_test_internal()
+{
+  readonly LIB_FUNCNAME_TEST="${FUNCNAME-}"
+}
+_lib_funcname_test_internal
+
 pause_if_needed()
 {
   # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
-  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-unknown}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
+  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
     if test -n "${NO_COLOR-}"; then
       printf 1>&2 '\n%s' 'Press any key to exit... ' || :
     else
@@ -41,27 +49,53 @@ pause_if_needed()
     fi
     # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
     IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
-    printf 1>&2 '\n' || :
-    test -n "${NO_COLOR-}" || printf 1>&2 '\033[0m\r    \r' || :
+    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
   fi
-  unset no_pause || :
+  unset no_pause
   return "${1:-0}"
 }
 
 beep()
 {
-  if test "${CI:-false}" = 'false' && test "${TERM_PROGRAM-}" != 'vscode' && test "${APP_BASE_NAME-}" != 'gradlew' && test -t 2; then
-    printf 1>&2 '%b' '\007' || true
+  if test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test -t 2; then
+    printf 1>&2 '%b' '\007' || :
   fi
 }
 
+# @description Prints a formatted error message to stderr and exits the script.
+#
+# @example
+#   ui_error 'File not found' "${LINENO-}" "${FUNCNAME-}" 'script-filename.sh'
+#
+# @arg $1 string Required. The error message to display.
+# @arg $2 int The line number where the error occurred (default: 0).
+# @arg $3 string The function name where the error occurred (default: <main>).
+# @arg $4 string The source file path (default: script basename).
+#
+# @exit 1 Always exits with code 1 after UI cleanup.
+#
+# @see pause_if_needed()
+# @see restore_saved_title_if_exist()
 ui_error()
 {
-  echo 1>&2 "ERROR: $1"
+  local _source_file
+  case "${3-}" in
+    lib* | _lib*) _source_file="${LIB_FILENAME:?}" ;;
+    conf_lfs_*) _source_file='conf-lfs.inc.sh' ;;
+    conf_full_*) _source_file='conf-full.inc.sh' ;;
+    conf_*) _source_file='conf-common.inc.sh' ;;
+    *) _source_file="${4:-${LIB_FUNCNAME_TEST:+"${0##*/}"}}" ;;
+  esac
+  printf 1>&2 '%s:%s: ERROR: [%s] %s\n' "${_source_file:-unknown}" "${2:-0}" "${3:-<main>}" "${1:?}"
+
   pause_if_needed 0
   restore_saved_title_if_exist
-  test -n "${2-}" && exit "$2"
   exit 1
+}
+
+_ui_error_local()
+{
+  ui_error "${1:?}" "${2-}" "${3-}" "${LIB_FILENAME:?}"
 }
 
 ui_error_msg()
@@ -77,6 +111,11 @@ ui_warning()
 ui_debug()
 {
   printf 1>&2 '%s\n' "${1?}"
+}
+
+ui_nl()
+{
+  printf 1>&2 '\n'
 }
 
 export DL_DEBUG="${DL_DEBUG:-false}"
@@ -159,7 +198,7 @@ detect_os_and_other_things()
           IS_BUSYBOX='true'
           ;;
         'msys' | 'cygwin') PLATFORM='win' ;;
-        *) PLATFORM="$(printf '%s\n' "${PLATFORM:?}" | tr -d ':;\\/')" || ui_error 'Failed to find platform' ;;
+        *) PLATFORM="$(printf '%s\n' "${PLATFORM:?}" | tr -d ':;\\/')" || _ui_error_local 'Failed to find platform' "${LINENO-}" "${FUNCNAME-}" ;;
       esac
       ;;
   esac
@@ -177,7 +216,7 @@ detect_os_and_other_things()
   elif SHELL_EXE="$(get_shell_exe)" && test -n "${SHELL_EXE?}"; then
     :
   else
-    ui_error 'Shell not found'
+    _ui_error_local 'Shell not found' "${LINENO-}" "${FUNCNAME-}"
   fi
   unset __SHELL_EXE
 
@@ -187,14 +226,14 @@ detect_os_and_other_things()
       SHELL_APPLET="${0:-ash}"
     else
       if CYGPATH="$(PATH="/usr/bin${PATHSEP:?}${PATH-}" command -v cygpath)"; then
-        SHELL_EXE="$("${CYGPATH:?}" -m -a -l -- "${SHELL_EXE:?}")" || ui_error 'Unable to convert the path of the shell'
+        SHELL_EXE="$("${CYGPATH:?}" -m -a -l -- "${SHELL_EXE:?}")" || _ui_error_local 'Unable to convert the path of the shell' "${LINENO-}" "${FUNCNAME-}"
       else
         CYGPATH=''
       fi
     fi
   fi
 
-  if test "${SHELL_EXE:?}" = 'bash'; then ui_error 'Shell executable must have the full path'; fi
+  if test "${SHELL_EXE:?}" = 'bash'; then _ui_error_local 'Shell executable must have the full path' "${LINENO-}" "${FUNCNAME-}"; fi
 
   readonly PLATFORM IS_BUSYBOX PATHSEP CYGPATH SHELL_EXE SHELL_APPLET
 }
@@ -213,9 +252,9 @@ set_title()
 set_default_title()
 {
   if is_root; then
-    set_title "[root] Command-line: ${__TITLE_CMD_PREFIX-}${__TITLE_CMD_0-}${__TITLE_CMD_PARAMS-}"
+    set_title "[root] CLI: ${__TITLE_CMD_PREFIX-}${__TITLE_CMD_0-}${__TITLE_CMD_PARAMS-}"
   else
-    set_title "Command-line: ${__TITLE_CMD_PREFIX-}${__TITLE_CMD_0-}${__TITLE_CMD_PARAMS-}"
+    set_title "CLI: ${__TITLE_CMD_PREFIX-}${__TITLE_CMD_0-}${__TITLE_CMD_PARAMS-}"
   fi
   A5K_TITLE_IS_DEFAULT='true'
 }
@@ -243,7 +282,7 @@ __update_title_and_ps1()
 {
   local _title
   # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
-  _title="Command-line: ${__TITLE_CMD_PREFIX-}$(basename 2> /dev/null "${0:--}" || printf '%s' "${0:--}" || :)$(test "${#}" -eq 0 || printf ' "%s"' "${@}" || :) (${SHLVL-}) - ${MODULE_NAME-}"
+  _title="CLI: ${__TITLE_CMD_PREFIX-}$(basename 2> /dev/null "${0:--}" || printf '%s' "${0:--}" || :)$(test "${#}" -eq 0 || printf ' "%s"' "${@}" || :) (${SHLVL-}) - ${MODULE_NAME-}"
   PS1="${__DEFAULT_PS1-}"
 
   if is_root; then
@@ -353,22 +392,30 @@ _load_cookies()
   return 0
 }
 
-verify_sha1()
+verify_sha256()
 {
-  local file_name="$1"
-  local hash="$2"
-  local file_hash
+  local _computed_hash
 
-  if test ! -f "${file_name}"; then return 1; fi # Failed
-  file_hash="$(sha1sum -b -- "${file_name}" | cut -d ' ' -f 1)"
-  if test -z "${file_hash}" || test "${hash}" != "${file_hash}"; then return 1; fi # Failed
-  return 0                                                                         # Success
+  test -f "${1:?}" || return 2                                                  # Missing file
+  _computed_hash="$(sha256sum -b -- "${1:?}" | cut -d ' ' -f 1 -s)" || return 3 # Hashing failed
+  test "${2:?}" = "${_computed_hash:?}" || return 4                             # Wrong hash (corrupted file)
+
+  return 0 # Success
 }
 
-corrupted_file()
+verify_sha256_or_delete()
 {
-  rm -f -- "$1" || echo 'Failed to remove the corrupted file.'
-  ui_error "The file '$1' is corrupted."
+  local _ret_code
+
+  _ret_code=0
+  verify_sha256 "${@}" || _ret_code="${?}"
+
+  if test "${_ret_code:?}" -eq 4; then
+    ui_error_msg "Corrupted file => '${1?}'"
+    rm -f -- "${1:?}" || ui_error_msg "Failed to remove the corrupted file => '${1?}'"
+  fi
+
+  return "${_ret_code:?}"
 }
 
 _get_byte_length()
@@ -560,7 +607,7 @@ send_web_request_and_output_response()
   fi
 
   if test "${_is_ajax:?}" != 'true'; then
-    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%; }"; else return "${?}"; fi
+    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%"; "}"; else return "${?}"; fi
   fi
 
   if test -n "${_referrer?}"; then set -- "${@}" --header "Referer: ${_referrer:?}" || return "${?}"; fi
@@ -617,7 +664,7 @@ send_web_request_and_output_headers()
   fi
 
   if test "${_is_ajax:?}" != 'true'; then
-    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%; }"; else return "${?}"; fi
+    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%"; "}"; else return "${?}"; fi
   fi
 
   if test -n "${_referrer?}"; then set -- "${@}" --header "Referer: ${_referrer:?}" || return "${?}"; fi
@@ -662,7 +709,7 @@ send_web_request_and_no_output()
   fi
 
   if test "${_is_ajax:?}" != 'true'; then
-    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%; }"; else return "${?}"; fi
+    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%"; "}"; else return "${?}"; fi
   fi
 
   if test -n "${_referrer?}"; then set -- "${@}" --header "Referer: ${_referrer:?}" || return "${?}"; fi
@@ -701,7 +748,7 @@ _direct_download()
   fi
 
   if test "${_is_ajax:?}" != 'true'; then
-    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%; }"; else return 13; fi
+    if _cookies="$(_load_cookies "${_url:?}")"; then _cookies="${_cookies%"; "}"; else return 13; fi
   fi
 
   if test -n "${_referrer?}"; then set -- "${@}" --header "Referer: ${_referrer:?}" || return 14; fi
@@ -926,37 +973,73 @@ dl_type_two()
     report_failure 2 "${?}" 'dl' || return "${?}"
 }
 
+is_lfs_pointers()
+{
+  local _file_size
+  _file_size="$(stat -c '%s' -- "${1:?}")" || _ui_error_local "Failed to get the file size of '${1?}'" "${LINENO-}" "${FUNCNAME-}"
+
+  if test "${_file_size:?}" -lt 1024 && grep -m 1 -q -e '^version https://git-lfs.github.com/spec/v1$' -- "${1:?}"; then return 0; fi
+  return 1
+}
+
+download_cached_if_lfs_pointer()
+{
+  if is_lfs_pointers "${2:?}/${1:?}"; then
+    local _expected_sha256 _mirror_url
+
+    # shellcheck source=/dev/null
+    command 1> /dev/null -v 'conf_lfs_get_mirror_by_sha256' || command . "${MAIN_DIR:?}/conf/conf-lfs.inc.sh" || _ui_error_local "Failed to source 'conf/conf-lfs.inc.sh'" "${LINENO-}" "${FUNCNAME-}"
+    _mirror_url="$(conf_lfs_get_mirror_by_sha256 "${3:?}")" || _ui_error_local "Failed to get the mirror" "${LINENO-}" "${FUNCNAME-}"
+
+    _expected_sha256=$(grep -m 1 -e '^oid sha256:' -- "${2:?}/${1:?}" | cut -d ':' -f 2 -s) || _ui_error_local "Failed to extract the SHA256 hash from the LFS pointer" "${LINENO-}" "${FUNCNAME-}"
+    dl_file 'LFS' "${_expected_sha256:?}" "${3:?}" "${_mirror_url:?}" ''
+    cp -f -- "${LFS_CACHE_DIR:?}/${_expected_sha256:?}" "${2:?}/${1:?}" || _ui_error_local "Failed to copy the LFS file from cache" "${LINENO-}" "${FUNCNAME-}"
+  fi
+}
+
 dl_file()
 {
-  if test -e "${BUILD_CACHE_DIR:?}/$1/$2"; then verify_sha1 "${BUILD_CACHE_DIR:?}/$1/$2" "$3" || rm -f "${BUILD_CACHE_DIR:?}/$1/$2"; fi # Preventive check to silently remove corrupted/invalid files
+  local _output_file
+  local _status _url _domain
+
+  # ToDO: Improve this mess
+  if test "${1:?}" = 'LFS'; then
+    mkdir -p "${LFS_CACHE_DIR:?}" || _ui_error_local "Failed to create the LFS cache folder" "${LINENO-}" "${FUNCNAME-}"
+    _output_file="${LFS_CACHE_DIR:?}/${2:?}"
+  else
+    _output_file="${BUILD_CACHE_DIR:?}/${1:?}/${2:?}"
+  fi
+
+  # Preventive check to remove corrupted files
+  verify_sha256_or_delete "${_output_file:?}" "${3:?}" || :
 
   printf '%s ' "Checking ${2?}..."
-  local _status _url _domain
+
   _status=0
   _url="${DL_PROT:?}${4:?}" || return "${?}"
   _domain="$(get_domain_from_url "${_url:?}")" || return "${?}"
 
   _clear_cookies || return "${?}"
 
-  if ! test -e "${BUILD_CACHE_DIR:?}/${1:?}/${2:?}"; then
-    mkdir -p "${BUILD_CACHE_DIR:?}/${1:?}" || ui_error "Failed to create the ${1?} folder inside the cache dir"
+  if test ! -e "${_output_file:?}"; then
+    test "${1:?}" = 'LFS' || mkdir -p "${BUILD_CACHE_DIR:?}/${1:?}" || _ui_error_local "Failed to create the ${1?} folder inside the cache dir" "${LINENO-}" "${FUNCNAME-}"
 
     if test "${CI:-false}" = 'false'; then sleep '0.5'; else sleep 3; fi
     case "${_domain:?}" in
       *\.'go''file''.io' | 'go''file''.io')
         printf '\n %s: ' 'DL type 2'
-        dl_type_two "${_url:?}" "${BUILD_CACHE_DIR:?}/${1:?}/${2:?}" || _status="${?}"
+        dl_type_two "${_url:?}" "${_output_file:?}" || _status="${?}"
         ;;
       *\.'apk''mirror''.com')
         printf '\n %s: ' 'DL type 1'
-        dl_type_one "${_url:?}" "${BUILD_CACHE_DIR:?}/${1:?}/${2:?}" || _status="${?}"
+        dl_type_one "${_url:?}" "${_output_file:?}" || _status="${?}"
         ;;
       ????*)
         printf '\n %s: ' 'DL type 0'
-        dl_type_zero "${_url:?}" "${BUILD_CACHE_DIR:?}/${1:?}/${2:?}" || _status="${?}"
+        dl_type_zero "${_url:?}" "${_output_file:?}" || _status="${?}"
         ;;
       *)
-        ui_error "Invalid download URL => '${_url?}'"
+        _ui_error_local "Invalid download URL => '${_url?}'" "${LINENO-}" "${FUNCNAME-}"
         ;;
     esac
 
@@ -973,12 +1056,12 @@ dl_file()
         return "${?}"
       else
         printf '%s\n' "Download failed with error code ${_status?}"
-        ui_error "Failed to download the file => '${1?}/${2?}'"
+        _ui_error_local "Failed to download the file => '${1?}/${2?}'" "${LINENO-}" "${FUNCNAME-}"
       fi
     fi
   fi
 
-  verify_sha1 "${BUILD_CACHE_DIR:?}/$1/$2" "$3" || corrupted_file "${BUILD_CACHE_DIR:?}/$1/$2"
+  verify_sha256_or_delete "${_output_file:?}" "${3:?}" || _ui_error_local "This file CANNOT be downloaded => '${2?}'" "${LINENO-}" "${FUNCNAME-}"
   printf '%s\n' 'OK'
 }
 
@@ -990,14 +1073,14 @@ dl_list()
   _backup_ifs="${IFS-}"
   IFS="${NL}"
   # shellcheck disable=SC2086 # Ignore: Double quote to prevent globbing and word splitting
-  set -- ${1} || ui_error "Failed expanding DL info list inside dl_list()"
+  set -- ${1} || _ui_error_local "Failed expanding DL info list inside dl_list()" "${LINENO-}" "${FUNCNAME-}"
   if test -n "${_backup_ifs}"; then IFS="${_backup_ifs}"; else unset IFS; fi
 
   for _current_line in "${@}"; do
     _backup_ifs="${IFS-}"
     IFS='|'
     # shellcheck disable=SC2086 # Ignore: Double quote to prevent globbing and word splitting
-    set -- ${_current_line} || ui_error "Failed expanding DL info inside dl_list()"
+    set -- ${_current_line} || _ui_error_local "Failed expanding DL info inside dl_list()" "${LINENO-}" "${FUNCNAME-}"
     if test -n "${_backup_ifs}"; then IFS="${_backup_ifs}"; else unset IFS; fi
 
     local_filename="${1}"
@@ -1069,7 +1152,7 @@ is_in_path_env()
   if test -n "${CYGPATH?}"; then
     # Only on Bash under Windows
     local _path
-    _path="$("${CYGPATH:?}" -u -- "${1:?}")" || ui_error 'Unable to convert a path in is_in_path_env()'
+    _path="$("${CYGPATH:?}" -u -- "${1:?}")" || _ui_error_local 'Unable to convert a path in is_in_path_env()' "${LINENO-}" "${FUNCNAME-}"
     set -- "${_path:?}"
   fi
 
@@ -1081,7 +1164,7 @@ add_to_path_env()
   if test -n "${CYGPATH?}"; then
     # Only on Bash under Windows
     local _path
-    _path="$("${CYGPATH:?}" -u -- "${1:?}")" || ui_error 'Unable to convert a path in add_to_path_env()'
+    _path="$("${CYGPATH:?}" -u -- "${1:?}")" || _ui_error_local 'Unable to convert a path in add_to_path_env()' "${LINENO-}" "${FUNCNAME-}"
     set -- "${_path:?}"
   fi
 
@@ -1102,7 +1185,7 @@ remove_from_path_env()
   if test -n "${CYGPATH?}"; then
     # Only on Bash under Windows
     local _single_path
-    _single_path="$("${CYGPATH:?}" -u -- "${1:?}")" || ui_error 'Unable to convert a path in remove_from_path_env()'
+    _single_path="$("${CYGPATH:?}" -u -- "${1:?}")" || _ui_error_local 'Unable to convert a path in remove_from_path_env()' "${LINENO-}" "${FUNCNAME-}"
     set -- "${_single_path:?}"
   fi
 
@@ -1197,12 +1280,33 @@ create_bb_alias_if_missing()
   if ! command 1> /dev/null -v "${1:?}"; then alias "${1:?}"="busybox '${1:?}'"; fi
 }
 
+alias_scripts()
+{
+  local _file _alias_name
+
+  test -d "${1:?}" || return
+
+  for _file in "${1:?}"/*.sh; do
+    test -f "${_file:?}" || continue
+
+    # Strip the directory path (e.g., dir-name/script.sh -> script.sh)
+    _alias_name="${_file##*/}"
+    # Strip the .sh extension (e.g., script.sh -> script)
+    _alias_name="${_alias_name%".sh"}"
+
+    # shellcheck disable=SC2139 # Ignore: This expands when defined, not when used
+    alias "${_alias_name:?}"="'${_file:?}'"
+  done
+
+  return
+}
+
 init_base()
 {
   local _main_dir
 
   if test "${STARTED_FROM_BATCH_FILE:-0}" != '0' && test -n "${MAIN_DIR-}"; then
-    MAIN_DIR="$(realpath "${MAIN_DIR:?}")" || ui_error 'Unable to resolve the main dir'
+    MAIN_DIR="$(realpath "${MAIN_DIR:?}")" || _ui_error_local 'Unable to resolve the main dir' "${LINENO-}" "${FUNCNAME-}"
   fi
 
   # shellcheck disable=SC3028 # Ignore: In POSIX sh, BASH_SOURCE is undefined
@@ -1212,17 +1316,17 @@ init_base()
 
   if test -n "${CYGPATH?}" && test -n "${MAIN_DIR-}"; then
     # Only on Bash under Windows
-    MAIN_DIR="$("${CYGPATH:?}" -m -l -- "${MAIN_DIR:?}")" || ui_error 'Unable to convert the main dir'
+    MAIN_DIR="$("${CYGPATH:?}" -m -l -- "${MAIN_DIR:?}")" || _ui_error_local 'Unable to convert the main dir' "${LINENO-}" "${FUNCNAME-}"
   fi
 
-  test -n "${MAIN_DIR-}" || ui_error 'MAIN_DIR env var is empty'
+  test -n "${MAIN_DIR-}" || _ui_error_local 'MAIN_DIR env var is empty' "${LINENO-}" "${FUNCNAME-}"
 
   TMPDIR="${TMPDIR:-${RUNNER_TEMP:-${TMP:-${TEMP:-/tmp}}}}"
   export TMPDIR
 
   if test -n "${CYGPATH?}" && test "${TMPDIR?}" = '/tmp'; then
     # Workaround for issues with Bash under Windows (for example the one included inside Git for Windows)
-    TMPDIR="$("${CYGPATH:?}" -m -a -l -- '/tmp')" || ui_error 'Unable to convert the temp directory'
+    TMPDIR="$("${CYGPATH:?}" -m -a -l -- '/tmp')" || _ui_error_local 'Unable to convert the temp directory' "${LINENO-}" "${FUNCNAME-}"
     TMP="${TMPDIR:?}"
     TEMP="${TMPDIR:?}"
   fi
@@ -1265,7 +1369,7 @@ init_path()
 
 init_vars()
 {
-  MODULE_NAME="$(simple_get_prop 'name' "${MAIN_DIR:?}/zip-content/module.prop")" || ui_error 'Failed to parse the module name string'
+  MODULE_NAME="$(simple_get_prop 'name' "${MAIN_DIR:?}/zip-content/module.prop")" || _ui_error_local 'Failed to parse the module name string' "${LINENO-}" "${FUNCNAME-}"
   readonly MODULE_NAME
   export MODULE_NAME
 }
@@ -1284,7 +1388,7 @@ detect_bb_and_id()
   if test "${PLATFORM:?}" = 'win' && test -n "${BB_CMD?}"; then
     ID_CMD='id'
   else
-    ID_CMD="$(command -v id)" || ui_error 'Unable to get the path of id'
+    ID_CMD="$(command -v id)" || _ui_error_local 'Unable to get the path of id' "${LINENO-}" "${FUNCNAME-}"
   fi
 
   readonly BB_CMD ID_CMD
@@ -1296,9 +1400,9 @@ is_root()
 
   if test "${PLATFORM:?}" = 'win' && test -n "${BB_CMD?}"; then
     # Bash under Windows is unable to detect root so we need to use BusyBox
-    _user_id="$("${BB_CMD:?}" id -u)" || ui_error 'Unable to get user ID'
+    _user_id="$("${BB_CMD:?}" id -u)" || _ui_error_local 'Unable to get user ID' "${LINENO-}" "${FUNCNAME-}"
   else
-    _user_id="$("${ID_CMD:?}" -u)" || ui_error 'Unable to get user ID'
+    _user_id="$("${ID_CMD:?}" -u)" || _ui_error_local 'Unable to get user ID' "${LINENO-}" "${FUNCNAME-}"
   fi
 
   if test "${_user_id:?}" -ne 0; then return 1; fi # Return false
@@ -1317,7 +1421,7 @@ shellhelp()
 
 init_cmdline()
 {
-  unset PROMPT_COMMAND PS1 PROMPT A5K_SAVED_TITLE
+  unset PROMPT_COMMAND PS1 A5K_SAVED_TITLE
   unset __DEFAULT_PS1 __DEFAULT_PS1_AS_ROOT
 
   export __TITLE_CMD_PREFIX=''
@@ -1333,16 +1437,16 @@ init_cmdline()
   if test "${A5K_TITLE_IS_DEFAULT-}" != 'false'; then set_default_title; fi
 
   if test "${STARTED_FROM_BATCH_FILE:-0}" != '0' && test -n "${HOME-}"; then
-    HOME="$(realpath "${HOME:?}")" || ui_error 'Unable to resolve the home dir'
+    HOME="$(realpath "${HOME:?}")" || _ui_error_local 'Unable to resolve the home dir' "${LINENO-}" "${FUNCNAME-}"
   fi
   if test -n "${CYGPATH?}" && test -n "${HOME-}"; then
     # Only on Bash under Windows
-    HOME="$("${CYGPATH:?}" -u -- "${HOME:?}")" || ui_error 'Unable to convert the home dir'
+    HOME="$("${CYGPATH:?}" -u -- "${HOME:?}")" || _ui_error_local 'Unable to convert the home dir' "${LINENO-}" "${FUNCNAME-}"
   fi
 
   # shellcheck disable=SC3028 # In POSIX sh, SHLVL is undefined
-  if test -n "${KILL_PPID-}" && test -z "${NO_KILL-}" && test "${PLATFORM:?}" = 'win' && test "${SHLVL:-1}" = '1' && test -n "${PPID-}" && test "${PPID}" -gt 1; then
-    if kill 2> /dev/null "${PPID}" || kill -9 "${PPID}"; then
+  if test -n "${KILL_PPID-}" && test -z "${NO_KILL-}" && test "${PLATFORM:?}" = 'win' && test "${SHLVL:-1}" = '1' && test "${PPID:-0}" -gt 1; then
+    if kill 2> /dev/null "${PPID:?}" || kill -9 "${PPID:?}"; then
       PPID='1'
     fi
   fi
@@ -1374,7 +1478,7 @@ init_cmdline()
   if test -n "${ANDROID_SDK_ROOT-}"; then
     if test -n "${CYGPATH?}"; then
       # Only on Bash under Windows
-      ANDROID_SDK_ROOT="$("${CYGPATH:?}" -m -l -a -- "${ANDROID_SDK_ROOT:?}")" || ui_error 'Unable to convert the Android SDK dir'
+      ANDROID_SDK_ROOT="$("${CYGPATH:?}" -m -l -a -- "${ANDROID_SDK_ROOT:?}")" || _ui_error_local 'Unable to convert the Android SDK dir' "${LINENO-}" "${FUNCNAME-}"
     fi
 
     add_to_path_env "${ANDROID_SDK_ROOT:?}/platform-tools"
@@ -1416,9 +1520,12 @@ init_cmdline()
     fi
     alias 'clear-prev'="printf '\033[A\33[2K\033[A\33[2K\r'"
 
-    if test -f "${MAIN_DIR:?}/includes/custom-aliases.sh"; then
+    alias_scripts "${MAIN_DIR:?}/tools"
+    alias_scripts "${MAIN_DIR:?}/utils"
+
+    if test -f "${MAIN_DIR:?}/lib/inc/custom-aliases.inc.sh"; then
       # shellcheck source=/dev/null
-      . "${MAIN_DIR:?}/includes/custom-aliases.sh" || ui_error 'Unable to source includes/custom-aliases.sh'
+      . "${MAIN_DIR:?}/lib/inc/custom-aliases.inc.sh" || _ui_error_local "Unable to source 'inc/custom-aliases.inc.sh'" "${LINENO-}" "${FUNCNAME-}"
     fi
 
     alias 'build'='build.sh'
@@ -1427,9 +1534,6 @@ init_cmdline()
       alias 'gradlew'='gradlew.bat'
       alias 'start'='start.sh'
     fi
-
-    alias 'bits-info'="bits-info.sh"
-    alias 'help'='help.sh'
   fi
 
   add_to_path_env "${UTILS_DIR:?}"
@@ -1460,7 +1564,6 @@ init_cmdline()
   export DIRECTORY_SEPARATOR='/'
 
   export NO_PAUSE=1
-  export GRADLE_OPTS="${GRADLE_OPTS:--Dorg.gradle.daemon=false}"
 
   # Escape the colors with \[ \] => https://mywiki.wooledge.org/BashFAQ/053
   readonly __DEFAULT_PS1='\[\033[1;32m\]\u\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ '
@@ -1489,6 +1592,11 @@ init_cmdline()
   bundle()
   {
     HOME="${USER_HOME:-${HOME:?}}" command -- bundle "${@}"
+  }
+
+  bundler()
+  {
+    HOME="${USER_HOME:-${HOME:?}}" command -- bundler "${@}"
   }
 
   if test "${CI:-false}" = 'false'; then

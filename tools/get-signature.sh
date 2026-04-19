@@ -1,24 +1,30 @@
 #!/usr/bin/env sh
-# @name Find app signature
-# @brief Find the signature of Android applications
+# SPDX-FileCopyrightText: 2025 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later OR Apache-2.0
+
+# @name Android app signing certificate extractor
+# @brief Extract and print the SHA-256 fingerprint of the signing certificate of an Android APK file.
+# @description Given an APK file path, uses apksigner (preferred) or keytool
+# as a fallback to retrieve the signing certificate's SHA-256 fingerprint
+# and prints it in the form sha256-cert-digest="<value>".
 # @author ale5000
+
 # Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/tools
-
-# SPDX-FileCopyrightText: (c) 2025 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
-
 # shellcheck enable=all
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
 
-readonly SCRIPT_NAME='Find app signature'
-readonly SCRIPT_SHORTNAME='FindAppSign'
-readonly SCRIPT_VERSION='0.1.0'
+readonly SCRIPT_NAME='Android app signing certificate extractor'
+readonly SCRIPT_SHORTNAME='AppSignExt'
+readonly SCRIPT_VERSION='0.1.1'
 readonly SCRIPT_AUTHOR='ale5000'
+
+# shellcheck disable=SC3040 # Ignore: In POSIX sh, set option pipefail is undefined
+case "$(set 2> /dev/null -o || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'Failed: pipefail' ;; *) ;; esac
 
 pause_if_needed()
 {
   # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
-  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-unknown}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
+  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
     if test -n "${NO_COLOR-}"; then
       printf 1>&2 '\n%s' 'Press any key to exit... ' || :
     else
@@ -26,10 +32,9 @@ pause_if_needed()
     fi
     # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
     IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
-    printf 1>&2 '\n' || :
-    test -n "${NO_COLOR-}" || printf 1>&2 '\033[0m\r    \r' || :
+    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
   fi
-  unset no_pause || :
+  unset no_pause
   return "${1:-0}"
 }
 
@@ -79,9 +84,11 @@ execute_script='true'
 while test "${#}" -gt 0; do
   case "${1?}" in
     -V | --version)
+      # REUSE-IgnoreStart
       printf '%s\n' "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?}"
-      printf '%s\n' "Copy""right (c) 2025 ${SCRIPT_AUTHOR:?}"
-      printf '%s\n' 'License GPLv3+'
+      printf '%s\n' "Copyright (c) 2025 ${SCRIPT_AUTHOR:?}"
+      printf '%s\n' 'License GPL v3+ OR Apache v2'
+      # REUSE-IgnoreEnd
       execute_script='false'
       ;;
 

@@ -4,10 +4,27 @@
         "reveal": "always",
         "revealProblems": "onProblem"
     },
+    "problemMatcher": [
+        {
+            "owner": "custom-shell-output",
+            "fileLocation": "search",
+            "pattern": [
+                {
+                    "regexp": "^([^:]+):(\\d+):\\s+(ERROR|WARNING):\\s+\\[([^\\]]*)\\]\\s+(.*)\\r?$",
+                    "file": 1,
+                    "line": 2,
+                    "severity": 3,
+                    "code": 4,
+                    "message": 5
+                }
+            ]
+        }
+    ],
     "tasks": [
         {
             "label": "buildOta",
-            "detail": "$(tools) Build the flashable OTA zip.",
+            "icon": { "id": "rocket", "color": "terminal.ansiCyan" },
+            "detail": "Build the flashable zip [Full edition].",
             "type": "shell",
             "command": "${workspaceFolder}/build.sh",
             "windows": {
@@ -18,14 +35,12 @@
                     "BUILD_TYPE": "full"
                 }
             },
-            "group": {
-                "kind": "build"
-            },
-            "problemMatcher": []
+            "group": "build"
         },
         {
             "label": "buildOtaOSS",
-            "detail": "$(tools) Build the flashable OTA zip (open-source components only).",
+            "icon": { "id": "rocket", "color": "terminal.ansiGreen" },
+            "detail": "Build the flashable zip [OSS edition].",
             "type": "shell",
             "command": "${workspaceFolder}/build.sh",
             "windows": {
@@ -36,25 +51,18 @@
                     "BUILD_TYPE": "oss"
                 }
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": []
+            "group": "build"
         },
         {
             "label": "installTest",
-            "detail": "Emulate an Android recovery on your PC and run the flashable zip file inside it to see the result.",
+            "icon": { "id": "beaker", "color": "terminal.ansiYellow" },
+            "detail": "Test the flashable zip in a simulated Android recovery environment on your PC.",
             "type": "shell",
             "command": "${workspaceFolder}/recovery-simulator/recovery.sh",
-            "args": [
-                "${workspaceFolder}/output/*.zip"
-            ],
+            "args": ["${workspaceFolder}/output/*.zip"],
             "windows": {
                 "command": "${workspaceFolder}\\recovery-simulator\\recovery.bat",
-                "args": [
-                    "${workspaceFolder}\\output\\*.zip"
-                ]
+                "args": ["${workspaceFolder}\\output\\*.zip"]
             },
             "options": {
                 "env": {
@@ -67,7 +75,15 @@
             },
             "presentation": {
                 "panel": "dedicated"
-            },
+            }
+        },
+        {
+            "label": "reuse-lint",
+            "icon": { "id": "law", "color": "terminal.ansiMagenta" },
+            "detail": "Verify license and copyright compliance (REUSE).",
+            "type": "shell",
+            "command": "reuse",
+            "args": ["lint"],
             "problemMatcher": []
         }
     ]

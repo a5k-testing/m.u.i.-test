@@ -1,18 +1,23 @@
 #!/usr/bin/env sh
-# @name Android permissions retriever
-# @brief Retrieve the list of Android system permissions
-# @author ale5000
-# Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/tools
-
-# SPDX-FileCopyrightText: (c) 2025 ale5000
+# SPDX-FileCopyrightText: 2025 ale5000
 # SPDX-License-Identifier: GPL-3.0-or-later OR Apache-2.0
 
+# @name AOSP system permissions downloader
+# @brief Download and parse AOSP system permission declarations for each supported Android API level.
+# @description For every supported Android API level (23 to 36) fetches the
+# corresponding AndroidManifest.xml from AOSP, extracts all <permission>
+# entries, and saves one XML file per API level under data/perms/.
+#
+# The resulting files are consumed by generate-perm-xml.sh.
+# @author ale5000
+
+# Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/tools
 # shellcheck enable=all
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
 
-readonly SCRIPT_NAME='Android permissions retriever'
-readonly SCRIPT_SHORTNAME='DlPermList'
-readonly SCRIPT_VERSION='0.3.1'
+readonly SCRIPT_NAME='AOSP system permissions downloader'
+readonly SCRIPT_SHORTNAME='SysPermDl'
+readonly SCRIPT_VERSION='0.3.2'
 readonly SCRIPT_AUTHOR='ale5000'
 
 set -u
@@ -52,7 +57,7 @@ readonly DL_ACCEPT_LANG_HEADER='Accept-Language: en-US,en;q=0.5'
 pause_if_needed()
 {
   # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
-  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-unknown}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
+  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
     if test -n "${NO_COLOR-}"; then
       printf 1>&2 '\n%s' 'Press any key to exit... ' || :
     else
@@ -60,10 +65,9 @@ pause_if_needed()
     fi
     # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
     IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
-    printf 1>&2 '\n' || :
-    test -n "${NO_COLOR-}" || printf 1>&2 '\033[0m\r    \r' || :
+    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
   fi
-  unset no_pause || :
+  unset no_pause
   return "${1:-0}"
 }
 
@@ -128,7 +132,7 @@ dl()
 
 download_and_parse_permissions()
 {
-  printf '%s\n' '<manifest xmlns:android="http://schemas.android.com/apk/res/android">' 1> "${DATA_DIR:?}/perms/base-permissions-api-${1:?}.xml" || return "${?}"
+  printf '%s\n' '<manifest xmlns:android="http://schemas.android.com/apk/res/android">' 1> "${DATA_DIR:?}/perms/base-permissions-api-${1:?}.xml" || return "${?}" # NOSONAR
 
   dl "${BASE_URL:?}+/refs/tags/${2:?}/core/res/AndroidManifest.xml?format=text" '-' |
     base64 -d |
@@ -170,9 +174,11 @@ execute_script='true'
 while test "${#}" -gt 0; do
   case "${1?}" in
     -V | --version)
+      # REUSE-IgnoreStart
       printf '%s\n' "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?}"
-      printf '%s\n' "Copy""right (c) 2025 ${SCRIPT_AUTHOR:?}"
-      printf '%s\n' 'License GPL-3.0+ OR Apache-2.0'
+      printf '%s\n' "Copyright (c) 2025 ${SCRIPT_AUTHOR:?}"
+      printf '%s\n' 'License GPL v3+ OR Apache v2'
+      # REUSE-IgnoreEnd
       execute_script='false'
       ;;
 

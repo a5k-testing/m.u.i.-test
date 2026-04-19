@@ -4,11 +4,12 @@
 # @author ale5000
 # Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/blob/HEAD/zip-content/zip-install.sh
 
-# SPDX-FileCopyrightText: (c) 2022 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2022 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
+
 # shellcheck enable=all
 
-readonly ZIPINSTALL_VERSION='1.4.1'
+readonly ZIPINSTALL_VERSION='1.4.3'
 
 PATH="${PATH:-/system/bin}:."
 umask 022 || :
@@ -115,6 +116,9 @@ command 1> /dev/null -v 'unzip' || {
 }
 
 ### FUNCTIONS AND CODE ###
+
+# shellcheck disable=SC3040 # Ignore: In POSIX sh, set option pipefail is undefined
+case "$(set 2> /dev/null -o || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'Failed: pipefail' ;; *) ;; esac
 
 ui_info_msg()
 {
@@ -278,11 +282,13 @@ elif test -d '/dev'; then
     ui_error_msg 'Failed to create a temp folder'
     exit 9
   }
+  # NOSONAR_BEGIN
   chmod 01775 '/dev/tmp' || {
     ui_error_msg "chmod failed on '/dev/tmp'"
     rmdir 2> /dev/null '/dev/tmp' || :
     exit 10
   }
+  # NOSONAR_END
   TMPDIR='/dev/tmp'
 else
   unset TMPDIR

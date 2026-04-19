@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
+# SPDX-FileCopyrightText: 2024 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
 
-# SPDX-FileCopyrightText: (c) 2024 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
 # shellcheck enable=all
 
 if test -z "${MODULE_NAME-}" || test -z "${MAIN_DIR-}" || test -z "${PLATFORM-}" || test -z "${IS_BUSYBOX-}"; then
@@ -25,12 +25,12 @@ aligned_print 'help' 'Show this help'
 aligned_print 'shellhelp' 'Show the original help of the shell'
 printf '\n'
 
-aligned_print 'build' 'Build the flashable OTA zip (set the BUILD_TYPE env var to choose what to build)'
-aligned_print 'make' 'Execute "make" of your PC (on Windows it fallback to internal "pdpmake" if no make is found)'
+aligned_print 'build' 'Build the flashable zip (set the BUILD_TYPE env var to choose what to build)'
+aligned_print 'make' 'Execute the system "make" (on Windows it falls back to internal "pdpmake" if no make is found)'
 if test "${PLATFORM:?}" = 'win'; then
   aligned_print 'pdpmake' 'Execute the internal "pdpmake"'
 else
-  aligned_print 'pdpmake' 'Execute "pdpmake" of your PC'
+  aligned_print 'pdpmake' 'Execute the system "pdpmake"'
 fi
 aligned_print 'gradlew' 'Execute the Gradle wrapper'
 aligned_print 'cmdline' 'Execute our command-line (if you are already inside, then it will be executed in a subshell)'

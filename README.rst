@@ -1,98 +1,182 @@
+###########################
+microG unofficial installer
+###########################
+
 ..
-   SPDX-License-Identifier: GPL-3.0-or-later
+   SPDX-FileCopyrightText: 2016 ale5000
+   SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
    SPDX-FileType: DOCUMENTATION
 
-===========================
-microG unofficial installer
-===========================
-:Author: `ale5000 <https://github.com/ale5000-git>`_
-:License: `GPLv3.0 or later <LICENSE.rst>`_
+:Author:
+   `ale5000 <https://github.com/ale5000-git>`_
+
+.. image:: https://app.readthedocs.org/projects/microg-unofficial-installer/badge/?version=latest
+   :alt: Documentation status
+   :target: https://microg-unofficial-installer.readthedocs.io/en/latest/
 
 .. image:: https://codecov.io/gh/micro5k/microg-unofficial-installer/branch/main/graph/badge.svg
-   :alt: Coverage
+   :alt: Code coverage on Codecov
    :target: https://codecov.io/gh/micro5k/microg-unofficial-installer
+
+.. image:: https://api.reuse.software/badge/github.com/micro5k/microg-unofficial-installer
+   :alt: REUSE compliance status
+   :target: https://api.reuse.software/info/github.com/micro5k/microg-unofficial-installer
 
 
 Description
------------
-microG unofficial installer is a flashable zip created by ale5000 for a simple installation of microG on Android from 2.2 to 16.
+===========
 
-**IMPORTANT:** In addition to the normal installation as a pure flashable zip, there are plans for the future (but not in the short term) to also support the installation as a *Magisk* module.
+microG unofficial installer is a flashable zip created by ale5000 for a simple
+installation of microG on Android from 2.2 to 16.
 
-Although you may find various references to *Magisk* in the code, support is **NOT** yet ready.
+No in-depth Android knowledge needed — the installer takes care of the hard
+parts. ✨
 
-This project is available on GitHub_, on GitLab_ as well as on XDA_.
+This project is available on GitHub_, on GitLab_, as well as on XDA_.
 
-.. _GitHub: https://github.com/micro5k/microg-unofficial-installer
-.. _GitLab: https://gitlab.com/micro5k/microg-unofficial-installer
-.. _XDA: https://xdaforums.com/t/3432360/
+.. _github: https://github.com/micro5k/microg-unofficial-installer
 
+.. _gitlab: https://gitlab.com/micro5k/microg-unofficial-installer
 
-Donations
----------
-I maintain this project on my own in my spare time.
-If it's been helpful to you, please consider supporting its development!
+.. _xda: https://xdaforums.com/t/3432360/
 
-Want to help out? You can find all the details in our `donation guide <./docs/DONATE.rst>`_.
+**IMPORTANT:** In addition to the normal installation as a pure flashable zip,
+there are plans for the future (but not in the short term) to also support the
+installation as a *Magisk* module.
 
-.. image:: https://img.shields.io/badge/Donate-FFF000?logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
-   :alt: Donate
-   :target: ./docs/DONATE.rst
+Although you may find various references to *Magisk* in the code, support is
+**NOT** yet ready.
 
 
-Contributing
-------------
-If you want to improve the project, please review our `contributing guidelines <docs/CONTRIBUTING.rst>`_.
-
-We are grateful for all our contributors! 
-
-Please check the `contributors list <docs/CONTRIBUTORS.md>`_ for more details.
-
+.. _readme-download:
 
 Download
---------
+========
+
+Grab the latest stable release or, if you like to live dangerously, the nightly
+build. The badges below show the current version and download statistics.
+
 .. image:: https://img.shields.io/github/v/release/micro5k/microg-unofficial-installer.svg?cacheSeconds=3600
-   :alt: GitHub latest release
-   :target: `Download`_
-
-.. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/latest/total.svg?cacheSeconds=3600
-   :alt: Downloads of the latest OSS release
-   :target: `Download`_
-
-.. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/nightly/total.svg?cacheSeconds=600
-   :alt: Downloads of the latest OSS nightly
-   :target: `Download`_
+   :alt: GitHub: latest release version
+   :target: ./docs/INSTRUCTIONS.rst
 
 .. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/total.svg?cacheSeconds=3600
-   :alt: Total OSS downloads
-   :target: `Download`_
+   :alt: GitHub: total OSS downloads
+   :target: ./docs/INSTRUCTIONS.rst
 
-`Download instructions <docs/INSTRUCTIONS.rst>`_
+.. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/latest/total.svg?cacheSeconds=3600
+   :alt: GitHub: downloads of the latest OSS release
+   :target: ./docs/INSTRUCTIONS.rst
 
+.. image:: https://img.shields.io/github/downloads/micro5k/microg-unofficial-installer/nightly/total.svg?cacheSeconds=600
+   :alt: GitHub: downloads of the latest OSS nightly
+   :target: ./docs/INSTRUCTIONS.rst
 
-Copyright
----------
-© 2016-2019, 2021-2026 ale5000
+`Read before you flash <./docs/INSTRUCTIONS.rst>`_ *(ten minutes of reading
+beats one hour of re-flashing)*
 
 
 Code analysis
--------------
+=============
+
+Yes, the code is actually linted. No, it wasn't always pretty. Yes, it's better
+now. 🔍
+
+CI pipelines run on every push to keep the build healthy — the code-lint
+workflow checks style and correctness, while the nightly workflow validates a
+full automated build. In addition, SonarQube, Codacy, and CodeFactor provide
+continuous code quality analysis from multiple angles, because one linter is
+never enough.
+
 .. image:: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml/badge.svg
-   :alt: Code lint workflow
+   :alt: Code lint: CI status
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/code-lint.yml
 
 .. image:: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/auto-nightly.yml/badge.svg
-   :alt: Nightly workflow
+   :alt: Nightly build: CI status
    :target: https://github.com/micro5k/microg-unofficial-installer/actions/workflows/auto-nightly.yml
 
-.. image:: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer/badge
-   :alt: CodeFactor Badge
-   :target: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer
+.. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
+   :alt: SonarQube: reliability rating
+   :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
 
 .. image:: https://app.codacy.com/project/badge/Grade/e372a72b55f54bcf80966c8266e3e7fb
-   :alt: Codacy Badge
+   :alt: Codacy: code quality grade
    :target: https://app.codacy.com/gh/micro5k/microg-unofficial-installer/dashboard
 
-.. image:: https://sonarcloud.io/api/project_badges/measure?project=micro5k_microg-unofficial-installer&metric=reliability_rating
-   :alt: SonarQube reliability rating
-   :target: https://sonarcloud.io/summary/new_code?id=micro5k_microg-unofficial-installer
+.. image:: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer/badge
+   :alt: CodeFactor: code quality
+   :target: https://www.codefactor.io/repository/github/micro5k/microg-unofficial-installer
+
+
+Contributing
+============
+
+If you want to improve the project, please review our `contributing guidelines
+<./docs/CONTRIBUTING.rst>`_.
+
+We are grateful for all our contributors! 🎉 Seriously — every bug fix,
+improvement, or creative complaint has made this better.
+
+Please check the `contributors list <./docs/CONTRIBUTORS.md>`_ for more details.
+
+*(Even fixing a typo counts. Probably. We'll review it very carefully either
+way.)*
+
+
+Donations
+=========
+
+.. image:: https://img.shields.io/badge/Donate-FFF000?style=for-the-badge&logo=ko-fi&logoSize=auto&logoColor=black&cacheSeconds=21600
+   :alt: Support this project
+   :target: ./docs/DONATE.rst
+
+I maintain this project on my own in my spare time — the finite, precious kind
+that competes with sleep, meals eaten while staring at a terminal, and the
+occasional social obligation.
+
+If it's saved you time, or frustration, please consider supporting its
+development!
+
+|  Wondering how?
+|  Check out all the ways to `fuel this project <./docs/DONATE.rst>`_ —
+   coffee, kind words, or cold hard crypto, it's all welcome.
+|  *(No pressure. But the coffee does make the bugs fix themselves slightly
+   faster.)*
+
+
+License
+=======
+
+This project is licensed under the **GNU General Public License v3.0 or later**
+(GPLv3+), with a custom **Archive Packaging Exception** to facilitate
+distribution in compressed packages.
+
+-  **Core license**: The full text of the GPLv3 can be found in `LICENSE.rst
+   <./LICENSE.rst>`__.
+-  **Exception terms**: The specific permissions for creating archives are
+   detailed in `LICENSE-EXCEPTION.rst <./LICENSE-EXCEPTION.rst>`__.
+
+**What this means for you:** You are free to bundle this software into your own
+archives (such as flashable ZIPs or tarballs) alongside proprietary or
+differently licensed modules, provided those modules are independent and not
+derived from this software.
+
+**Note for developers:** The following SPDX identifier is used in this project's
+source files to enable the archive packaging exception:
+
+.. code:: yaml
+
+   SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
+
+
+Copyright
+=========
+
+..
+   REUSE-IgnoreStart
+
+© 2016-2019, 2021-2026 ale5000
+
+..
+   REUSE-IgnoreEnd

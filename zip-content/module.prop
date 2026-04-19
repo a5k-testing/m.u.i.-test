@@ -1,11 +1,10 @@
-# -*- coding: utf-8; mode: conf-unix -*-
 # SPDX-FileCopyrightText: NONE
 # SPDX-License-Identifier: CC0-1.0
 
 id=microg-unofficial-installer
 numericId=765145
 name=microG unofficial installer
-version=v1.3.2.45-alpha
+version=v1.3.2.48-alpha
 versionCode=6
 author=ale5000
 description=It installs microG on Android.

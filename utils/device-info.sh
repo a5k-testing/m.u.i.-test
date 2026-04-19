@@ -1,15 +1,26 @@
 #!/usr/bin/env sh
+# SPDX-FileCopyrightText: 2023 ale5000
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-Archive-packaging-exception
+
 # @name Android device info extractor
-# @brief It can automatically extract device information from all devices connected via adb or from a file.
+# @brief Extract and display hardware and software properties from ADB-connected Android devices or a build.prop-style file.
+# @description Connects to every Android device detected by ADB, or reads
+# from an input file, and collects a comprehensive set of device properties
+# including model, manufacturer, Android version, SDK level, security patch
+# date, Android ID, IMEI, and additional hardware identifiers.
+#
+# Results are printed to standard output; an anonymised variant is also
+# available.
 # @author ale5000
+
 # Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/utils
-
-# SPDX-FileCopyrightText: (c) 2023 ale5000
-# SPDX-License-Identifier: GPL-3.0-or-later
-# SPDX-FileType: SOURCE
-
 # shellcheck enable=all
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
+
+readonly SCRIPT_NAME='Android device info extractor'
+readonly SCRIPT_SHORTNAME='DevInfo'
+readonly SCRIPT_VERSION='2.9.1'
+readonly SCRIPT_AUTHOR='ale5000'
 
 set -u
 # shellcheck disable=SC3040,SC3041,SC2015
@@ -19,10 +30,6 @@ set -u
   (set +H 2> /dev/null) && set +H || true
   (set -o pipefail 2> /dev/null) && set -o pipefail || true
 }
-
-readonly SCRIPT_NAME='Android device info extractor'
-readonly SCRIPT_SHORTNAME='DeviceInfo'
-readonly SCRIPT_VERSION='2.8'
 
 # shellcheck disable=SC2034
 {
@@ -204,13 +211,19 @@ restore_title()
 
 pause_if_needed()
 {
-  # shellcheck disable=SC3028 # In POSIX sh, SHLVL is undefined
-  if test "${CI:?}" = 'false' && test "${SHLVL:-}" = '1' && test -t 0 && test -t 1 && test -t 2; then
-    printf 1>&2 '\n\033[1;32m%s\033[0m' 'Press any key to exit...' || true
-    # shellcheck disable=SC3045
-    IFS='' read 1>&2 -r -s -n 1 _ || true
-    printf 1>&2 '\n' || true
+  # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
+  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
+    if test -n "${NO_COLOR-}"; then
+      printf 1>&2 '\n%s' 'Press any key to exit... ' || :
+    else
+      printf 1>&2 '\n\033[1;32m\r%s' 'Press any key to exit... ' || :
+    fi
+    # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
+    IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
+    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
   fi
+  unset no_pause
+  return "${1:-0}"
 }
 
 verify_adb()
@@ -1590,9 +1603,11 @@ OPEN_DEVICE_STATUS_INFO_ONLY='false'
 while test "${#}" -gt 0; do
   case "${1?}" in
     -V | --version)
+      # REUSE-IgnoreStart
       printf '%s\n' "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?}"
-      printf '%s\n' 'Copyright (c) 2023 ale5000'
-      printf '%s\n' 'License GPLv3+'
+      printf '%s\n' "Copyright (c) 2023 ${SCRIPT_AUTHOR:?}"
+      printf '%s\n' 'License GPL v3+'
+      # REUSE-IgnoreEnd
       execute_script='false'
       ;;
 
