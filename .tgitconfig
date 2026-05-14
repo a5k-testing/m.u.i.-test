@@ -11,3 +11,12 @@
 	projectlanguage = 1033
 	warnnosignedoffby = true
 	logminsize = 1
+
+[hook "postpull"]
+	cmdline = bash .git-hooks/post-merge.main.sh
+	wait = true
+	show = true
+
+[tortoisegit]
+	postpullcmd = bash.exe %root%/.git-hooks/post-merge.main.sh
+	postpullwait = true
