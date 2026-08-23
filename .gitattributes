@@ -83,6 +83,3 @@ tools/win/etc/profile         text eol=lf
 *.gz                binary
 *.png               binary
 *.jpg               binary
-
-# Git LFS files
-/zip-content/origin/priv-app/GmsCore.apk filter=lfs diff=lfs merge=lfs -text
