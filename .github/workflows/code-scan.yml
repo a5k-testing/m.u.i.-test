@@ -243,7 +243,6 @@ jobs:
         timeout-minutes: 10
         with:
           run-id: "${{ steps.await-coverage.outputs.run_id }}"
-          name: "Coverage"
           path: "${{ github.workspace }}/coverage/"
       - name: "Avoid SonarQube warning"
         shell: bash
