@@ -250,6 +250,7 @@ jobs:
           run-id: "${{ steps.await-coverage.outputs.run_id }}"
           name: "coverage.xml"
           path: "${{ github.workspace }}/coverage/"
+          skip-decompress: true
       - name: "Avoid SonarQube warning"
         shell: bash
         run: |
