@@ -233,6 +233,22 @@ jobs:
               await new Promise(r => setTimeout(r, 30000));
               run = (await github.rest.actions.getWorkflowRun({ ...repo, run_id: run.id })).data;
             }
+            // --------------------------------------------
+            // Server-side filtering: passing 'name' directly to the API query parameters
+            const { data: { artifacts } } = await github.rest.actions.listWorkflowRunArtifacts({
+              ...repo, 
+              run_id: run.id,
+              name: 'coverage.xml' 
+            });
+            // Destructure index 0 directly since the server returns only the filtered record
+            const [targetArtifact = null] = artifacts;
+            if (!targetArtifact) {
+              core.notice('coverage.yml succeeded but no artifact named "coverage.xml" was found.');
+              return core.setOutput('artifact_id', '');
+            }
+            console.log(`🎯 Found target Artifact ID: ${targetArtifact.id}`);
+            core.setOutput('artifact_id', targetArtifact.id);
+            // --------------------------------------------
             const ok = run.conclusion === 'success';
             if(!ok) core.notice(`Coverage workflow ended with status: ${run.conclusion}. Proceeding without coverage data.`);
             core.setOutput('run_id', ok ? run.id : '');
@@ -243,6 +259,7 @@ jobs:
         timeout-minutes: 10
         with:
           run-id: "${{ steps.await-coverage.outputs.run_id }}"
+          artifact-ids: "${{ steps.await-coverage.outputs.artifact_id }}"
           path: "${{ github.workspace }}/coverage/"
       - name: "Avoid SonarQube warning"
         shell: bash
