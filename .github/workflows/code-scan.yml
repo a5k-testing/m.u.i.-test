@@ -214,6 +214,27 @@ jobs:
             const suiteId = context.payload.workflow_run?.check_suite_id ||
               ( await github.rest.actions.getWorkflowRun({ ...repo, run_id: context.runId }) ).data.check_suite_id;
             // Find coverage workflow
+            // --------------------------
+            console.log(`=== DEBUG INFO ===`);
+            console.log(`Current Check Suite ID for this event: ${suiteId}`);
+            console.log(`Current Event Name: ${context.eventName}`);
+            console.log(`==================`);
+            // --------------------------
+            const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ 
+              ...repo, 
+              check_suite_id: suiteId 
+            });
+            console.log(`Found ${workflow_runs.length} workflow runs triggered in this same event:`);
+            // 3. Print out every single workflow data to inspect fields
+            workflow_runs.forEach((run, index) => {
+              console.log(`\n[Workflow #${index + 1}]`);
+              console.log(`  - Name:       "${run.name}"`);
+              console.log(`  - File Path:  "${run.path}"`);
+              console.log(`  - Run ID:     ${run.id}`);
+              console.log(`  - Status:     "${run.status}"`);
+              console.log(`  - Conclusion: "${run.conclusion}"`);
+            });
+            console.log(`\n==================`);
             let target = null;
             for(let i = 0; i < 2; i++) {
               const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, check_suite_id: suiteId });
