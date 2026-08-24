@@ -233,10 +233,16 @@ jobs:
               await new Promise(r => setTimeout(r, 60000));
               run = (await github.rest.actions.getWorkflowRun({ ...repo, run_id: run.id })).data;
             }
+            const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
+              ...repo, run_id: run.id
+            });
+            console.log("REAL ARTIFACT NAMES AVAILABLE IN THIS RUN:");
+            artifacts.artifacts.forEach(a => console.log(`- "${a.name}"`));
             const ok = run.conclusion === 'success';
             if(!ok) core.notice(`Coverage workflow ended with status: ${run.conclusion}. Proceeding without coverage data.`);
             core.setOutput('run_id', ok ? run.id : '');
       - name: "Download Cobertura XML coverage report"
+        id: "download-coverage"
         if: "${{ steps.await-coverage.outputs.run_id != '' }}"
         uses: actions/download-artifact@v8
         timeout-minutes: 10
