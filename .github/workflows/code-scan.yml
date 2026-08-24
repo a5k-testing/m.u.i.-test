@@ -236,29 +236,6 @@ jobs:
               if (target || i === 1) break;
               await new Promise(r => setTimeout(r, 5000));
             }
-
-            let target = null;
-            for(let i = 0; i < 2; i++) {
-              const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, head_sha: sha });
-              target = workflow_runs.find(r => true);
-              if(target || i === 1) break;
-              await new Promise(r => setTimeout(r, 5000));
-            }
-            if(!target) {
-              core.notice('Coverage workflow skipped or not triggered. Proceeding without data.');
-              core.setOutput('run_id', '');
-              return;
-            }
-            // Polling loop: Wait actively until the target workflow run is completed
-            let run = target;
-            while(['in_progress', 'queued', 'waiting'].includes(run.status)) {
-              console.log(`coverage.yml is ${run.status}. Waiting 1 minute...`);
-              await new Promise(r => setTimeout(r, 60000));
-              run = ( await github.rest.actions.getWorkflowRun({ ...repo, run_id: target.id }) ).data;
-            }
-            const success = run.conclusion === 'success';
-            if(!success) core.notice(`Coverage workflow ended with: ${run.conclusion}. Proceeding without data.`);
-            core.setOutput('run_id', success ? target.id : '');
       - name: "Download Cobertura XML coverage report"
         if: "${{ steps.await-coverage.outputs.run_id != '' }}"
         uses: actions/download-artifact@v8
