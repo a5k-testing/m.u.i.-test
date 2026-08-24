@@ -132,9 +132,9 @@ jobs:
       - name: "Save Cobertura XML coverage report"
         uses: actions/upload-artifact@v7
         with:
-          name: "coverage.xml"
+          name: "Coverage"
           path: "${{ github.workspace }}/coverage/coverage.xml"
           retention-days: 1
-          archive: false
+          compression-level: 0
           overwrite: false
           if-no-files-found: "error"
