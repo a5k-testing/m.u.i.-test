@@ -243,7 +243,7 @@ jobs:
         timeout-minutes: 10
         with:
           github-token: "${{ github.token }}"
-          # run-id: "${{ steps.await-coverage.outputs.run_id }}"
+          run-id: "${{ steps.await-coverage.outputs.run_id }}"
           name: "coverage.xml"
           path: "${{ github.workspace }}/coverage/"
       - name: "Avoid SonarQube warning"
