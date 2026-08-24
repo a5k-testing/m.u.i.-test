@@ -7,6 +7,7 @@ permissions: {}
 on:
   push:
     paths-ignore:
+      - ".github/**"
       - ".gitlab/**"
       - ".gitlab-ci.yml"
       - ".travis.yml"
@@ -132,10 +133,8 @@ jobs:
       - name: "Save Cobertura XML coverage report"
         uses: actions/upload-artifact@v7
         with:
-          name: "coverage.xml"
           path: "${{ github.workspace }}/coverage/coverage.xml"
           retention-days: 1
-          arcive: false
-          compression-level: 0
+          archive: false
           overwrite: false
           if-no-files-found: "error"
