@@ -193,9 +193,9 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: "${{ github.event_name == 'push' }}"
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
+      actions: read
 
     steps:
       - name: "Checkout sources"
@@ -211,13 +211,13 @@ jobs:
             const repo = { owner: context.repo.owner, repo: context.repo.repo };
             // Try to find check_suite_id directly from payload or current execution context
             const suiteId = context.payload.workflow_run?.check_suite_id ||
-              (await github.rest.actions.getWorkflowRun({ ...repo, run_id: context.runId })).data.check_suite_id;
+              ( await github.rest.actions.getWorkflowRun({ ...repo, run_id: context.runId }) ).data.check_suite_id;
             // Find coverage workflow
             let target = null;
             for(let i = 0; i < 2; i++) {
-              const{ data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, check_suite_id: suiteId });
+              const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, check_suite_id: suiteId });
               target = workflow_runs.find(r => r.path === '.github/workflows/coverage.yml');
-              if (target || i === 1) break;
+              if(target || i === 1) break;
               await new Promise(r => setTimeout(r, 5000));
             }
             if(!target) {
@@ -230,7 +230,7 @@ jobs:
             while(['in_progress', 'queued', 'waiting'].includes(run.status)) {
               console.log(`coverage.yml is ${run.status}. Waiting 1 minute...`);
               await new Promise(r => setTimeout(r, 60000));
-              run = (await github.rest.actions.getWorkflowRun({ ...repo, run_id: target.id })).data;
+              run = ( await github.rest.actions.getWorkflowRun({ ...repo, run_id: target.id }) ).data;
             }
             const success = run.conclusion === 'success';
             if(!success) core.notice(`Coverage workflow ended with: ${run.conclusion}. Proceeding without data.`);
