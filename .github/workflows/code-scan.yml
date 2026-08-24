@@ -229,15 +229,10 @@ jobs:
             }
             // Polling loop: wait actively until the target workflow run is completed
             while(['in_progress', 'queued', 'waiting'].includes(run.status)) {
-              console.log(`Coverage workflow is ${run.status}. Waiting 1 minute...`);
-              await new Promise(r => setTimeout(r, 60000));
+              console.log(`Coverage workflow is ${run.status}. Waiting 30 seconds...`);
+              await new Promise(r => setTimeout(r, 30000));
               run = (await github.rest.actions.getWorkflowRun({ ...repo, run_id: run.id })).data;
             }
-            const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
-              ...repo, run_id: run.id
-            });
-            console.log("REAL ARTIFACT NAMES AVAILABLE IN THIS RUN:");
-            artifacts.artifacts.forEach(a => console.log(`- "${a.name}"`));
             const ok = run.conclusion === 'success';
             if(!ok) core.notice(`Coverage workflow ended with status: ${run.conclusion}. Proceeding without coverage data.`);
             core.setOutput('run_id', ok ? run.id : '');
@@ -248,12 +243,13 @@ jobs:
         timeout-minutes: 10
         with:
           run-id: "${{ steps.await-coverage.outputs.run_id }}"
-          name: "coverage.xml"
+          name: "Coverage"
           path: "${{ github.workspace }}/coverage/"
       - name: "Avoid SonarQube warning"
         shell: bash
         run: |
           # Avoiding the SonarQube warning...
+          ls '${{ github.workspace }}/coverage/'
           mv -f -- ./build.gradle ./build-disabled.gradle
       - name: "Post Avoid SonarQube warning"
         shell: bash
