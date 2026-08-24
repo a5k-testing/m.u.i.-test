@@ -208,34 +208,33 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+           const repo = { owner: context.repo.owner, repo: context.repo.repo };
             const sha = context.payload.pull_request?.head.sha || context.sha;
-            const currentEvent = context.eventName;
             
-            console.log(`=== DEBUG LOOKUP ===`);
-            console.log(`Commit SHA: ${sha}`);
-            console.log(`Trigger Event: ${currentEvent}`);
-            console.log(`====================`);
-
-            let target = null;
+            let run = null;
+            // High-performance direct SHA lookup (2 initial attempts)
             for (let i = 0; i < 2; i++) {
-              // Fetch runs strictly by commit SHA across the entire repository
-              const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({
-                ...repo, head_sha: sha
-              });
-
-              console.log(`Attempt ${i + 1}: Found ${workflow_runs.length} runs for this SHA.`);
-              
-              // Print details of every run found on this commit
-              workflow_runs.forEach((r, idx) => {
-                console.log(`  [Run #${idx + 1}] Name: "${r.name}" | Event: "${r.event}" | Path: "${r.path}" | Status: "${r.status}"`);
-              });
-
-              // Try to identify the coverage file matching the active trigger event
-              target = workflow_runs.find(r => r.path === '.github/workflows/coverage.yml' && r.event === currentEvent);
-              if (target || i === 1) break;
+              const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, workflow_id: 'coverage.yml', head_sha: sha });
+              run = workflow_runs.find(r => r.path === '.github/workflows/coverage.yml' && r.event === context.eventName);
+              if (run || i === 1) break;
               await new Promise(r => setTimeout(r, 5000));
             }
+
+            if (!run) {
+              core.notice('coverage.yml skipped or not triggered for this event.');
+              return core.setOutput('run_id', '');
+            }
+
+            // Polling loop: updates internal state every 1 minute
+            while (['in_progress', 'queued', 'waiting'].includes(run.status)) {
+              console.log(`coverage.yml is ${run.status}. Waiting 1 minute...`);
+              await new Promise(r => setTimeout(r, 60000));
+              run = (await github.rest.actions.getWorkflowRun({ ...repo, run_id: run.id })).data;
+            }
+
+            const ok = run.conclusion === 'success';
+            if (!ok) core.notice(`coverage.yml finished with status: ${run.conclusion}. Skipping download.`);
+            core.setOutput('run_id', ok ? run.id : '');
       - name: "Download Cobertura XML coverage report"
         if: "${{ steps.await-coverage.outputs.run_id != '' }}"
         uses: actions/download-artifact@v8
