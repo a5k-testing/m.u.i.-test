@@ -69,7 +69,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ false }}"
+    if: "${{ false && github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
     permissions:
       contents: write
 
@@ -192,7 +192,7 @@ jobs:
     name: "SonarQube"
     needs: [pre-requisites]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       actions: read
@@ -206,38 +206,37 @@ jobs:
       - name: "Await the twin coverage workflow"
         id: "await-coverage"
         uses: actions/github-script@v9
+        timeout-minutes: 20
         with:
           script: |
-           const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
             const sha = context.payload.pull_request?.head.sha || context.sha;
-            
+            // Search coverage workflow (2 attempts)
             let run = null;
-            // High-performance direct SHA lookup (2 initial attempts)
-            for (let i = 0; i < 2; i++) {
+            for(let i = 0; i < 2; i++) {
               const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, workflow_id: '.github/workflows/coverage.yml', head_sha: sha });
-              run = workflow_runs.find(r => r.path === '.github/workflows/coverage.yml' && r.event === context.eventName);
-              if (run || i === 1) break;
+              run = workflow_runs.find(r => r.event === context.eventName);
+              if(run || i === 1) break;
               await new Promise(r => setTimeout(r, 5000));
             }
-
-            if (!run) {
-              core.notice('coverage.yml skipped or not triggered for this event.');
-              return core.setOutput('run_id', '');
+            if(!run) {
+              core.notice('Coverage workflow skipped or not triggered. Proceeding without data.');
+              core.setOutput('run_id', '');
+              return;
             }
-
-            // Polling loop: updates internal state every 1 minute
-            while (['in_progress', 'queued', 'waiting'].includes(run.status)) {
-              console.log(`coverage.yml is ${run.status}. Waiting 1 minute...`);
+            // Polling loop: wait actively until the target workflow run is completed
+            while(['in_progress', 'queued', 'waiting'].includes(run.status)) {
+              console.log(`Coverage workflow is ${run.status}. Waiting 1 minute...`);
               await new Promise(r => setTimeout(r, 60000));
               run = (await github.rest.actions.getWorkflowRun({ ...repo, run_id: run.id })).data;
             }
-
             const ok = run.conclusion === 'success';
-            if (!ok) core.notice(`coverage.yml finished with status: ${run.conclusion}. Skipping download.`);
-            core.setOutput('run_id', ok ? run.id : '');
+            if(!ok) core.notice(`Coverage workflow ended with: ${run.conclusion}. Proceeding without data.`);
+            core.setOutput('run_id', ok? run.id : '');
       - name: "Download Cobertura XML coverage report"
         if: "${{ steps.await-coverage.outputs.run_id != '' }}"
         uses: actions/download-artifact@v8
+        timeout-minutes: 10
         with:
           run-id: "${{ steps.await-coverage.outputs.run_id }}"
           name: "coverage.xml"
