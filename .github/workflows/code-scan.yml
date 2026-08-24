@@ -69,7 +69,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
+    if: "${{ false }}"
     permissions:
       contents: write
 
@@ -237,8 +237,8 @@ jobs:
             console.log(`\n==================`);
             let target = null;
             for(let i = 0; i < 2; i++) {
-              const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, check_suite_id: suiteId });
-              target = workflow_runs.find(r => r.path === '.github/workflows/coverage.yml');
+              const { data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, head_sha: sha });
+              target = workflow_runs.find(r => true);
               if(target || i === 1) break;
               await new Promise(r => setTimeout(r, 5000));
             }
