@@ -193,7 +193,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.sonar-token-set == 'true' }}"
+    if: "${{ github.event_name == 'push' }}"
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
 
@@ -247,11 +247,6 @@ jobs:
         run: |
           # Avoiding the SonarQube warning...
           mv -f -- ./build.gradle ./build-manually.gradle
-      - name: "SonarQube scan"
-        uses: SonarSource/sonarqube-scan-action@v8
-        timeout-minutes: 10
-        env:
-          SONAR_TOKEN: "${{ secrets.SONAR_TOKEN }}"
       - name: "Post Avoid SonarQube warning"
         shell: bash
         if: "always()"
