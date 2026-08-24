@@ -203,6 +203,45 @@ jobs:
         with:
           lfs: false
           fetch-depth: "0" # Shallow clones should be disabled for a better relevancy of analysis
+      - name: "Await the twin coverage workflow"
+        id: "await-coverage"
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            // Try to find check_suite_id directly from payload or current execution context
+            const suiteId = context.payload.workflow_run?.check_suite_id ||
+              (await github.rest.actions.getWorkflowRun({ ...repo, run_id: context.runId })).data.check_suite_id;
+            // Find coverage workflow
+            let target = null;
+            for(let i = 0; i < 2; i++) {
+              const{ data: { workflow_runs } } = await github.rest.actions.listWorkflowRunsForRepo({ ...repo, check_suite_id: suiteId });
+              target = workflow_runs.find(r => r.path === '.github/workflows/coverage.yml');
+              if (target || i === 1) break;
+              await new Promise(r => setTimeout(r, 5000));
+            }
+            if(!target) {
+              core.notice('Coverage workflow skipped or not triggered. Proceeding without data.');
+              core.setOutput('run_id', '');
+              return;
+            }
+            // Polling loop: Wait actively until the target workflow run is completed
+            let run = target;
+            while(['in_progress', 'queued', 'waiting'].includes(run.status)) {
+              console.log(`coverage.yml is ${run.status}. Waiting 1 minute...`);
+              await new Promise(r => setTimeout(r, 60000));
+              run = (await github.rest.actions.getWorkflowRun({ ...repo, run_id: target.id })).data;
+            }
+            const success = run.conclusion === 'success';
+            if(!success) core.notice(`Coverage workflow ended with: ${run.conclusion}. Proceeding without data.`);
+            core.setOutput('run_id', success ? target.id : '');
+      - name: "Download Cobertura XML coverage report"
+        if: "${{ steps.await-coverage.outputs.run_id != '' }}"
+        uses: actions/download-artifact@v8
+        with:
+          run-id: "${{ steps.await-coverage.outputs.run_id }}"
+          name: "coverage.xml"
+          path: "${{ github.workspace }}/coverage/"
       - name: "Avoid SonarQube warning"
         shell: bash
         run: |
