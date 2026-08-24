@@ -196,6 +196,7 @@ jobs:
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       actions: read
+      checks: read
 
     steps:
       - name: "Checkout sources"
