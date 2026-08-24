@@ -258,6 +258,7 @@ jobs:
         uses: actions/download-artifact@v8
         timeout-minutes: 10
         with:
+          github-token: "${{ github.token }}"
           run-id: "${{ steps.await-coverage.outputs.run_id }}"
           artifact-ids: "${{ steps.await-coverage.outputs.artifact_id }}"
           path: "${{ github.workspace }}/coverage/"
