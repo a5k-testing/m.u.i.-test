@@ -7,6 +7,7 @@ permissions: {}
 on:
   push:
     paths-ignore:
+      - ".github/**"
       - ".gitlab/**"
       - ".gitlab-ci.yml"
       - ".travis.yml"
@@ -37,7 +38,7 @@ jobs:
         run: |
           # Verifying tokens...
           # Codacy
-          if test -n "${CODACY_TOKEN?}"; then token_set='true'; else token_set='true'; fi
+          if test -n "${CODACY_TOKEN?}"; then token_set='true'; else token_set='false'; fi
           printf 'CODACY_TOKEN_SET=%s\n' "${token_set:?}" 1>> "${GITHUB_OUTPUT?}"
           # SonarQube
           if test -n "${SONAR_TOKEN?}"; then token_set='true'; else token_set='false'; fi
@@ -71,7 +72,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ false && github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
+    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
     permissions:
       contents: write
 
@@ -143,7 +144,7 @@ jobs:
       - name: "Use Docker image cache"
         id: docker-cache
         uses: actions/cache@v6
-        timeout-minutes: 20
+        timeout-minutes: 10
         with:
           key: "codacy-cli-${{ runner.os }}-${{ env.CODACY_ANALYSIS_CLI_VERSION }}"
           path: "${{ env.DOCKER_IMAGE_PATH }}"
@@ -156,18 +157,19 @@ jobs:
           docker save "codacy/codacy-analysis-cli:${CODACY_ANALYSIS_CLI_VERSION:?}" -o "${DOCKER_IMAGE_PATH:?}"
       - name: "Load Docker image from cache if cached"
         shell: bash
-        timeout-minutes: 20
+        timeout-minutes: 10
         if: "${{ steps.docker-cache.outputs.cache-hit == 'true' }}"
         run: |
           docker load -i "${DOCKER_IMAGE_PATH:?}"
           rm -f -- "${DOCKER_IMAGE_PATH:?}"
       - name: "Codacy analysis"
         uses: codacy/codacy-analysis-cli-action@v4
-        timeout-minutes: 10
+        timeout-minutes: 15
         env:
+          # Must be explicitly passed to this step, otherwise the action defaults to its own version
           CODACY_ANALYSIS_CLI_VERSION: "${{ env.CODACY_ANALYSIS_CLI_VERSION }}"
         with:
-          #project-token: "${{ secrets.CODACY_PROJECT_TOKEN }}"
+          project-token: "${{ secrets.CODACY_PROJECT_TOKEN }}"
           #verbose: true
           output: "results.sarif"
           format: "sarif"
@@ -179,6 +181,7 @@ jobs:
           upload: false
       - name: "Combine all SARIF runs by tool name"
         shell: bash
+        timeout-minutes: 5
         run: |
           jq '.runs |= (
             # Group runs by tool name to create unique categories (Post-March 27, 2026 GitHub requirement)
@@ -206,7 +209,8 @@ jobs:
           )' -- './results.sarif' 1> './results-combined.sarif'
       - name: "Upload SARIF results file to GitHub"
         uses: github/codeql-action/upload-sarif@v4
-        if: "${{ false && github.ref == 'refs/heads/main' }}"
+        timeout-minutes: 10
+        if: "${{ github.ref == 'refs/heads/main' }}"
         with:
           token: "${{ github.token }}"
           sarif_file: "results-combined.sarif"
@@ -217,7 +221,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    if: "${{ false && github.event_name == 'push' && needs.pre-requisites.outputs.sonar-token-set == 'true' }}"
+    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.sonar-token-set == 'true' }}"
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       actions: read
