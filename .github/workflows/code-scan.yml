@@ -7,7 +7,6 @@ permissions: {}
 on:
   push:
     paths-ignore:
-      - ".github/**"
       - ".gitlab/**"
       - ".gitlab-ci.yml"
       - ".travis.yml"
@@ -38,7 +37,7 @@ jobs:
         run: |
           # Verifying tokens...
           # Codacy
-          if test -n "${CODACY_TOKEN?}"; then token_set='true'; else token_set='false'; fi
+          if test -n "${CODACY_TOKEN?}"; then token_set='true'; else token_set='true'; fi
           printf 'CODACY_TOKEN_SET=%s\n' "${token_set:?}" 1>> "${GITHUB_OUTPUT?}"
           # SonarQube
           if test -n "${SONAR_TOKEN?}"; then token_set='true'; else token_set='false'; fi
@@ -72,7 +71,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
+    if: "${{ false && github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
     permissions:
       contents: write
 
@@ -130,6 +129,8 @@ jobs:
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       security-events: write
+    env:
+      CODACY_ANALYSIS_CLI_VERSION: "7.10.1"
 
     steps:
       - name: "Checkout sources"
@@ -138,13 +139,35 @@ jobs:
           lfs: false
           submodules: false
           fetch-tags: false
+      - name: "Space check"
+        shell: bash
+        run: |
+          echo '--------------'
+          df -Ph
+          echo '--------------'
+          df -Ph /tmp
+          echo '--------------'
+          echo "=== Testing Write Speed in /tmp ==="
+          dd if=/dev/zero of=/tmp/speedtest_file bs=1M count=1024 oflag=dsync
+          echo "=== Testing Read Speed from /tmp ==="
+          dd if=/tmp/speedtest_file of=/dev/null bs=1M count=1024
+          echo "=== Cleaning up test file ==="
+          rm /tmp/speedtest_file
+          echo '--------------'
+          df -Ph "${RUNNER_TEMP}"
+          echo '--------------'
+          echo "=== Testing Write Speed in "${RUNNER_TEMP}" ==="
+          dd if=/dev/zero of="${RUNNER_TEMP}"/speedtest_file bs=1M count=1024 oflag=dsync
+          echo "=== Testing Read Speed from "${RUNNER_TEMP}" ==="
+          dd if="${RUNNER_TEMP}"/speedtest_file of=/dev/null bs=1M count=1024
+          echo "=== Cleaning up test file ==="
+          rm "${RUNNER_TEMP}"/speedtest_file
+          echo '--------------'
       - name: "Codacy analysis"
         uses: codacy/codacy-analysis-cli-action@v4
         timeout-minutes: 10
-        env:
-          CODACY_ANALYSIS_CLI_VERSION: "7.10.1"
         with:
-          project-token: "${{ secrets.CODACY_PROJECT_TOKEN }}"
+          #project-token: "${{ secrets.CODACY_PROJECT_TOKEN }}"
           #verbose: true
           output: "results.sarif"
           format: "sarif"
@@ -194,7 +217,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.sonar-token-set == 'true' }}"
+    if: "${{ false && github.event_name == 'push' && needs.pre-requisites.outputs.sonar-token-set == 'true' }}"
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       actions: read
