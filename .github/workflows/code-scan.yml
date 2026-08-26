@@ -131,6 +131,7 @@ jobs:
       security-events: write
     env:
       CODACY_ANALYSIS_CLI_VERSION: "7.10.1"
+      DOCKER_IMAGE_PATH: "${{ env.RUNNER_TEMP || '/tmp' }}/codacy-cli-image.tar"
 
     steps:
       - name: "Checkout sources"
@@ -145,21 +146,21 @@ jobs:
         timeout-minutes: 20
         with:
           key: "codacy-cli-${{ runner.os }}-${{ env.CODACY_ANALYSIS_CLI_VERSION }}"
-          path: "${{ env.RUNNER_TEMP || '/tmp' }}/codacy-cli-image.tar"
+          path: "${{ env.DOCKER_IMAGE_PATH }}"
       - name: "Download Docker image if not cached"
         shell: bash
-        timeout-minutes: 20
+        timeout-minutes: 10
         if: "${{ steps.docker-cache.outputs.cache-hit != 'true' }}"
         run: |
           docker pull "codacy/codacy-analysis-cli:${CODACY_ANALYSIS_CLI_VERSION:?}"
-          docker save "codacy/codacy-analysis-cli:${CODACY_ANALYSIS_CLI_VERSION:?}" -o "${RUNNER_TEMP:-/tmp}/codacy-cli-image.tar"
+          docker save "codacy/codacy-analysis-cli:${CODACY_ANALYSIS_CLI_VERSION:?}" -o "${DOCKER_IMAGE_PATH:?}"
       - name: "Load Docker image from cache if cached"
         shell: bash
         timeout-minutes: 20
         if: "${{ steps.docker-cache.outputs.cache-hit == 'true' }}"
         run: |
-          docker load -i "${RUNNER_TEMP:-/tmp}/codacy-cli-image.tar"
-          rm -f -- "${RUNNER_TEMP:-/tmp}/codacy-cli-image.tar"
+          docker load -i "${DOCKER_IMAGE_PATH:?}"
+          rm -f -- "${DOCKER_IMAGE_PATH:?}"
       - name: "Codacy analysis"
         uses: codacy/codacy-analysis-cli-action@v4
         timeout-minutes: 10
