@@ -139,6 +139,27 @@ jobs:
           lfs: false
           submodules: false
           fetch-tags: false
+      - name: "Use Docker image cache"
+        id: docker-cache
+        uses: actions/cache@v6
+        timeout-minutes: 20
+        with:
+          key: "codacy-cli-${{ runner.os }}-${{ env.CODACY_ANALYSIS_CLI_VERSION }}"
+          path: "${{ env.RUNNER_TEMP || '/tmp' }}/codacy-cli-image.tar"
+      - name: "Download Docker image if not cached"
+        shell: bash
+        timeout-minutes: 20
+        if: "${{ steps.docker-cache.outputs.cache-hit != 'true' }}"
+        run: |
+          docker pull "codacy/codacy-analysis-cli:${CODACY_ANALYSIS_CLI_VERSION:?}"
+          docker save "codacy/codacy-analysis-cli:${CODACY_ANALYSIS_CLI_VERSION:?}" -o "${RUNNER_TEMP:-/tmp}/codacy-cli-image.tar"
+      - name: "Load Docker image from cache if cached"
+        shell: bash
+        timeout-minutes: 20
+        if: "${{ steps.docker-cache.outputs.cache-hit == 'true' }}"
+        run: |
+          docker load -i "${RUNNER_TEMP:-/tmp}/codacy-cli-image.tar"
+          rm -f -- "${RUNNER_TEMP:-/tmp}/codacy-cli-image.tar"
       - name: "Codacy analysis"
         uses: codacy/codacy-analysis-cli-action@v4
         timeout-minutes: 10
