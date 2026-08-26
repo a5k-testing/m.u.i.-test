@@ -131,7 +131,7 @@ jobs:
       security-events: write
     env:
       CODACY_ANALYSIS_CLI_VERSION: "7.10.1"
-      DOCKER_IMAGE_PATH: "${{ env.RUNNER_TEMP || '/tmp' }}/codacy-cli-image.tar"
+      DOCKER_IMAGE_PATH: "/tmp/codacy-cli-image.tar"
 
     steps:
       - name: "Checkout sources"
