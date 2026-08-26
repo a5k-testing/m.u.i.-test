@@ -100,15 +100,14 @@ jobs:
         uses: codecov/codecov-action@v7
         timeout-minutes: 10
         with:
-          token: "${{ secrets.CODECOV_TOKEN }}"
-          files: "./coverage/coverage.xml"
+          files: "./coverage/coverage.xmlX"
           plugins: "noop"
           disable_search: true
           disable_telem: true
           fail_ci_if_error: true
       - name: "Upload coverage reports to Codacy"
         env:
-          CODACY_TOKEN: "${{ secrets.CODACY_PROJECT_TOKEN }}"
+          CODACY_PROJECT_TOKEN: "${{ secrets.CODACY_PROJECT_TOKEN }}"
         if: "${{ env.CODACY_PROJECT_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
         uses: codacy/codacy-coverage-reporter-action@v1
         timeout-minutes: 10
