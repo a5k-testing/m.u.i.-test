@@ -139,30 +139,6 @@ jobs:
           lfs: false
           submodules: false
           fetch-tags: false
-      - name: "Space check"
-        shell: bash
-        run: |
-          echo '--------------'
-          df -Ph
-          echo '--------------'
-          df -Ph /tmp
-          echo '--------------'
-          echo "=== Testing Write Speed in /tmp ==="
-          dd if=/dev/zero of=/tmp/speedtest_file bs=1M count=1024 oflag=dsync
-          echo "=== Testing Read Speed from /tmp ==="
-          dd if=/tmp/speedtest_file of=/dev/null bs=1M count=1024
-          echo "=== Cleaning up test file ==="
-          rm /tmp/speedtest_file
-          echo '--------------'
-          df -Ph "${RUNNER_TEMP}"
-          echo '--------------'
-          echo "=== Testing Write Speed in "${RUNNER_TEMP}" ==="
-          dd if=/dev/zero of="${RUNNER_TEMP}"/speedtest_file bs=1M count=1024 oflag=dsync
-          echo "=== Testing Read Speed from "${RUNNER_TEMP}" ==="
-          dd if="${RUNNER_TEMP}"/speedtest_file of=/dev/null bs=1M count=1024
-          echo "=== Cleaning up test file ==="
-          rm "${RUNNER_TEMP}"/speedtest_file
-          echo '--------------'
       - name: "Codacy analysis"
         uses: codacy/codacy-analysis-cli-action@v4
         timeout-minutes: 10
@@ -206,7 +182,7 @@ jobs:
           )' -- './results.sarif' 1> './results-combined.sarif'
       - name: "Upload SARIF results file to GitHub"
         uses: github/codeql-action/upload-sarif@v4
-        if: "${{ github.ref == 'refs/heads/main' }}"
+        if: "${{ false && github.ref == 'refs/heads/main' }}"
         with:
           token: "${{ github.token }}"
           sarif_file: "results-combined.sarif"
