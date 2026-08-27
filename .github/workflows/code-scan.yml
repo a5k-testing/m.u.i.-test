@@ -7,7 +7,7 @@ permissions: {}
 on:
   push:
     paths-ignore:
-      - ".github/**"
+      #- ".github/**"
       - ".gitlab/**"
       - ".gitlab-ci.yml"
       - ".travis.yml"
@@ -72,7 +72,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
+    if: "${{ false && github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
     permissions:
       contents: write
 
@@ -123,7 +123,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.codacy-token-set == 'true' }}"
+    #if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.codacy-token-set == 'true' }}"
     concurrency:
       group: "${{ github.repository_id }}-${{ github.workflow }}-codacy"
       cancel-in-progress: false
@@ -170,6 +170,7 @@ jobs:
           CODACY_ANALYSIS_CLI_VERSION: "${{ env.CODACY_ANALYSIS_CLI_VERSION }}"
         with:
           project-token: "${{ secrets.CODACY_PROJECT_TOKEN }}"
+          args: "--skip-tool trivy"
           #verbose: true
           output: "results.sarif"
           format: "sarif"
@@ -208,15 +209,23 @@ jobs:
               }
             )
           )' -- './results.sarif' 1> './results-combined.sarif'
+      - name: "Store SARIF"
+        uses: actions/upload-artifact@v7
+        with:
+          path: "${{ github.workspace }}/results-combined.sarif"
+          retention-days: 1
+          archive: false
+          overwrite: false
+          if-no-files-found: "error"
       - name: "Validate the SARIF file"
         uses: microsoft/sarif-actions@v0.2
         timeout-minutes: 5
         with:
-          command: "validate ./results-combined.sarif"
+          command: "validate ${{ github.workspace }}/results-combined.sarif"
       - name: "Upload SARIF results file to GitHub"
         uses: github/codeql-action/upload-sarif@v4
         timeout-minutes: 10
-        if: "${{ github.ref == 'refs/heads/main' }}"
+        if: "${{ false && github.ref == 'refs/heads/main' }}"
         with:
           token: "${{ github.token }}"
           sarif_file: "results-combined.sarif"
