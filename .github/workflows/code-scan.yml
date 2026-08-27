@@ -211,9 +211,10 @@ jobs:
       - name: "Store SARIF"
         uses: actions/upload-artifact@v7
         with:
-          path: "${{ github.workspace }}/results-combined.sarif"
+          name: sarif
+          path: "${{ github.workspace }}/results*.sarif"
           retention-days: 1
-          archive: false
+          archive: true
           overwrite: false
           if-no-files-found: "error"
       - name: "Validate the SARIF file"
