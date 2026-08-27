@@ -170,7 +170,6 @@ jobs:
           CODACY_ANALYSIS_CLI_VERSION: "${{ env.CODACY_ANALYSIS_CLI_VERSION }}"
         with:
           project-token: "${{ secrets.CODACY_PROJECT_TOKEN }}"
-          args: "--skip-tool trivy"
           #verbose: true
           output: "results.sarif"
           format: "sarif"
@@ -180,6 +179,7 @@ jobs:
           # This will hand over control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
           upload: false
+          run-docker-tools: false
       - name: "Combine all SARIF runs by tool name"
         shell: bash
         timeout-minutes: 5
@@ -221,7 +221,7 @@ jobs:
         uses: microsoft/sarif-actions@v0.2
         timeout-minutes: 5
         with:
-          command: "validate ${{ github.workspace }}/results-combined.sarif"
+          command: "validate ./results-combined.sarif"
       - name: "Upload SARIF results file to GitHub"
         uses: github/codeql-action/upload-sarif@v4
         timeout-minutes: 10
