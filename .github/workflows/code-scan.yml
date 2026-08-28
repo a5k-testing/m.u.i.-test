@@ -7,7 +7,7 @@ permissions: {}
 on:
   push:
     paths-ignore:
-      #- ".github/**"
+      - ".github/**"
       - ".gitlab/**"
       - ".gitlab-ci.yml"
       - ".travis.yml"
@@ -72,7 +72,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ false && github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
+    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.dependency-graph-enabled == 'true' }}"
     permissions:
       contents: write
 
@@ -123,7 +123,7 @@ jobs:
     needs: [pre-requisites]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    #if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.codacy-token-set == 'true' }}"
+    if: "${{ github.event_name == 'push' && needs.pre-requisites.outputs.codacy-token-set == 'true' }}"
     concurrency:
       group: "${{ github.repository_id }}-${{ github.workflow }}-codacy"
       cancel-in-progress: false
@@ -183,7 +183,7 @@ jobs:
         shell: bash
         timeout-minutes: 5
         run: |
-          # Combining...
+          # Combining all SARIF runs by tool name...
           jq '.runs |= (
             # Shorten tool driver name by replacing " (reported by " with " ("
             map(.tool.driver.name |= sub(" \\(reported by "; " (")) |
@@ -195,8 +195,6 @@ jobs:
               .[0] as $first |
               # Rebuild the run object by collecting data in a single pass
               $first + {
-                # Add mandatory category ID
-                "automationDetails": ($first.automationDetails + { "id": ("Codacy/" + $first.tool.driver.name) }),
                 # Collect all results and artifacts from the group, removing ruleIndex if it is -1
                 "results": ([$group[].results[] | if .ruleIndex == -1 then del(.ruleIndex) else . end] | unique),
                 "artifacts": ([$group[].artifacts[]] | unique),
@@ -205,20 +203,19 @@ jobs:
               }
             )
           )' -- './results.sarif' 1> './results-combined.sarif'
-      - name: "Store SARIF"
-        uses: actions/upload-artifact@v7
-        with:
-          name: sarif
-          path: "${{ github.workspace }}/results*.sarif"
-          retention-days: 1
-          archive: true
-          overwrite: false
-          if-no-files-found: "error"
       - name: "Validate the SARIF file"
         uses: microsoft/sarif-actions@v0.2
         timeout-minutes: 5
         with:
           command: "validate ./results-combined.sarif"
+      - name: "Store the SARIF file"
+        uses: actions/upload-artifact@v7
+        timeout-minutes: 10
+        with:
+          path: "${{ github.workspace }}/results-combined.sarif"
+          retention-days: 1
+          archive: false
+          overwrite: false
       - name: "Upload SARIF results file to GitHub"
         uses: github/codeql-action/upload-sarif@v4
         timeout-minutes: 10
