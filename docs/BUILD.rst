@@ -22,19 +22,19 @@ All build methods require:
    the `Eclipse Temurin
    <https://adoptium.net/temurin/releases?version=17&os=any&arch=any>`_ Java
    distribution, which is also recommended locally. If you use `asdf
-   <https://asdf-vm.com/>`_, run ``asdf install`` in the project root to
-   install the exact version defined in ``.tool-versions``.
+   <https://asdf-vm.com/>`_, run ``asdf install`` in the project root to install
+   the exact version defined in ``.tool-versions``.
 
 -  **Shell** — the main build script (``build.sh``) uses Bash by default, but
-   it is written to be compatible with most POSIX-compliant shells; special
-   care is taken to ensure BusyBox compatibility. Bash is pre-installed on
-   Linux and macOS. On Windows, use ``build.bat`` instead — it invokes
-   ``build.sh`` via the bundled BusyBox for Windows (no extra installation
-   required).
+   it is written to be compatible with most POSIX-compliant shells; special care
+   is taken to ensure BusyBox compatibility. Bash is pre-installed on Linux and
+   macOS. On Windows, use ``build.bat`` instead — it invokes ``build.sh`` via
+   the bundled BusyBox for Windows (no extra installation required).
 
 Additional requirements depending on the build method:
 
--  **make / pdpmake** — for the ``make`` build method.
+-  **make / pdpmake** — for the ``make`` build method: install the make tool
+   on your system.
 
 -  **Gradle wrapper** — for the ``./gradlew`` build method: no separate
    installation is needed; the wrapper (``gradlew`` / ``gradlew.bat``) included
@@ -81,8 +81,8 @@ see the results:
    ``output/`` folder.
 
 
-`Gradle wrapper <https://docs.gradle.org/current/userguide/gradle_wrapper.html>`_
-=================================================================================
+Gradle wrapper
+==============
 
 Full flavour
 ------------
