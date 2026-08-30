@@ -15,7 +15,7 @@ jobs:
     name: "Generate Android permission XMLs"
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: "${{ github.event_name != 'schedule' }}"
+    if: "${{ false && github.event_name != 'schedule' }}"
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
 
@@ -77,7 +77,7 @@ jobs:
     name: "Keep cache alive"
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "${{ github.event_name == 'schedule' }}"
+    if: "${{ true || github.event_name == 'schedule' }}"
     permissions:
       contents: read # Needed to checkout the repository (only required for private repositories)
       actions: write # Needed to keep alive the workflow
@@ -111,16 +111,11 @@ jobs:
           retries: 3
           script: |
             /* jshint esversion: 11 */
-            const workflow_filename = process.env.WORKFLOW_REF.split('@', 1).at(0).split('/').slice(2).join('/');
-            const response = await github.rest.actions.enableWorkflow({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: workflow_filename
-            }).catch(response => response);
-            if(response && response.status === 204) {
-              console.log('Workflow enabled.');
-            } else {
-              let errorMsg = 'enableWorkflow failed';
-              if(response && response.status && response.message) errorMsg += ' with error ' + response.status + ' (' + response.message + ')';
-              throw new Error(errorMsg);
-            }
+            const workflow_filename = process.env.WORKFLOW_REF.split('@', 1).at(0).split('/').slice(2).join('/'); ###
+            console.log('Old: ' + workflow_filename); ###
+            #
+            const workflow_id = `${context.workflow}.yml`;
+            console.log('New: ' + workflow_id); ###
+            await github.rest.actions.enableWorkflow({ ...context.repo, workflow_id })
+              .then(() => console.log('Success.'))
+              .catch(err => { throw new Error(`enableWorkflow failed with error ${err.status} (${err.message})`) });
