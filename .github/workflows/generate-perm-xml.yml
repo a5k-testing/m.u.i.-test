@@ -113,8 +113,13 @@ jobs:
             const workflow_filename = process.env.WORKFLOW_REF.split('@', 1).at(0).split('/').slice(2).join('/');
             console.log('Old: ' + workflow_filename);
             //
-            const workflow_id = context.workflow + '.yml';
-            console.log('New: ' + workflow_id); //
+            console.log('1: ' + process.env.GITHUB_WORKFLOW_REF);
+            console.log('1: ' + process.env.GITHUB_WORKFLOW_REF.split('/'));
+            console.log('1: ' + process.env.GITHUB_WORKFLOW_REF.split('/').pop());
+            console.log('1: ' + process.env.GITHUB_WORKFLOW_REF.split('/').pop().split('@'));
+            //
+            const workflow_id = process.env.GITHUB_WORKFLOW_REF.split('/').pop().split('@')[0];
+            console.log('New: ' + workflow_id); ////
             await github.rest.actions.enableWorkflow({ ...context.repo, workflow_id })
               .then(() => console.log('Success.'))
               .catch(err => { throw new Error('enableWorkflow failed with error ' + err.status + ' (' + err.message + ')') });
