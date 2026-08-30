@@ -110,12 +110,11 @@ jobs:
         with:
           retries: 3
           script: |
-            /* jshint esversion: 11 */
             const workflow_filename = process.env.WORKFLOW_REF.split('@', 1).at(0).split('/').slice(2).join('/'); ###
             console.log('Old: ' + workflow_filename); ###
             #
-            const workflow_id = `${context.workflow}.yml`;
+            const workflow_id = context.workflow + '.yml';
             console.log('New: ' + workflow_id); ###
             await github.rest.actions.enableWorkflow({ ...context.repo, workflow_id })
               .then(() => console.log('Success.'))
-              .catch(err => { throw new Error(`enableWorkflow failed with error ${err.status} (${err.message})`) });
+              .catch(err => { throw new Error('enableWorkflow failed with error ' + err.status + ' (' + err.message + ')') });
