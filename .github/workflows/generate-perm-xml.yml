@@ -105,23 +105,20 @@ jobs:
       - name: "Keep this workflow alive"
         uses: actions/github-script@v9
         timeout-minutes: 5
-        env:
-          WORKFLOW_REF: "${{ github.workflow_ref }}"
         with:
           retries: 3
           script: |
             /* jshint esversion: 11 */
-            const workflow_filename = process.env.WORKFLOW_REF.split('@', 1).at(0).split('/').slice(2).join('/');
-            console.log('Old: ' + workflow_filename);
-            //
-            console.log('0: ' + process.env.GITHUB_WORKFLOW_REF);
-            console.log('1: ' + process.env.GITHUB_WORKFLOW_REF.split('@'));
-            console.log('2: ' + process.env.GITHUB_WORKFLOW_REF.split('@').at(0));
-            console.log('3: ' + process.env.GITHUB_WORKFLOW_REF.split('@').at(0).split('/'));
-            console.log('4: ' + process.env.GITHUB_WORKFLOW_REF.split('@').at(0).split('/').pop());
-            //
-            const workflow_id = process.env.GITHUB_WORKFLOW_REF.split('@').at(0).split('/').pop();
+            const workflow_id = process.env.GITHUB_WORKFLOW_REF.split('@', 1).at(0).split('/').pop(); // context.workflow_ref
             console.log('New: ' + workflow_id); ////
             await github.rest.actions.enableWorkflow({ ...context.repo, workflow_id })
               .then(() => console.log('Success.'))
-              .catch(err => { throw new Error('enableWorkflow failed with error ' + err.status + ' (' + err.message + ')') });
+              .catch(err => { throw new Error('enableWorkflow failed with error ' + err.status + ' (' + err.message + ')'); });
+            //
+            console.log('0: ' + process.env.GITHUB_WORKFLOW_REF);
+            console.log('1: ' + process.env.GITHUB_WORKFLOW_REF.split('@'));
+            console.log('1: ' + process.env.GITHUB_WORKFLOW_REF.split('@', 1));
+            console.log('2: ' + process.env.GITHUB_WORKFLOW_REF.split('@').at(0));
+            console.log('2: ' + process.env.GITHUB_WORKFLOW_REF.split('@', 1).at(0));
+            console.log('3: ' + process.env.GITHUB_WORKFLOW_REF.split('@').at(0).split('/'));
+            console.log('4: ' + process.env.GITHUB_WORKFLOW_REF.split('@').at(0).split('/').pop());
