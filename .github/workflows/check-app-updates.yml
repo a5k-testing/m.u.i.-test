@@ -1,0 +1,146 @@
+---
+# SPDX-FileCopyrightText: NONE
+# SPDX-License-Identifier: CC0-1.0
+
+name: "Check app updates"
+permissions: {}
+on:
+  push:
+    paths:
+      - ".github/workflows/check-app-updates.yml"
+      - "includes/app-update-checker-lib.mjs"
+      - "zip-content/origin/**"
+      - "includes/reporters/clean-tap-reporter.mjs"
+      - "tests/test-app-update-checker.mjs"
+      - "tests/test-check-app-updates.bats"
+      - "tools/check-app-updates.sh"
+  workflow_dispatch:
+  schedule:
+    # At 05:00 AM, every 7 days (UTC)
+    - cron: "0 5 */7 * *"
+
+jobs:
+  test:
+    name: "Run tests (${{ matrix.os }})"
+    runs-on: "${{ matrix.os }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    timeout-minutes: 15
+    permissions:
+      contents: read  # Needed to checkout the repository
+
+    steps:
+      - name: "Checkout sources"
+        uses: actions/checkout@v6
+      - name: "Run JS tests (1)"
+        run: node --test --test-reporter='./includes/reporters/clean-tap-reporter.mjs' -- './tests/test-app-update-checker.mjs' #| sed '/^[[:space:]]*---$/,/^[[:space:]]*\.\.\.$/d'
+      - name: "Run JS tests (2)"
+        run: node --test --test-reporter='./includes/reporters/clean-tap-reporter.mjs' -- './tests/test-app-update-checker-describe.mjs'
+      - name: "Setup Bats and helpers"
+        uses: bats-core/bats-action@4.0.0
+        with:
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: "Run Bats tests"
+        shell: bash
+        run: bats tests/test-check-app-updates.bats
+
+  check-updates:
+    name: "Check updates"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read  # Needed to checkout the repository
+
+    steps:
+      - name: "Checkout sources"
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+          sparse-checkout: |
+            zip-content/origin
+            includes/app-update-checker-lib.mjs
+      - name: "Use LFS cache"
+        uses: actions/cache/restore@v5
+        timeout-minutes: 10
+        with:
+          key: "lfs-${{ hashFiles('conf-lfs.sh') }}"
+          restore-keys: "lfs-"
+          path: "cache/lfs"
+          enableCrossOsArchive: true
+      - name: "Use repo index cache"
+        uses: actions/cache@v5
+        timeout-minutes: 5
+        with:
+          key: "repos-${{ github.run_id }}"
+          restore-keys: "repos-"
+          path: "cache/repos"
+          enableCrossOsArchive: true
+      - name: "Check for updates in F-Droid and microG repos"
+        uses: actions/github-script@v8
+        timeout-minutes: 25
+        with:
+          retries: 1
+          script: |
+            const { default: main } = await import(
+              `${process.env.GITHUB_WORKSPACE}/includes/app-update-checker-lib.mjs`
+            );
+            await main({ core, apkDirs: [] });
+
+  clean-caches:
+    name: "Clean old caches"
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 5
+    permissions:
+      actions: write  # Needed to delete caches
+
+    steps:
+      - name: "Delete old caches"
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const CACHE_PREFIXES = Object.freeze(['repos-']);
+
+            for (const prefix of CACHE_PREFIXES) {
+              let failed = false;
+              const caches = await github.paginate(
+                github.rest.actions.getActionsCacheList, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  key: prefix,
+                  ref: 'refs/heads/main',
+                  sort: 'created_at',
+                  direction: 'desc',
+                  per_page: 100,
+                }, (response, done) => {
+                  if (response.status !== 200) {
+                    core.error(`Failed to list caches for prefix "${prefix}": [HTTP ${response.status}] ${JSON.stringify(response.data)}`);
+                    failed = true;
+                    done();
+                    return [];
+                  }
+                  return response.data.actions_caches;
+                }
+              ).catch(e => {
+                core.error(`Failed to paginate caches for prefix "${prefix}": [HTTP ${e.status ?? 'Unknown'}] ${e.message}`);
+                failed = true;
+                return [];
+              });
+              if (failed || caches.length <= 2) continue;
+              // Keep the 2 most recent caches per prefix; delete the rest
+              for (const cache of caches.slice(2)) {
+                await github.rest.actions.deleteActionsCacheById({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  cache_id: cache.id,
+                });
+                core.info(`Deleted cache "${cache.key}" (id=${cache.id})`);
+                await new Promise(r => setTimeout(r, 200));
+              }
+            }
