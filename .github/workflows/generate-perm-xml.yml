@@ -109,7 +109,7 @@ jobs:
           retries: 3
           script: |
             /* jshint esversion: 11 */
-            const workflow_id = process.env.GITHUB_WORKFLOW_REF.split('@', 1).at(0).split('/').pop(); // context.workflow_ref
-            await github.rest.actions.enableWorkflow({ ...context.repo, workflow_id + 'X' })
+            const workflow_id = process.env.GITHUB_WORKFLOW_REF.split('@', 1).at(0); // context.workflow_ref
+            await github.rest.actions.enableWorkflow({ ...context.repo, workflow_id })
               .then(() => console.log('Success.'))
               .catch(err => { throw new Error('enableWorkflow failed with error ' + err.status + ' (' + err.message + ')'); });
