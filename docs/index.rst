@@ -59,3 +59,5 @@ funny.
 
    CONTRIBUTING
    BUILD
+   scripts/index
+   devel/index
