@@ -145,6 +145,27 @@ jobs:
             cp -f -T -- "${old_attest_file:?}" "${new_attest_file:?}" || exit "${?}"
             printf 'ZIP_ATTESTATION_FILE=%s\n' "${new_attest_file:?}" 1>> "${GITHUB_OUTPUT?}"
           fi
+      - name: "Check immutable releases"
+        id: "immutable-releases"
+        uses: actions/github-script@v8
+        with:
+          retries: 3
+          script: |
+            /* jshint esversion: 11 */
+            let isImmutable = false;
+            try {
+              const { data: repo } = await github.rest.repos.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              if (repo.immutable_releases === true) {
+                core.notice('Nightly release update skipped: immutable releases is enabled for this repository.');
+                isImmutable = true;
+              }
+            } catch (e) {
+              core.warning('Failed to check immutable releases setting: ' + e.message);
+            }
+            core.setOutput('immutable', isImmutable ? 'true' : 'false');
       - name: "Nightly logic"
         id: "nightly-logic"
         shell: bash
@@ -152,7 +173,7 @@ jobs:
           # Nightly logic...
           UPDATE_TAG='false'
           UPDATE_RELEASE='false'
-          if '${{ github.ref_name == github.event.repository.default_branch && github.run_attempt == '1' && steps.build.outputs.ZIP_IS_ALPHA == 'true' }}'; then
+          if '${{ github.ref_name == github.event.repository.default_branch && github.run_attempt == '1' && steps.build.outputs.ZIP_IS_ALPHA == 'true' && steps.immutable-releases.outputs.immutable != 'true' }}'; then
             UPDATE_TAG='true'
           fi
           if test "${UPDATE_TAG:?}" = 'true' && '${{ steps.build.outputs.ZIP_BUILD_TYPE_SUPPORTED == 'true' }}'; then
