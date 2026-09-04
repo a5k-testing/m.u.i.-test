@@ -10,19 +10,27 @@
 # @author ale5000
 
 # Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/tools
+
 # shellcheck enable=all
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
 
+# @section GLOBAL CONSTANTS ----
+#region
 readonly SCRIPT_NAME='Android app permissions lister'
 readonly SCRIPT_SHORTNAME='AppPermList'
-readonly SCRIPT_VERSION='0.1.6'
+readonly SCRIPT_VERSION='0.1.8'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
+readonly EX_UNAVAILABLE=69
+#endregion
+
 set -u 2> /dev/null || :
 # shellcheck disable=SC3040 # IGNORE: In POSIX sh, set option pipefail is undefined
-case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) ;; esac
+case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) echo 1>&2 'WARNING: pipefail not supported' ;; esac
 
+# @section UTILITY & UI FUNCTIONS ----
+#region
 fix_posix_emulation_if_needed()
 {
   # Workarounds for shells using Windows-POSIX emulation layers (e.g., Git Bash under Windows)
@@ -36,9 +44,19 @@ fix_posix_emulation_if_needed()
     #  working directory to 'C:\WINDOWS\system32'
     # shellcheck disable=SC3028 # IGNORE: In POSIX sh, BASH_SOURCE is undefined
     if test "$(/usr/bin/cygpath -m -- "${PWD:?}" || :)" = "$(/usr/bin/cygpath -m -S || :)" && test -n "${BASH_SOURCE-}"; then
-      cd "${BASH_SOURCE:?}/.." || printf '%s\n' 'ERROR: Failed to restore the correct working directory'
+      cd "${BASH_SOURCE:?}/.." || printf 1>&2 '%s\n' 'ERROR: Failed to set the correct working directory'
     fi
   fi
+}
+
+show_status()
+{
+  printf 1>&2 '\033[1;32m%s\033[0m\n' "${1?}"
+}
+
+show_error()
+{
+  printf 1>&2 '\033[1;31m%s\033[0m\n' "ERROR: ${1?}"
 }
 
 pause_if_needed()
@@ -57,17 +75,10 @@ pause_if_needed()
   unset no_pause
   return "${1:-0}"
 }
+#endregion
 
-show_status()
-{
-  printf 1>&2 '\033[1;32m%s\033[0m\n' "${1?}"
-}
-
-show_error()
-{
-  printf 1>&2 '\033[1;31m%s\033[0m\n' "ERROR: ${1?}"
-}
-
+# @section CORE FUNCTIONS ----
+#region
 set_android_sdk_path_if_unset()
 {
   test -z "${ANDROID_HOME-}" || return
@@ -103,7 +114,10 @@ find_android_build_tool()
 
   printf '%s\n' "${__fn_tool_path:?}"
 }
+#endregion
 
+# @section MAIN FUNCTION ----
+#region
 main()
 {
   fix_posix_emulation_if_needed
@@ -114,18 +128,22 @@ main()
   export AAPT_PATH="${AAPT_PATH:-$(find_android_build_tool 'aapt2' || find_android_build_tool 'aapt' || :)}"
   # END: Global config
 
+  if test -z "${AAPT_PATH?}"; then
+    show_error 'Neither "aapt2" nor "aapt" could be found. You need to set AAPT_PATH'
+    return "${EX_UNAVAILABLE?}"
+  fi
+
   test -n "${1-}" || {
-    show_error 'You must pass the filename of the file to be processed'
+    show_error 'Missing required argument. Please specify the APK file path to process'
     return 3
   }
 
-  if test -n "${AAPT_PATH?}"; then
-    "${AAPT_PATH?}" dump permissions "${@}" | grep -F -e 'uses-permission: ' | cut -d ':' -f '2-' -s | cut -b '2-' | sort || return "${?}"
-  else
-    return 255
-  fi
+  "${AAPT_PATH?}" dump permissions "${@}" | grep -F -e 'uses-permission: ' | cut -d ':' -f '2-' -s | cut -b '2-' | sort || return "${?}"
 }
+#endregion
 
+# @section CLI ARGUMENTS PARSING ----
+#region
 execute_script='true'
 STATUS=0
 
@@ -163,7 +181,10 @@ while test "$#" -gt 0; do
 
   shift
 done
+#endregion
 
+# @section EXECUTION ENTRY POINT ----
+#region
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
 
@@ -173,3 +194,4 @@ fi
 
 pause_if_needed "${STATUS:?}"
 exit "${?}"
+#endregion

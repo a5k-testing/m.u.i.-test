@@ -10,19 +10,28 @@
 # @author ale5000
 
 # Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/tools
+
 # shellcheck enable=all
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
 
+# @section GLOBAL CONSTANTS ----
+#region
 readonly SCRIPT_NAME='Android app signing certificate extractor'
 readonly SCRIPT_SHORTNAME='AppSignExt'
-readonly SCRIPT_VERSION='0.1.7'
+readonly SCRIPT_VERSION='0.1.10'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
+readonly EX_UNAVAILABLE=69
+readonly EX_SOFTWARE=70
+#endregion
+
 set -u 2> /dev/null || :
 # shellcheck disable=SC3040 # IGNORE: In POSIX sh, set option pipefail is undefined
-case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) ;; esac
+case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) echo 1>&2 'WARNING: pipefail not supported' ;; esac
 
+# @section UTILITY & UI FUNCTIONS ----
+#region
 fix_posix_emulation_if_needed()
 {
   # Workarounds for shells using Windows-POSIX emulation layers (e.g., Git Bash under Windows)
@@ -36,9 +45,29 @@ fix_posix_emulation_if_needed()
     #  working directory to 'C:\WINDOWS\system32'
     # shellcheck disable=SC3028 # IGNORE: In POSIX sh, BASH_SOURCE is undefined
     if test "$(/usr/bin/cygpath -m -- "${PWD:?}" || :)" = "$(/usr/bin/cygpath -m -S || :)" && test -n "${BASH_SOURCE-}"; then
-      cd "${BASH_SOURCE:?}/.." || printf '%s\n' 'ERROR: Failed to restore the correct working directory'
+      cd "${BASH_SOURCE:?}/.." || printf 1>&2 '%s\n' 'ERROR: Failed to set the correct working directory'
     fi
   fi
+}
+
+set_red_color()
+{
+  printf 1>&2 '\033[1;31m\r'
+}
+
+reset_color()
+{
+  printf 1>&2 '\033[0m\r'
+}
+
+show_status()
+{
+  printf 1>&2 '\033[1;32m%s\033[0m\n' "${1?}"
+}
+
+show_error()
+{
+  printf 1>&2 '\033[1;31m%s\033[0m\n' "ERROR: ${1?}"
 }
 
 pause_if_needed()
@@ -57,17 +86,10 @@ pause_if_needed()
   unset no_pause
   return "${1:-0}"
 }
+#endregion
 
-show_status()
-{
-  printf 1>&2 '\033[1;32m%s\033[0m\n' "${1?}"
-}
-
-show_error()
-{
-  printf 1>&2 '\033[1;31m%s\033[0m\n' "ERROR: ${1?}"
-}
-
+# @section CORE FUNCTIONS ----
+#region
 set_android_sdk_path_if_unset()
 {
   test -z "${ANDROID_HOME-}" || return
@@ -104,25 +126,40 @@ find_android_build_tool()
   printf '%s\n' "${__fn_tool_path:?}"
 }
 
-get_cert_sha256()
+get_apk_cert_sha256()
 {
-  local _cert_sha256
+  local __fn_cert_sha256=''
 
   if test -n "${APKSIGNER_PATH?}"; then
-    _cert_sha256="$("${APKSIGNER_PATH?}" verify --min-sdk-version 24 --print-certs -- "${1:?}" | grep -m 1 -o -e 'certificate SHA-256 digest:.*' | cut -d ':' -f '2' -s | tr -d -- ' ' | tr -- '[:lower:]' '[:upper:]' | sed -e 's/../&:/g; s/:$//')" || return 4
+    show_status 'Using apksigner...'
+    set_red_color
+    __fn_cert_sha256="$("${APKSIGNER_PATH?}" verify --min-sdk-version 24 --print-certs -- "${1:?}" | grep -m 1 -o -i -e 'certificate SHA-256 digest:.*' | cut -d ':' -f '2' -s | tr -d -- ' ' | tr -- '[:lower:]' '[:upper:]')" || return "${?}"
   else
-    _cert_sha256="$("${KEYTOOL_PATH:?}" -printcert -jarfile "${1:?}" | grep -m 1 -F -e 'SHA256:' | cut -d ':' -f '2-' -s | tr -d -- ' ')" || return 5
+    show_status 'Using keytool...'
+    set_red_color
+    # IMPORTANT: This is slow and limited to v1 signatures
+    __fn_cert_sha256="$(LC_ALL=C "${KEYTOOL_PATH:?}" -printcert -jarfile "${1:?}" | grep -m 1 -F -e 'SHA256:' | cut -d ':' -f '2-' -s | tr -d -- ' :')" || return "${?}"
   fi
 
-  if test -n "${_cert_sha256?}"; then
-    printf '%s\n' "sha256-cert-digest=\"${_cert_sha256:?}\""
-  else
-    return 6
-  fi
+  # IMPORTANT: This is faster but limited to v1 RSA signatures
+  # WARNING: Will fail if the META-INF folder contains an EC signature file instead of RSA
+  # __fn_cert_sha256="$(unzip -p "${1:?}" 'META-INF/*.RSA' | openssl pkcs7 -inform 'DER' -print_certs -quiet | openssl x509 -noout -sha256 -fingerprint | cut -d '=' -f '2' -s | tr -d -- ':')" || return "${?}"
+
+  test "${#__fn_cert_sha256}" -eq 64 || {
+    show_error "Extracted SHA-256 hash length is invalid (got ${#__fn_cert_sha256} chars, expected 64)"
+    return "${EX_SOFTWARE?}"
+  }
+
+  printf '%s\n' "${__fn_cert_sha256?}" | sed -e 's/../&:/g; s/:$//'
 }
+#endregion
 
+# @section MAIN FUNCTION ----
+#region
 main()
 {
+  local cert_sha256=''
+
   fix_posix_emulation_if_needed
 
   # BEGIN: Global config (overridable via env)
@@ -132,23 +169,28 @@ main()
   export KEYTOOL_PATH="${KEYTOOL_PATH-}"
   # END: Global config
 
-  test -n "${1-}" || {
-    show_error 'You must pass the filename of the file to be processed'
-    return 3
-  }
-
   if test -n "${APKSIGNER_PATH?}"; then
     :
   elif test -n "${KEYTOOL_PATH?}" || KEYTOOL_PATH="$(command 2> /dev/null -v 'keytool')"; then
     :
   else
-    show_error 'Neither apksigner nor keytool were found. You need to set either APKSIGNER_PATH or KEYTOOL_PATH'
-    return 255
+    show_error 'Neither "apksigner" nor "keytool" could be found. You need to set either APKSIGNER_PATH or KEYTOOL_PATH'
+    return "${EX_UNAVAILABLE?}"
   fi
 
-  get_cert_sha256 "${@}"
-}
+  test -n "${1-}" || {
+    show_error 'Missing required argument. Please specify the APK file path to process'
+    return 3
+  }
 
+  cert_sha256="$(get_apk_cert_sha256 "${@}")" || return "${?}"
+  reset_color
+  printf '%s\n' "sha256-cert-digest=\"${cert_sha256:?}\""
+}
+#endregion
+
+# @section CLI ARGUMENTS PARSING ----
+#region
 execute_script='true'
 STATUS=0
 
@@ -186,13 +228,18 @@ while test "$#" -gt 0; do
 
   shift
 done
+#endregion
 
+# @section EXECUTION ENTRY POINT ----
+#region
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
 
   test "$#" -ne 0 || set -- ''
   main "${@}" || STATUS="${?}"
+  reset_color
 fi
 
 pause_if_needed "${STATUS:?}"
 exit "${?}"
+#endregion

@@ -55,7 +55,7 @@ fix_posix_emulation_if_needed()
     #  working directory to 'C:\WINDOWS\system32'
     # shellcheck disable=SC3028 # IGNORE: In POSIX sh, BASH_SOURCE is undefined
     if test "$(/usr/bin/cygpath -m -- "${PWD:?}" || :)" = "$(/usr/bin/cygpath -m -S || :)" && test -n "${BASH_SOURCE-}"; then
-      cd "${BASH_SOURCE:?}/.." || printf '%s\n' 'ERROR: Failed to restore the correct working directory'
+      cd "${BASH_SOURCE:?}/.." || printf 1>&2 '%s\n' 'ERROR: Failed to set the correct working directory'
     fi
   fi
 }
@@ -324,7 +324,7 @@ __update_title_and_ps1()
 {
   local _title
   # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
-  _title="CLI: ${__TITLE_CMD_PREFIX-}$(basename 2> /dev/null "${0:--}" || printf '%s' "${0:--}" || :)$(test "${#}" -eq 0 || printf ' "%s"' "${@}" || :) (${SHLVL-}) - ${MODULE_NAME-}"
+  _title="CLI: ${__TITLE_CMD_PREFIX-}$(basename 2> /dev/null "${0:--}" || printf '%s' "${0:--}" || :)$(test "$#" -eq 0 || printf ' "%s"' "${@}" || :) (${SHLVL-}) - ${MODULE_NAME-}"
   PS1="${__DEFAULT_PS1-}"
 
   if is_root; then
@@ -462,9 +462,12 @@ verify_sha256_or_delete()
 
 _get_byte_length()
 {
-  local LC_ALL
-  export LC_ALL=C
+  local LC_ALL=''
+
+  export LC_ALL='C'
+  set -- "${1?}" || return "${?}"
   printf '%s\n' "${#1}"
+  unset LC_ALL
 }
 
 _dl_validate_exit_code()
@@ -570,17 +573,17 @@ dl_debug()
   ui_debug "  Host: $(get_domain_from_url "${1:?}" || true)"
   shift 2
 
-  while test "${#}" -gt 0; do
+  while test "$#" -gt 0; do
     case "${1?}" in
       -U)
-        if test "${#}" -ge 2; then
+        if test "$#" -ge 2; then
           shift
           ui_debug "  User-Agent: ${1?}"
         fi
         ;;
 
       --header)
-        if test "${#}" -ge 2; then
+        if test "$#" -ge 2; then
           shift
           ui_debug "  ${1?}"
         fi
@@ -591,7 +594,7 @@ dl_debug()
         ;;
 
       --post-data)
-        if test "${#}" -ge 2; then
+        if test "$#" -ge 2; then
           shift
         fi
         ;;
@@ -1490,7 +1493,7 @@ is_root()
 
 shellhelp()
 {
-  if test "${#}" -gt 0; then
+  if test "$#" -gt 0; then
     PATH="%builtin${PATHSEP:?}${PATH:-%empty}" help "${@}"
   else
     # shellcheck disable=SC2016 # It is intended: Expressions don't expand in single quotes
@@ -1509,7 +1512,7 @@ init_cmdline()
 
   test "${IS_BUSYBOX:?}" = 'false' || __TITLE_CMD_PREFIX='busybox '
   __TITLE_CMD_0="$(basename "${0:--}" || printf '%s' "${0:--}")"
-  test "${#}" -eq 0 || __TITLE_CMD_PARAMS="$(printf ' "%s"' "${@}")"
+  test "$#" -eq 0 || __TITLE_CMD_PARAMS="$(printf ' "%s"' "${@}")"
   readonly __TITLE_CMD_PREFIX __TITLE_CMD_0 __TITLE_CMD_PARAMS
 
   A5K_LAST_TITLE="${A5K_LAST_TITLE-}"
@@ -1664,7 +1667,7 @@ init_cmdline()
 if test "${DO_INIT_CMDLINE:-0}" != '0'; then
   set -u 2> /dev/null || :
   # shellcheck disable=SC3040 # IGNORE: In POSIX sh, set option pipefail is undefined
-  case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) ;; esac
+  case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) echo 1>&2 'WARNING: pipefail not supported' ;; esac
   # shellcheck disable=SC3041 # IGNORE: In POSIX sh, set flag -H is undefined
   (set +H 2> /dev/null) && set +H || :
 
@@ -1688,7 +1691,7 @@ detect_bb_and_id
 
 if test "${DO_INIT_CMDLINE:-0}" != '0'; then
   unset DO_INIT_CMDLINE
-  if test "${#}" -gt 0; then init_cmdline "${@}"; else init_cmdline; fi
+  if test "$#" -gt 0; then init_cmdline "${@}"; else init_cmdline; fi
 fi
 
 export PATH

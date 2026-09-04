@@ -14,23 +14,32 @@
 # @author ale5000
 
 # Get the latest version from here: https://github.com/micro5k/microg-unofficial-installer/tree/main/tools
+
 # shellcheck enable=all
 # shellcheck disable=SC3043 # In POSIX sh, local is undefined
 
+# @section GLOBAL CONSTANTS ----
+#region
 readonly SCRIPT_NAME='Android ROM permissions XML generator'
 readonly SCRIPT_SHORTNAME='PermXmlGen'
-readonly SCRIPT_VERSION='0.3.17'
+readonly SCRIPT_VERSION='0.3.22'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
+readonly MAX_API='37'
+
+readonly EX_UNAVAILABLE=69
+readonly EX_SOFTWARE=70
+#endregion
+
 set -u 2> /dev/null || :
 # shellcheck disable=SC3040 # IGNORE: In POSIX sh, set option pipefail is undefined
-case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) ;; esac
+case "$(set -o 2> /dev/null || set || :)" in *'pipefail'*) set -o pipefail || echo 1>&2 'ERROR: pipefail failed' ;; *) echo 1>&2 'WARNING: pipefail not supported' ;; esac
 # shellcheck disable=SC3041 # IGNORE: In POSIX sh, set flag -H is undefined
 (set +H 2> /dev/null) && set +H || :
 
-readonly MAX_API='37'
-
+# @section UTILITY & UI FUNCTIONS ----
+#region
 fix_posix_emulation_if_needed()
 {
   # Workarounds for shells using Windows-POSIX emulation layers (e.g., Git Bash under Windows)
@@ -44,26 +53,19 @@ fix_posix_emulation_if_needed()
     #  working directory to 'C:\WINDOWS\system32'
     # shellcheck disable=SC3028 # IGNORE: In POSIX sh, BASH_SOURCE is undefined
     if test "$(/usr/bin/cygpath -m -- "${PWD:?}" || :)" = "$(/usr/bin/cygpath -m -S || :)" && test -n "${BASH_SOURCE-}"; then
-      cd "${BASH_SOURCE:?}/.." || printf '%s\n' 'ERROR: Failed to restore the correct working directory'
+      cd "${BASH_SOURCE:?}/.." || printf 1>&2 '%s\n' 'ERROR: Failed to set the correct working directory'
     fi
   fi
 }
 
-pause_if_needed()
+set_red_color()
 {
-  # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
-  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
-    if test -n "${NO_COLOR-}"; then
-      printf 1>&2 '\n%s' 'Press any key to exit... ' || :
-    else
-      printf 1>&2 '\n\033[1;32m\r%s' 'Press any key to exit... ' || :
-    fi
-    # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
-    IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
-    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
-  fi
-  unset no_pause
-  return "${1:-0}"
+  printf 1>&2 '\033[1;31m\r'
+}
+
+reset_color()
+{
+  printf 1>&2 '\033[0m\r'
 }
 
 show_status()
@@ -88,18 +90,154 @@ ui_error()
   exit 55
 }
 
-set_red_color()
+pause_if_needed()
 {
-  printf 1>&2 '\033[1;31m\r'
+  # shellcheck disable=SC3028 # Ignore: In POSIX sh, SHLVL is undefined
+  if test "${NO_PAUSE:-0}" = '0' && test "${no_pause:-0}" = '0' && test "${CI:-false}" = 'false' && test "${TERM_PROGRAM:-none}" != 'vscode' && test "${SHLVL:-1}" = '1' && test -t 0 && test -t 1 && test -t 2; then
+    if test -n "${NO_COLOR-}"; then
+      printf 1>&2 '\n%s' 'Press any key to exit... ' || :
+    else
+      printf 1>&2 '\n\033[1;32m\r%s' 'Press any key to exit... ' || :
+    fi
+    # shellcheck disable=SC3045 # Ignore: In POSIX sh, read -s / -n is undefined
+    IFS='' read 2> /dev/null 1>&2 -r -s -n1 _ || IFS='' read 1>&2 -r _ || :
+    if test -n "${NO_COLOR-}"; then printf 1>&2 '\n' || :; else printf 1>&2 '\n\033[0m\r    \r' || :; fi
+  fi
+  unset no_pause
+  return "${1:-0}"
+}
+#endregion
+
+# @section CORE FUNCTIONS ----
+#region
+set_android_sdk_path_if_unset()
+{
+  test -z "${ANDROID_HOME-}" || return
+
+  # Set the path of Android SDK if not already set
+  if test -n "${LOCALAPPDATA-}" && test -d "${LOCALAPPDATA?}/Android/Sdk"; then
+    ANDROID_HOME="${LOCALAPPDATA?}/Android/Sdk" # Windows
+  elif test -n "${HOME-}" && test -d "${HOME?}/Library/Android/sdk"; then
+    ANDROID_HOME="${HOME?}/Library/Android/sdk" # macOS
+  elif test -n "${HOME-}" && test -d "${HOME?}/.local/share/android/sdk"; then
+    ANDROID_HOME="${HOME?}/.local/share/android/sdk" # Linux (XDG)
+  elif test -n "${HOME-}" && test -d "${HOME?}/Android/Sdk"; then
+    ANDROID_HOME="${HOME?}/Android/Sdk" # Linux (Standard)
+  elif test -d '/usr/lib/android-sdk'; then
+    ANDROID_HOME='/usr/lib/android-sdk' # Linux (APT)
+  fi
 }
 
-reset_color()
+find_android_build_tool()
 {
-  printf 1>&2 '\033[0m\r'
+  local __fn_tool_path
+
+  if __fn_tool_path="$(
+    unalias "${1:?}" 2> /dev/null
+    command 2> /dev/null -v "${1:?}"
+  )" && test -n "${__fn_tool_path?}"; then
+    :
+  elif test -n "${ANDROID_HOME-}" && test -d "${ANDROID_HOME?}/build-tools" && __fn_tool_path="$(find "${ANDROID_HOME?}/build-tools" -maxdepth 2 -iname "${1:?}*" | sort -V -r | head -n 1)" && test -n "${__fn_tool_path?}"; then
+    :
+  else
+    return 1
+  fi
+
+  printf '%s\n' "${__fn_tool_path:?}"
 }
 
-readonly NL='
-'
+find_data_dir()
+{
+  local _path
+
+  # shellcheck disable=SC3028 # Ignore: In POSIX sh, BASH_SOURCE is undefined
+  if test -n "${TOOLS_DATA_DIR-}" && _path="${TOOLS_DATA_DIR:?}" && test -d "${_path:?}"; then
+    :
+  elif test -n "${BASH_SOURCE-}" && _path="$(dirname "${BASH_SOURCE:?}")/data" && test -d "${_path:?}"; then
+    : # It is expected: expanding an array without an index gives the first element
+  elif test -n "${0-}" && _path="$(dirname "${0:?}")/data" && test -d "${_path:?}"; then
+    :
+  elif _path='./data' && test -d "${_path:?}"; then
+    :
+  else
+    return 1
+  fi
+
+  _path="$(realpath 2> /dev/null "${_path:?}" || readlink -f "${_path:?}")" || return 1
+  printf '%s\n' "${_path:?}"
+}
+
+get_apk_cert_sha256()
+{
+  local __fn_cert_sha256=''
+
+  if test -n "${APKSIGNER_PATH?}"; then
+    show_status 'Using apksigner...'
+    set_red_color
+    __fn_cert_sha256="$("${APKSIGNER_PATH?}" verify --min-sdk-version 24 --print-certs -- "${1:?}" | grep -m 1 -o -i -e 'certificate SHA-256 digest:.*' | cut -d ':' -f '2' -s | tr -d -- ' ' | tr -- '[:lower:]' '[:upper:]')" || return "${?}"
+  else
+    show_status 'Using keytool...'
+    set_red_color
+    # IMPORTANT: This is slow and limited to v1 signatures
+    __fn_cert_sha256="$(LC_ALL=C "${KEYTOOL_PATH:?}" -printcert -jarfile "${1:?}" | grep -m 1 -F -e 'SHA256:' | cut -d ':' -f '2-' -s | tr -d -- ' :')" || return "${?}"
+  fi
+
+  # IMPORTANT: This is faster but limited to v1 RSA signatures
+  # WARNING: Will fail if the META-INF folder contains an EC signature file instead of RSA
+  # __fn_cert_sha256="$(unzip -p "${1:?}" 'META-INF/*.RSA' | openssl pkcs7 -inform 'DER' -print_certs -quiet | openssl x509 -noout -sha256 -fingerprint | cut -d '=' -f '2' -s | tr -d -- ':')" || return "${?}"
+
+  test "${#__fn_cert_sha256}" -eq 64 || {
+    show_error "Extracted SHA-256 hash length is invalid (got ${#__fn_cert_sha256} chars, expected 64)"
+    return "${EX_SOFTWARE?}"
+  }
+
+  printf '%s\n' "${__fn_cert_sha256?}" | sed -e 's/../&:/g; s/:$//'
+}
+
+is_system_permission()
+{
+  case "${1:?}" in
+    # https://android.googlesource.com/platform/frameworks/base/+/HEAD/core/res/AndroidManifest.xml
+    com.android.vending.*) return 1 ;;
+    android.permission.* | com.android.permission.* | com.android.*.permission.*) return 0 ;;
+    android.intent.category.MASTER_CLEAR.permission.C2D_MESSAGE) return 0 ;;
+
+    # https://android.googlesource.com/platform/packages/services/Car/+/HEAD/service/AndroidManifest.xml
+    android.car.permission.*) return 0 ;;
+    *) ;;
+  esac
+  return 1
+}
+
+map_permission_group_to_label()
+{
+  # Info:
+  # - https://android.googlesource.com/platform/cts/+/ed6a170ab0d5e0365bc494a8004ee9ac50318892/tests/tests/permission3/src/android/permission3/cts/BaseUsePermissionTest.kt
+  # - https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/res/res/values/strings.xml
+
+  case "${1?}" in
+    '' | 'android.permission-group.UNDEFINED') printf '%s\n' 'Undefined' ;;
+    'android.permission-group.CALENDAR') printf '%s\n' 'Calendar' ;;
+    'android.permission-group.CALL_LOG') printf '%s\n' 'Call logs' ;;
+    'android.permission-group.CAMERA') printf '%s\n' 'Camera' ;;
+    'android.permission-group.CONTACTS') printf '%s\n' 'Contacts / Accounts' ;;
+    'android.permission-group.LOCATION') printf '%s\n' 'Location' ;;
+    'android.permission-group.MICROPHONE') printf '%s\n' 'Microphone' ;;
+    'android.permission-group.NEARBY_DEVICES') printf '%s\n' 'Nearby devices' ;;
+    'android.permission-group.NOTIFICATIONS') printf '%s\n' 'z)Notifications' ;;
+    'android.permission-group.PHONE') printf '%s\n' 'Phone' ;;
+    'android.permission-group.SENSORS') printf '%s\n' 'Body sensors' ;;
+    'android.permission-group.SMS') printf '%s\n' 'SMS' ;;
+    'android.permission-group.STORAGE') printf '%s\n' 'Storage / Files' ;;
+
+    *) printf '%s\n' "${1:?}" ;;
+  esac
+}
+
+get_permission_declaration()
+{
+  grep -m 1 -F -e "android:name=\"${1:?}\"" -- "${DATA_DIR:?}/perms/base-permissions-api-${2:?}.xml" || return 1
+}
 
 get_custom_permission_declaration()
 {
@@ -130,41 +268,6 @@ EOF
   # <permission-tree android:name="com.google.android.googleapps.permission.GOOGLE_AUTH"/>
 }
 
-find_data_dir()
-{
-  local _path
-
-  # shellcheck disable=SC3028 # Ignore: In POSIX sh, BASH_SOURCE is undefined
-  if test -n "${TOOLS_DATA_DIR-}" && _path="${TOOLS_DATA_DIR:?}" && test -d "${_path:?}"; then
-    :
-  elif test -n "${BASH_SOURCE-}" && _path="$(dirname "${BASH_SOURCE:?}")/data" && test -d "${_path:?}"; then
-    : # It is expected: expanding an array without an index gives the first element
-  elif test -n "${0-}" && _path="$(dirname "${0:?}")/data" && test -d "${_path:?}"; then
-    :
-  elif _path='./data' && test -d "${_path:?}"; then
-    :
-  else
-    return 1
-  fi
-
-  _path="$(realpath 2> /dev/null "${_path:?}" || readlink -f "${_path:?}")" || return 1
-  printf '%s\n' "${_path:?}"
-}
-
-get_permission_declaration()
-{
-  grep -m 1 -F -e "android:name=\"${1:?}\"" -- "${DATA_DIR:?}/perms/base-permissions-api-${2:?}.xml" || return 1
-}
-
-is_system_permission()
-{
-  case "${1:?}" in
-    'android.permission.'* | 'com.android.'*) return 0 ;;
-    *) ;;
-  esac
-  return 1
-}
-
 begin_xml()
 {
   local __fn_cert_digest=''
@@ -191,44 +294,6 @@ begin_xml()
   else
     return 1
   fi
-}
-
-terminate_xml()
-{
-  if test "${1:?}" = 'privapp-permissions'; then
-    printf '%s\n' '    </privapp-permissions>'
-    printf '%s\n' '</permissions>'
-  elif test "${1:?}" = 'default-permissions'; then
-    printf '%s\n' '    </exception>'
-    printf '%s\n' '</exceptions>'
-  else
-    return 1
-  fi
-}
-
-map_permission_group_to_label()
-{
-  # Info:
-  # - https://android.googlesource.com/platform/cts/+/ed6a170ab0d5e0365bc494a8004ee9ac50318892/tests/tests/permission3/src/android/permission3/cts/BaseUsePermissionTest.kt
-  # - https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/res/res/values/strings.xml
-
-  case "${1?}" in
-    '' | 'android.permission-group.UNDEFINED') printf '%s\n' 'Undefined' ;;
-    'android.permission-group.CALENDAR') printf '%s\n' 'Calendar' ;;
-    'android.permission-group.CALL_LOG') printf '%s\n' 'Call logs' ;;
-    'android.permission-group.CAMERA') printf '%s\n' 'Camera' ;;
-    'android.permission-group.CONTACTS') printf '%s\n' 'Contacts / Accounts' ;;
-    'android.permission-group.LOCATION') printf '%s\n' 'Location' ;;
-    'android.permission-group.MICROPHONE') printf '%s\n' 'Microphone' ;;
-    'android.permission-group.NEARBY_DEVICES') printf '%s\n' 'Nearby devices' ;;
-    'android.permission-group.NOTIFICATIONS') printf '%s\n' 'z)Notifications' ;;
-    'android.permission-group.PHONE') printf '%s\n' 'Phone' ;;
-    'android.permission-group.SENSORS') printf '%s\n' 'Body sensors' ;;
-    'android.permission-group.SMS') printf '%s\n' 'SMS' ;;
-    'android.permission-group.STORAGE') printf '%s\n' 'Storage / Files' ;;
-
-    *) printf '%s\n' "${1:?}" ;;
-  esac
 }
 
 append_perm_to_xml()
@@ -259,6 +324,19 @@ append_perm_to_xml()
       ;;
     *) return 1 ;;
   esac
+}
+
+terminate_xml()
+{
+  if test "${1:?}" = 'privapp-permissions'; then
+    printf '%s\n' '    </privapp-permissions>'
+    printf '%s\n' '</permissions>'
+  elif test "${1:?}" = 'default-permissions'; then
+    printf '%s\n' '    </exception>'
+    printf '%s\n' '</exceptions>'
+  else
+    return 1
+  fi
 }
 
 parse_perms_and_generate_xml_files()
@@ -408,7 +486,7 @@ parse_perms_and_generate_xml_files()
     {
       begin_xml "${_pkg_name:?}" "${_cert_sha256?}" 'default-permissions'
       LAST_PERM_GROUP=''
-      printf '%s' "${_dangerous_perm_list:?}" | LC_ALL=C sort | while IFS='|' read -r GROUP _ NAME WHITELIST MIN_API; do
+      printf '%s' "${_dangerous_perm_list:?}" | LC_ALL='C.UTF-8' sort | while IFS='|' read -r GROUP _ NAME WHITELIST MIN_API; do
         append_perm_to_xml "${NAME:?}" "${MIN_API:?}" 'default-permissions' "${GROUP:?}" "${WHITELIST:?}" || ui_error "Failed to append the '${NAME?}' permission on '${_filename?}'"
       done
       unset LAST_PERM_GROUP
@@ -416,58 +494,10 @@ parse_perms_and_generate_xml_files()
     } 1> "${OUTPUT_DIR:?}/${_filename:?}"
   fi
 }
+#endregion
 
-get_cert_sha256()
-{
-  if test -n "${APKSIGNER_PATH-}"; then
-    show_status 'Using apksigner...'
-    set_red_color
-    "${APKSIGNER_PATH:?}" verify --min-sdk-version 24 --print-certs -- "${1:?}" | grep -m 1 -o -e 'certificate SHA-256 digest:.*' | cut -d ':' -f '2' -s | tr -d -- ' ' | tr -- '[:lower:]' '[:upper:]' | sed -e 's/../&:/g; s/:$//'
-  elif test -n "${KEYTOOL_PATH-}"; then
-    show_status 'Using keytool...'
-    set_red_color
-    "${KEYTOOL_PATH:?}" -printcert -jarfile "${1:?}" | grep -m 1 -F -e 'SHA256:' | cut -d ':' -f '2-' -s | tr -d -- ' '
-  else
-    return 255
-  fi
-}
-
-set_android_sdk_path_if_unset()
-{
-  test -z "${ANDROID_HOME-}" || return
-
-  # Set the path of Android SDK if not already set
-  if test -n "${LOCALAPPDATA-}" && test -d "${LOCALAPPDATA?}/Android/Sdk"; then
-    ANDROID_HOME="${LOCALAPPDATA?}/Android/Sdk" # Windows
-  elif test -n "${HOME-}" && test -d "${HOME?}/Library/Android/sdk"; then
-    ANDROID_HOME="${HOME?}/Library/Android/sdk" # macOS
-  elif test -n "${HOME-}" && test -d "${HOME?}/.local/share/android/sdk"; then
-    ANDROID_HOME="${HOME?}/.local/share/android/sdk" # Linux (XDG)
-  elif test -n "${HOME-}" && test -d "${HOME?}/Android/Sdk"; then
-    ANDROID_HOME="${HOME?}/Android/Sdk" # Linux (Standard)
-  elif test -d '/usr/lib/android-sdk'; then
-    ANDROID_HOME='/usr/lib/android-sdk' # Linux (APT)
-  fi
-}
-
-find_android_build_tool()
-{
-  local __fn_tool_path
-
-  if __fn_tool_path="$(
-    unalias "${1:?}" 2> /dev/null
-    command 2> /dev/null -v "${1:?}"
-  )" && test -n "${__fn_tool_path?}"; then
-    :
-  elif test -n "${ANDROID_HOME-}" && test -d "${ANDROID_HOME?}/build-tools" && __fn_tool_path="$(find "${ANDROID_HOME?}/build-tools" -maxdepth 2 -iname "${1:?}*" | sort -V -r | head -n 1)" && test -n "${__fn_tool_path?}"; then
-    :
-  else
-    return 1
-  fi
-
-  printf '%s\n' "${__fn_tool_path:?}"
-}
-
+# @section MAIN FUNCTION ----
+#region
 main()
 {
   local status backup_ifs base_name cmd_output pkg_name perm_list cert_sha256=''
@@ -484,17 +514,36 @@ main()
   export OUTPUT_DIR="${OUTPUT_DIR-}"
   # END: Global config
 
-  if DATA_DIR="$(find_data_dir)" && test -d "${DATA_DIR:?}/perms"; then
+  if test -z "${AAPT_PATH?}"; then
+    show_error 'Neither "aapt2" nor "aapt" could be found. You need to set AAPT_PATH'
+    return "${EX_UNAVAILABLE?}"
+  fi
+
+  if test "${NO_CERT_DIGEST:?}" = 'false'; then
+    if test -n "${APKSIGNER_PATH?}" || APKSIGNER_PATH="$(find_android_build_tool 'apksigner' || command 2> /dev/null -v 'apksigner.bat')"; then
+      :
+    elif test -n "${KEYTOOL_PATH?}" || KEYTOOL_PATH="$(command 2> /dev/null -v 'keytool')"; then
+      :
+    else
+      show_error 'Neither "apksigner" nor "keytool" could be found. You need to set either APKSIGNER_PATH or KEYTOOL_PATH'
+      return "${EX_UNAVAILABLE?}"
+    fi
+  fi
+
+  if DATA_DIR="$(find_data_dir)" && test -f "${DATA_DIR:?}/perms/.completed"; then
     :
   else
-    show_error 'You must execute dl-perm-list.sh before using this script'
+    show_error 'Required data not found. Please execute "dl-perm-list.sh" before running this script'
     return 4
   fi
 
   test -n "${1-}" || {
-    show_error 'You must pass the filename of the file to be processed'
-    return 5
+    show_error 'Missing required argument. Please specify one or more APK file paths to process'
+    return 3
   }
+
+  readonly NL='
+'
 
   test "${1:?}" != '-' || {
     backup_ifs="${IFS-}"
@@ -513,22 +562,6 @@ main()
   test -n "${OUTPUT_DIR?}" || OUTPUT_DIR="${BASE_DIR:?}/output"
   test -d "${OUTPUT_DIR:?}" || mkdir -p -- "${OUTPUT_DIR:?}" || return 8
 
-  if test -z "${AAPT_PATH?}"; then
-    show_error 'Neither aapt2 nor aapt were found. You need to set AAPT_PATH'
-    return 255
-  fi
-
-  if test "${NO_CERT_DIGEST:?}" = 'false'; then
-    if test -n "${APKSIGNER_PATH?}" || APKSIGNER_PATH="$(find_android_build_tool 'apksigner' || command 2> /dev/null -v 'apksigner.bat')"; then
-      :
-    elif test -n "${KEYTOOL_PATH?}" || KEYTOOL_PATH="$(command 2> /dev/null -v 'keytool')"; then
-      :
-    else
-      show_error 'Neither apksigner nor keytool were found. You need to set either APKSIGNER_PATH or KEYTOOL_PATH'
-      return 255
-    fi
-  fi
-
   printf 1>&2 '%s\n' "Output dir: ${OUTPUT_DIR:?}"
 
   status=0
@@ -541,26 +574,19 @@ main()
     cmd_output="$("${AAPT_PATH:?}" dump permissions "${1:?}" | grep -F -e 'package: ' -e 'uses-permission: ')" || {
       status=9
       show_error "aapt failed"
-      shift || return 254
+      shift
       continue
     }
 
     pkg_name="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'package: ' | cut -d ':' -f '2-' -s | cut -b '2-')" || return 10
-    perm_list="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'uses-permission: ' | cut -d "'" -f '2' -s | LC_ALL=C sort)" || return 11
+    perm_list="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'uses-permission: ' | cut -d "'" -f '2' -s | LC_ALL='C.UTF-8' sort)" || return 11
     cmd_output=''
 
     if test "${NO_CERT_DIGEST:?}" = 'false'; then
-      cert_sha256="$(get_cert_sha256 "${1:?}")" || {
+      cert_sha256="$(get_apk_cert_sha256 "${1:?}")" || {
         status=12
-        show_error "get_cert_sha256() failed"
-        shift || return 254
-        continue
-      }
-
-      test "${#cert_sha256}" -eq 95 || {
-        status=13
-        show_error "get_cert_sha256() returned wrong digest"
-        shift || return 254
+        show_error "get_apk_cert_sha256() failed"
+        shift
         continue
       }
     fi
@@ -571,17 +597,20 @@ main()
       show_error "Parsing failed"
     }
 
-    shift || return 254
+    shift
   done
 
   return "${status:?}"
 }
+#endregion
 
+# @section CLI ARGUMENTS PARSING ----
+#region
 execute_script='true'
 STATUS=0
-export SCRIPT_VERBOSE='false'
-export PLACEHOLDERS='false'
-export NO_CERT_DIGEST='false'
+SCRIPT_VERBOSE='false'
+PLACEHOLDERS='false'
+NO_CERT_DIGEST='false'
 
 while test "$#" -gt 0; do
   case "${1?}" in
@@ -621,7 +650,10 @@ while test "$#" -gt 0; do
 
   shift
 done
+#endregion
 
+# @section EXECUTION ENTRY POINT ----
+#region
 if test "${execute_script:?}" = 'true'; then
   show_status "${SCRIPT_NAME:?} v${SCRIPT_VERSION:?} by ${SCRIPT_AUTHOR:?}"
 
@@ -632,3 +664,4 @@ fi
 
 pause_if_needed "${STATUS:?}"
 exit "${?}"
+#endregion
