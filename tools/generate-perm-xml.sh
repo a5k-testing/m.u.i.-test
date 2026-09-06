@@ -22,7 +22,7 @@
 #region
 readonly SCRIPT_NAME='Android ROM permissions XML generator'
 readonly SCRIPT_SHORTNAME='PermXmlGen'
-readonly SCRIPT_VERSION='0.3.28'
+readonly SCRIPT_VERSION='0.3.29'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
@@ -554,6 +554,7 @@ main()
     set -- $(cat || printf '%s\n' '__CAT_FAILED__' || :) ||
       {
         show_error 'Too many arguments received from standard input or shell allocation failed'
+        set +f || :
         return "${EX_OSERR?}"
       }
     set +f || :
@@ -594,8 +595,15 @@ main()
     }
     reset_color
 
-    pkg_name="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'package: ' | cut -d ':' -f '2-' -s | cut -b '2-')" || return 10
-    perm_list="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'uses-permission:' | cut -d "'" -f '2' -s | LC_ALL='C.UTF-8' sort)" || return 11
+    pkg_name="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'package: ' | cut -d ':' -f '2-' -s | cut -b '2-')" || pkg_name=''
+    if test -z "${pkg_name?}"; then
+      show_error "Failed to parse package name from metadata for '${1?}'"
+      status="${EX_DATAERR?}"
+      shift
+      continue
+    fi
+
+    perm_list="$(printf '%s\n' "${cmd_output?}" | grep -F -e 'uses-permission:' | cut -d "'" -f '2' -s | LC_ALL='C.UTF-8' sort)" || return 11
     cmd_output=''
 
     if test "${NO_CERT_DIGEST:?}" = 'false'; then

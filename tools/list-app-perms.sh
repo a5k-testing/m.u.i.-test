@@ -18,7 +18,7 @@
 #region
 readonly SCRIPT_NAME='Android app permissions lister'
 readonly SCRIPT_SHORTNAME='AppPermList'
-readonly SCRIPT_VERSION='0.1.13'
+readonly SCRIPT_VERSION='0.1.14'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
@@ -135,7 +135,7 @@ find_android_build_tool()
 main()
 {
   local backup_ifs="${IFS-}"
-  local status=0 base_name='' cmd_output=''
+  local status=0 base_name='' cmd_output='' pkg_name=''
 
   fix_posix_emulation_if_needed
 
@@ -160,6 +160,7 @@ main()
     set -- $(cat || printf '%s\n' '__CAT_FAILED__' || :) ||
       {
         show_error 'Too many arguments received from standard input or shell allocation failed'
+        set +f || :
         return "${EX_OSERR?}"
       }
     set +f || :
@@ -193,10 +194,19 @@ main()
     }
     reset_color
 
-    printf '%s\n' "${cmd_output:?}" | grep -F -e 'uses-permission: ' | cut -d ':' -f '2-' -s | cut -b '2-' | LC_ALL='C.UTF-8' sort || {
+    pkg_name="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'package: ' | cut -d ':' -f '2-' -s | cut -b '2-')" || pkg_name=''
+    if test -z "${pkg_name?}"; then
+      show_error "Failed to parse package name from metadata for '${1?}'"
+      status="${EX_DATAERR?}"
+      shift
+      continue
+    fi
+
+    printf '%s\n' "${cmd_output?}" | grep -F -e 'uses-permission: ' | cut -d ':' -f '2-' -s | cut -b '2-' | LC_ALL='C.UTF-8' sort || {
       show_error "Failed to process package permissions extracted from '${1?}' (exit code: ${?})"
       status="${EX_DATAERR?}"
     }
+    cmd_output=''
 
     shift
   done
