@@ -22,14 +22,18 @@
 #region
 readonly SCRIPT_NAME='Android ROM permissions XML generator'
 readonly SCRIPT_SHORTNAME='PermXmlGen'
-readonly SCRIPT_VERSION='0.3.22'
+readonly SCRIPT_VERSION='0.3.27'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
 readonly MAX_API='37'
 
+readonly EX_USAGE=64
+readonly EX_DATAERR=65
+readonly EX_NOINPUT=66
 readonly EX_UNAVAILABLE=69
 readonly EX_SOFTWARE=70
+readonly EX_CONFIG=78
 #endregion
 
 set -u 2> /dev/null || :
@@ -46,7 +50,7 @@ fix_posix_emulation_if_needed()
   if test -f '/usr/bin/cygpath'; then
     # Prioritize POSIX-emulated binaries over Windows natives to prevent hangs and obscure errors
     if test "${USR_BIN_FIXED:-0}" = '0'; then
-      case "${PATH-}" in '/usr/bin:'*) ;; *) PATH="/usr/bin:${PATH:-%empty}" ;; esac
+      case "${PATH-}" in '/usr/bin:'*) ;; *) PATH="/usr/bin:${PATH:-/bin}" ;; esac
     fi
 
     # Resolve an issue where dragging and dropping a file onto the script inexplicably resets the
@@ -58,9 +62,9 @@ fix_posix_emulation_if_needed()
   fi
 }
 
-set_red_color()
+set_yellow_color()
 {
-  printf 1>&2 '\033[1;31m\r'
+  printf 1>&2 '\033[1;33m\r'
 }
 
 reset_color()
@@ -173,14 +177,15 @@ get_apk_cert_sha256()
 
   if test -n "${APKSIGNER_PATH?}"; then
     show_status 'Using apksigner...'
-    set_red_color
+    set_yellow_color
     __fn_cert_sha256="$("${APKSIGNER_PATH?}" verify --min-sdk-version 24 --print-certs -- "${1:?}" | grep -m 1 -o -i -e 'certificate SHA-256 digest:.*' | cut -d ':' -f '2' -s | tr -d -- ' ' | tr -- '[:lower:]' '[:upper:]')" || return "${?}"
   else
     show_status 'Using keytool...'
-    set_red_color
+    set_yellow_color
     # IMPORTANT: This is slow and limited to v1 signatures
     __fn_cert_sha256="$(LC_ALL=C "${KEYTOOL_PATH:?}" -printcert -jarfile "${1:?}" | grep -m 1 -F -e 'SHA256:' | cut -d ':' -f '2-' -s | tr -d -- ' :')" || return "${?}"
   fi
+  reset_color
 
   # IMPORTANT: This is faster but limited to v1 RSA signatures
   # WARNING: Will fail if the META-INF folder contains an EC signature file instead of RSA
@@ -500,7 +505,8 @@ parse_perms_and_generate_xml_files()
 #region
 main()
 {
-  local status backup_ifs base_name cmd_output pkg_name perm_list cert_sha256=''
+  local backup_ifs="${IFS-}"
+  local status=0 base_name='' cmd_output='' pkg_name perm_list cert_sha256=''
 
   fix_posix_emulation_if_needed
 
@@ -534,58 +540,63 @@ main()
     :
   else
     show_error 'Required data not found. Please execute "dl-perm-list.sh" before running this script'
-    return 4
+    return "${EX_CONFIG?}"
   fi
-
-  test -n "${1-}" || {
-    show_error 'Missing required argument. Please specify one or more APK file paths to process'
-    return 3
-  }
 
   readonly NL='
 '
 
-  test "${1:?}" != '-' || {
-    backup_ifs="${IFS-}"
+  if test "$#" -eq 1 && test "${1?}" = '-'; then
     IFS="${NL:?}"
-
     set -f || :
     # shellcheck disable=SC2046 # Word splitting is intended
-    set -- $(cat | sort || :) || ui_error 'Failed expanding stdin inside main()'
+    set -- $(cat || printf '%s\n' '__CAT_FAILED__' || :)
     set +f || :
-
     IFS="${backup_ifs?}"
-  }
+  fi
+
+  case "${1-}" in
+    '')
+      show_error 'Missing required argument. Please specify one or more APK file paths to process'
+      return "${EX_USAGE?}"
+      ;;
+    '__CAT_FAILED__')
+      show_error "Failed to read arguments from standard input"
+      return "${EX_NOINPUT?}"
+      ;;
+    *) ;;
+  esac
 
   BASE_DIR="$(realpath 2> /dev/null . || readlink 2> /dev/null -f .)" || return 7
 
   test -n "${OUTPUT_DIR?}" || OUTPUT_DIR="${BASE_DIR:?}/output"
   test -d "${OUTPUT_DIR:?}" || mkdir -p -- "${OUTPUT_DIR:?}" || return 8
 
-  printf 1>&2 '%s\n' "Output dir: ${OUTPUT_DIR:?}"
+  printf '%s\n' "Output dir: ${OUTPUT_DIR?}"
 
-  status=0
   while test "$#" -gt 0; do
-    base_name="$(basename "${1:?}" || printf '%s\n' 'unknown')"
-    printf 1>&2 '\n%s\n' "Filename: ${base_name:?}"
+    reset_color
+    base_name="$(basename "${1:-''}" || printf '%s\n' 'unknown')"
+    printf '\n%s\n\n' "Filename: ${base_name:?}"
 
     show_status 'Using aapt...'
-    set_red_color
-    cmd_output="$("${AAPT_PATH:?}" dump permissions "${1:?}" | grep -F -e 'package: ' -e 'uses-permission: ')" || {
-      status=9
-      show_error "aapt failed"
+    set_yellow_color
+    cmd_output="$("${AAPT_PATH?}" dump permissions "${1?}")" || {
+      show_error "Failed to extract package manifest metadata from '${1?}' (exit code: ${?})"
+      status="${EX_DATAERR?}"
       shift
       continue
     }
+    reset_color
 
     pkg_name="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'package: ' | cut -d ':' -f '2-' -s | cut -b '2-')" || return 10
-    perm_list="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'uses-permission: ' | cut -d "'" -f '2' -s | LC_ALL='C.UTF-8' sort)" || return 11
+    perm_list="$(printf '%s\n' "${cmd_output:?}" | grep -F -e 'uses-permission:' | cut -d "'" -f '2' -s | LC_ALL='C.UTF-8' sort)" || return 11
     cmd_output=''
 
     if test "${NO_CERT_DIGEST:?}" = 'false'; then
       cert_sha256="$(get_apk_cert_sha256 "${1:?}")" || {
-        status=12
-        show_error "get_apk_cert_sha256() failed"
+        show_error "Failed to extract certificate SHA-256 fingerprint from '${1?}' (exit code: ${?})"
+        status="${EX_DATAERR?}"
         shift
         continue
       }

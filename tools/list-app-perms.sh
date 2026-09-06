@@ -18,10 +18,13 @@
 #region
 readonly SCRIPT_NAME='Android app permissions lister'
 readonly SCRIPT_SHORTNAME='AppPermList'
-readonly SCRIPT_VERSION='0.1.8'
+readonly SCRIPT_VERSION='0.1.12'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
+readonly EX_USAGE=64
+readonly EX_DATAERR=65
+readonly EX_NOINPUT=66
 readonly EX_UNAVAILABLE=69
 #endregion
 
@@ -37,7 +40,7 @@ fix_posix_emulation_if_needed()
   if test -f '/usr/bin/cygpath'; then
     # Prioritize POSIX-emulated binaries over Windows natives to prevent hangs and obscure errors
     if test "${USR_BIN_FIXED:-0}" = '0'; then
-      case "${PATH-}" in '/usr/bin:'*) ;; *) PATH="/usr/bin:${PATH:-%empty}" ;; esac
+      case "${PATH-}" in '/usr/bin:'*) ;; *) PATH="/usr/bin:${PATH:-/bin}" ;; esac
     fi
 
     # Resolve an issue where dragging and dropping a file onto the script inexplicably resets the
@@ -49,6 +52,16 @@ fix_posix_emulation_if_needed()
   fi
 }
 
+set_yellow_color()
+{
+  printf 1>&2 '\033[1;33m\r'
+}
+
+reset_color()
+{
+  printf 1>&2 '\033[0m\r'
+}
+
 show_status()
 {
   printf 1>&2 '\033[1;32m%s\033[0m\n' "${1?}"
@@ -56,7 +69,7 @@ show_status()
 
 show_error()
 {
-  printf 1>&2 '\033[1;31m%s\033[0m\n' "ERROR: ${1?}"
+  printf 1>&2 '\n\033[1;31m%s\033[0m\n' "ERROR: ${1?}"
 }
 
 pause_if_needed()
@@ -120,6 +133,9 @@ find_android_build_tool()
 #region
 main()
 {
+  local backup_ifs="${IFS-}"
+  local status=0 base_name='' cmd_output=''
+
   fix_posix_emulation_if_needed
 
   # BEGIN: Global config (overridable via env)
@@ -133,12 +149,54 @@ main()
     return "${EX_UNAVAILABLE?}"
   fi
 
-  test -n "${1-}" || {
-    show_error 'Missing required argument. Please specify the APK file path to process'
-    return 3
-  }
+  readonly NL='
+'
 
-  "${AAPT_PATH?}" dump permissions "${@}" | grep -F -e 'uses-permission: ' | cut -d ':' -f '2-' -s | cut -b '2-' | sort || return "${?}"
+  if test "$#" -eq 1 && test "${1?}" = '-'; then
+    IFS="${NL:?}"
+    set -f || :
+    # shellcheck disable=SC2046 # Word splitting is intended
+    set -- $(cat || printf '%s\n' '__CAT_FAILED__' || :)
+    set +f || :
+    IFS="${backup_ifs?}"
+  fi
+
+  case "${1-}" in
+    '')
+      show_error 'Missing required argument. Please specify one or more APK file paths to process'
+      return "${EX_USAGE?}"
+      ;;
+    '__CAT_FAILED__')
+      show_error "Failed to read arguments from standard input"
+      return "${EX_NOINPUT?}"
+      ;;
+    *) ;;
+  esac
+
+  while test "$#" -gt 0; do
+    reset_color
+    base_name="$(basename "${1:-''}" || printf '%s\n' 'unknown')"
+    printf '\n%s\n\n' "Filename: ${base_name:?}"
+
+    show_status 'Using aapt...'
+    set_yellow_color
+    cmd_output="$("${AAPT_PATH?}" dump permissions "${1?}")" || {
+      show_error "Failed to extract package manifest metadata from '${1?}' (exit code: ${?})"
+      status="${EX_DATAERR?}"
+      shift
+      continue
+    }
+    reset_color
+
+    printf '%s\n' "${cmd_output:?}" | grep -F -e 'uses-permission: ' | cut -d ':' -f '2-' -s | cut -b '2-' | LC_ALL='C.UTF-8' sort || {
+      show_error "Failed to process package permissions extracted from '${1?}' (exit code: ${?})"
+      status="${EX_DATAERR?}"
+    }
+
+    shift
+  done
+
+  return "${status:?}"
 }
 #endregion
 
@@ -190,6 +248,7 @@ if test "${execute_script:?}" = 'true'; then
 
   test "$#" -ne 0 || set -- ''
   main "${@}" || STATUS="${?}"
+  reset_color
 fi
 
 pause_if_needed "${STATUS:?}"
