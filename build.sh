@@ -5,6 +5,7 @@
 # shellcheck enable=all
 # shellcheck disable=SC3028 # Ignore: In POSIX sh, FUNCNAME is undefined
 # shellcheck disable=SC2310 # Ignore: This function is invoked in an 'if' condition so set -e will be disabled
+# shellcheck disable=SC2317 # Ignore: Command appears to be unreachable
 last_command="${_}" # IMPORTANT: This line must be at the start of the script before any other command otherwise it will not work
 
 set -e
