@@ -22,7 +22,7 @@
 #region
 readonly SCRIPT_NAME='Android ROM permissions XML generator'
 readonly SCRIPT_SHORTNAME='PermXmlGen'
-readonly SCRIPT_VERSION='0.3.27'
+readonly SCRIPT_VERSION='0.3.28'
 readonly SCRIPT_AUTHOR='ale5000'
 readonly SCRIPT_YEAR='2025'
 
@@ -33,6 +33,7 @@ readonly EX_DATAERR=65
 readonly EX_NOINPUT=66
 readonly EX_UNAVAILABLE=69
 readonly EX_SOFTWARE=70
+readonly EX_OSERR=71
 readonly EX_CONFIG=78
 #endregion
 
@@ -506,7 +507,7 @@ parse_perms_and_generate_xml_files()
 main()
 {
   local backup_ifs="${IFS-}"
-  local status=0 base_name='' cmd_output='' pkg_name perm_list cert_sha256=''
+  local status=0 base_name='' cmd_output='' pkg_name='' perm_list='' cert_sha256=''
 
   fix_posix_emulation_if_needed
 
@@ -550,7 +551,11 @@ main()
     IFS="${NL:?}"
     set -f || :
     # shellcheck disable=SC2046 # Word splitting is intended
-    set -- $(cat || printf '%s\n' '__CAT_FAILED__' || :)
+    set -- $(cat || printf '%s\n' '__CAT_FAILED__' || :) ||
+      {
+        show_error 'Too many arguments received from standard input or shell allocation failed'
+        return "${EX_OSERR?}"
+      }
     set +f || :
     IFS="${backup_ifs?}"
   fi
